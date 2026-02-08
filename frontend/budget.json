@@ -1,0 +1,53 @@
+{
+  "budgets": [
+    {
+      "resourceSizes": [
+        {
+          "resourceType": "script",
+          "budget": 200
+        },
+        {
+          "resourceType": "stylesheet",
+          "budget": 50
+        },
+        {
+          "resourceType": "image",
+          "budget": 200
+        },
+        {
+          "resourceType": "font",
+          "budget": 50
+        },
+        {
+          "resourceType": "document",
+          "budget": 50
+        }
+      ],
+      "resourceCounts": [
+        {
+          "resourceType": "third-party",
+          "budget": 15
+        }
+      ],
+      "timings": [
+        {
+          "resourceType": "script",
+          "budget": 1500
+        },
+        {
+          "resourceType": "stylesheet",
+          "budget": 300
+        },
+        {
+          "resourceType": "font",
+          "budget": 100
+        },
+        {
+          "resourceType": "image",
+          "budget": 1000
+        }
+      ]
+    }
+  ]
+}
+
