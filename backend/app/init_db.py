@@ -1,8 +1,6 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy import text
 from app.db.base import Base
-from app.core.config import settings
 from app.models.user import User
 from app.core.security import get_password_hash
 import random
@@ -98,7 +96,8 @@ async def create_initial_data(engine=None):
                 date = today - datetime.timedelta(days=d)
                 qty = round(random.uniform(0.5, 4.0), 1)
                 # Ensure some days are 0 (no delivery)
-                if random.random() < 0.1: qty = 0.0
+                if random.random() < 0.1:
+                    qty = 0.0
 
                 # Make older entries locked conceptually
                 is_locked = d > 7

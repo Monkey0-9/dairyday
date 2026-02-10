@@ -4,7 +4,7 @@ from sqlalchemy import Column, ForeignKey, String, Numeric, DateTime, text, Uniq
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-from app.db.base import Base
+from app.db.base_class import Base
 
 class Bill(Base):
     __tablename__ = "bills"
@@ -17,6 +17,11 @@ class Bill(Base):
     status = Column(String, default="UNPAID") # 'PAID' or 'UNPAID'
     pdf_url = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Locking Mechanism
+    is_locked = Column(Boolean, nullable=False, default=False)
+    generated_at = Column(DateTime(timezone=True), nullable=True)
 
     # Billing snapshot fields for immutable records
     price_per_liter_snapshot = Column(Numeric(10, 3), nullable=True)

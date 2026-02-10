@@ -1,0 +1,305 @@
+E402 Module level import not at top of file
+  --> alembic\env.py:13:1
+   |
+11 | sys.path.append(BASE_DIR)
+12 |
+13 | from app.db.base import Base
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 | from app.core.config import settings
+   |
+
+E402 Module level import not at top of file
+  --> alembic\env.py:14:1
+   |
+13 | from app.db.base import Base
+14 | from app.core.config import settings
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+15 |
+16 | # Import all models so Base.metadata has them
+   |
+
+E402 Module level import not at top of file
+  --> alembic\env.py:36:1
+   |
+34 | # target_metadata = None
+35 |
+36 | import asyncio
+   | ^^^^^^^^^^^^^^
+37 | from sqlalchemy.ext.asyncio import async_engine_from_config
+   |
+
+E402 Module level import not at top of file
+  --> alembic\env.py:37:1
+   |
+36 | import asyncio
+37 | from sqlalchemy.ext.asyncio import async_engine_from_config
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+38 |
+39 | # other values from the config, defined by the needs of env.py,
+   |
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+  --> app\api\v1\endpoints\admin.py:37:49
+   |
+35 |     # Get all active users
+36 |     users_result = await db.execute(
+37 |         select(User).where(User.role == "USER", User.is_active == True)
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^
+38 |     )
+39 |     users = users_result.scalars().all()
+   |
+help: Replace with `User.is_active`
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+  --> app\api\v1\endpoints\admin.py:93:49
+   |
+91 |     # Get all users for validation
+92 |     users_result = await db.execute(
+93 |         select(User).where(User.role == "USER", User.is_active == True)
+   |                                                 ^^^^^^^^^^^^^^^^^^^^^^
+94 |     )
+95 |     users = users_result.scalars().all()
+   |
+help: Replace with `User.is_active`
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+   --> app\api\v1\endpoints\admin.py:261:77
+    |
+260 |     # Get user details
+261 |     users_result = await db.execute(select(User).where(User.role == "USER", User.is_active == True))
+    |                                                                             ^^^^^^^^^^^^^^^^^^^^^^
+262 |     users = users_result.scalars().all()
+263 |     users_map = {str(u.id): u.name for u in users}
+    |
+help: Replace with `User.is_active`
+
+F841 Local variable `url` is assigned to but never used
+  --> app\api\v1\endpoints\bills.py:85:9
+   |
+83 |         file_name = f"invoices/{bill.month}/{user.id}.pdf"
+84 |         bucket_name = settings.AWS_BUCKET_NAME or "dairy-invoices-dev"
+85 |         url = upload_file_to_s3(pdf_buffer, bucket_name, file_name)
+   |         ^^^
+86 |
+87 |         # Update Bill with S3 key (not signed URL)
+   |
+help: Remove assignment to unused variable `url`
+
+F841 Local variable `r` is assigned to but never used
+   --> app\api\v1\endpoints\bills.py:175:13
+    |
+173 |         # Dispatch PDF generation
+174 |         try:
+175 |             r = get_redis()
+    |             ^
+176 |             generate_invoice_task.delay(str(bill_id))
+177 |         except Exception:
+    |
+help: Remove assignment to unused variable `r`
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+  --> app\api\v1\endpoints\consumption.py:47:77
+   |
+46 |     # Get all active users
+47 |     users_result = await db.execute(select(User).where(User.role == "USER", User.is_active == True))
+   |                                                                             ^^^^^^^^^^^^^^^^^^^^^^
+48 |     users = users_result.scalars().all()
+   |
+help: Replace with `User.is_active`
+
+E402 Module level import not at top of file
+   --> app\api\v1\endpoints\consumption.py:144:1
+    |
+142 |     return result.scalars().all()
+143 |
+144 | from app.services.audit_service import AuditService
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+145 | from fastapi import Request as FastAPIRequest
+    |
+
+E402 Module level import not at top of file
+   --> app\api\v1\endpoints\consumption.py:145:1
+    |
+144 | from app.services.audit_service import AuditService
+145 | from fastapi import Request as FastAPIRequest
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+146 |
+147 | # Injection for IP/Agent
+    |
+
+E701 Multiple statements on one line (colon)
+   --> app\api\v1\endpoints\consumption.py:324:32
+    |
+322 |             try:
+323 |                 quantity = float(quantity_val)
+324 |                 if quantity < 0: raise ValueError()
+    |                                ^
+325 |             except:
+326 |                 errors.append(f"Row {line_num}: Invalid quantity '{quantity_val}'. Must be a positive number.")
+    |
+
+E722 Do not use bare `except`
+   --> app\api\v1\endpoints\consumption.py:325:13
+    |
+323 |                 quantity = float(quantity_val)
+324 |                 if quantity < 0: raise ValueError()
+325 |             except:
+    |             ^^^^^^
+326 |                 errors.append(f"Row {line_num}: Invalid quantity '{quantity_val}'. Must be a positive number.")
+327 |                 continue
+    |
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+   --> app\api\v1\endpoints\consumption.py:386:77
+    |
+384 |     end_date = datetime.date(year, month_num, last_day)
+385 |
+386 |     users_result = await db.execute(select(User).where(User.role == "USER", User.is_active == True))
+    |                                                                             ^^^^^^^^^^^^^^^^^^^^^^
+387 |     users = users_result.scalars().all()
+    |
+help: Replace with `User.is_active`
+
+F841 Local variable `user` is assigned to but never used
+  --> app\api\v1\endpoints\notifications.py:18:5
+   |
+16 |     Token must be provided as a query param for initial handshake.
+17 |     """
+18 |     user = None
+   |     ^^^^
+19 |     try:
+20 |         # Manual auth for websocket
+   |
+help: Remove assignment to unused variable `user`
+
+E701 Multiple statements on one line (colon)
+   --> app\init_db.py:99:41
+    |
+ 97 |                 qty = round(random.uniform(0.5, 4.0), 1)
+ 98 |                 # Ensure some days are 0 (no delivery)
+ 99 |                 if random.random() < 0.1: qty = 0.0
+    |                                         ^
+100 |
+101 |                 # Make older entries locked conceptually
+    |
+
+F841 Local variable `current_month_start` is assigned to but never used
+  --> app\services\analytics_service.py:29:13
+   |
+27 |         try:
+28 |             now = datetime.now()
+29 |             current_month_start = datetime(now.year, now.month, 1)
+   |             ^^^^^^^^^^^^^^^^^^^
+30 |
+31 |             # Previous month dates
+   |
+help: Remove assignment to unused variable `current_month_start`
+
+F841 Local variable `prev_month_start` is assigned to but never used
+  --> app\services\analytics_service.py:38:13
+   |
+36 |                 prev_month = now.month - 1
+37 |                 prev_year = now.year
+38 |             prev_month_start = datetime(prev_year, prev_month, 1)
+   |             ^^^^^^^^^^^^^^^^
+39 |
+40 |             # Current month revenue
+   |
+help: Remove assignment to unused variable `prev_month_start`
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+  --> app\services\analytics_service.py:72:51
+   |
+70 |             # Active customers
+71 |             active_customers_result = await db.execute(
+72 |                 select(func.count(User.id)).where(User.is_active == True)
+   |                                                   ^^^^^^^^^^^^^^^^^^^^^^
+73 |             )
+74 |             active_customers = active_customers_result.scalar() or 0
+   |
+help: Replace with `User.is_active`
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+   --> app\services\analytics_service.py:206:51
+    |
+204 |             # Active vs Inactive
+205 |             active_result = await db.execute(
+206 |                 select(func.count(User.id)).where(User.is_active == True)
+    |                                                   ^^^^^^^^^^^^^^^^^^^^^^
+207 |             )
+208 |             active = active_result.scalar() or 0
+    |
+help: Replace with `User.is_active`
+
+E712 Avoid equality comparisons to `True`; use `User.is_active:` for truth checks
+   --> app\services\billing.py:285:49
+    |
+283 |     """
+284 |     users_result = await db.execute(
+285 |         select(User).where(User.role == "USER", User.is_active == True)
+    |                                                 ^^^^^^^^^^^^^^^^^^^^^^
+286 |     )
+287 |     users = users_result.scalars().all()
+    |
+help: Replace with `User.is_active`
+
+F841 Local variable `client` is assigned to but never used
+  --> app\services\reconciliation.py:17:5
+   |
+15 |     unpaid_bills = result.scalars().all()
+16 |     
+17 |     client = get_razorpay_client()
+   |     ^^^^^^
+18 |     reconciled_count = 0
+   |
+help: Remove assignment to unused variable `client`
+
+E402 Module level import not at top of file
+  --> app\workers\celery_app.py:15:1
+   |
+13 |     backend_url = "cache+memory://"
+14 |
+15 | from celery.schedules import crontab
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+16 |
+17 | celery_app = Celery("dairyday", broker=broker_url, backend=backend_url)
+   |
+
+F841 Local variable `url` is assigned to but never used
+  --> app\workers\celery_app.py:71:13
+   |
+69 |             file_name = f"invoices/{bill.month}/{user.id}.pdf"
+70 |             bucket_name = cfg.AWS_BUCKET_NAME or "dairy-invoices-dev"
+71 |             url = upload_file_to_s3(pdf_buffer, bucket_name, file_name)
+   |             ^^^
+72 |             bill.pdf_url = file_name
+73 |             db.add(bill)
+   |
+help: Remove assignment to unused variable `url`
+
+F841 Local variable `s3_url` is assigned to but never used
+  --> app\workers\tasks.py:92:13
+   |
+90 |             bucket_name = "dairyday-bills"
+91 |
+92 |             s3_url = upload_file_to_s3(pdf_buffer, bucket_name, file_name)
+   |             ^^^^^^
+93 |
+94 |             # Generate presigned URL for download (expires in 1 hour)
+   |
+help: Remove assignment to unused variable `s3_url`
+
+E712 Avoid equality comparisons to `False`; use `not Consumption.is_archived:` for false checks
+   --> app\workers\tasks.py:193:25
+    |
+191 |                     select(Consumption).where(
+192 |                         Consumption.date < cutoff_date,
+193 |                         Consumption.is_archived == False
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+194 |                     )
+195 |                 )
+    |
+help: Replace with `not Consumption.is_archived`
+
+Found 27 errors.
+No fixes available (17 hidden fixes can be enabled with the `--unsafe-fixes` option).

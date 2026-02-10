@@ -16,13 +16,31 @@ const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_ID_KEY = 'user_id';
 const USER_ROLE_KEY = 'user_role';
 
-// Request interceptor for auth token
+// Helper to get cookie value
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+  return null;
+}
+
+// Request interceptor for auth token and CSRF
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add CSRF token for non-GET requests (required when cookies are sent)
+    if (config.method && !['get', 'head', 'options'].includes(config.method.toLowerCase())) {
+      const csrfToken = getCookie('csrf_token');
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)
@@ -65,12 +83,17 @@ export const authApi = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_ID_KEY);
     localStorage.removeItem(USER_ROLE_KEY);
+    document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; max-age=0`;
+    document.cookie = `${REFRESH_TOKEN_KEY}=; path=/; max-age=0`;
+    document.cookie = `${USER_ROLE_KEY}=; path=/; max-age=0`;
   },
 
   // Token storage helpers
   setTokens: (accessToken: string, refreshToken: string) => {
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    document.cookie = `${ACCESS_TOKEN_KEY}=${accessToken}; path=/; max-age=86400; SameSite=Lax`;
+    document.cookie = `${REFRESH_TOKEN_KEY}=${refreshToken}; path=/; max-age=604800; SameSite=Lax`;
   },
 
   getAccessToken: () => localStorage.getItem(ACCESS_TOKEN_KEY),
@@ -79,6 +102,7 @@ export const authApi = {
   setUserData: (userId: string, role: string) => {
     localStorage.setItem(USER_ID_KEY, userId);
     localStorage.setItem(USER_ROLE_KEY, role);
+    document.cookie = `${USER_ROLE_KEY}=${role}; path=/; max-age=86400; SameSite=Lax`;
   },
 
   getUserId: () => localStorage.getItem(USER_ID_KEY),
@@ -87,7 +111,7 @@ export const authApi = {
 
 // Users API
 export const usersApi = {
-  list: () => api.get('/users/'),
+  list: (month?: string) => api.get(month ? `/users/?month=${month}` : '/users/'),
   create: (user: any) => api.post('/users/', user),
   update: (userId: string, user: any) => api.patch(`/users/${userId}`, user),
   delete: (userId: string) => api.delete(`/users/${userId}`),
@@ -127,11 +151,23 @@ export const billsApi = {
   generateAll: (month: string) => api.post(`/bills/generate-all?month=${month}`),
   get: (userId: string, month: string) => api.get(`/bills/${userId}/${month}`),
   list: (month: string) => api.get(`/bills/?month=${month}`),
+  getPdfStatus: (billId: string) => api.get(`/bills/${billId}/pdf-status`),
 };
 
 // Payments API
 export const paymentsApi = {
-  createOrder: (billId: string) => api.post(`/payments/create-order/${billId}`),
+  createOrder: async (billId: string) => {
+    const response = await api.post(`/payments/create-order/${billId}`);
+    return response.data;
+  },
+  
+  markPaid: async (billId: string, paymentMethod?: string, notes?: string) => {
+    const response = await api.post(`/payments/mark-paid/${billId}`, {
+      payment_method: paymentMethod || 'CASH',
+      notes: notes || ''
+    });
+    return response.data;
+  },
 };
 
 // Analytics API
@@ -141,4 +177,3 @@ export const analyticsApi = {
   getCustomerInsights: () => api.get('/analytics/customers'),
   getForecast: () => api.get('/analytics/forecast'),
 };
-

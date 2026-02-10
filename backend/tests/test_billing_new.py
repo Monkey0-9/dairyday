@@ -4,11 +4,10 @@ Tests bill calculation, generation, and edge cases.
 """
 
 import pytest
-import pytest_asyncio
 from decimal import Decimal
 from datetime import date
 from uuid import uuid4
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 from app.services.billing import (
     calculate_month_range,
@@ -138,7 +137,6 @@ class TestGenerateBillForUser:
         """Test bill generation with consumption data."""
         from app.models.user import User
         from app.models.consumption import Consumption
-        from app.services.billing import generate_bill_for_user
         
         # Create test user
         user = User(
@@ -185,7 +183,6 @@ class TestGenerateBillForUser:
     async def test_bill_generation_no_consumption(self, db_session):
         """Test bill generation with no consumption."""
         from app.models.user import User
-        from app.services.billing import generate_bill_for_user
         
         user = User(
             id=uuid4(),
@@ -214,7 +211,6 @@ class TestGenerateBillForUser:
     async def test_bill_generation_null_price(self, db_session):
         """Test bill generation with NULL price_per_liter (should not crash)."""
         from app.models.user import User
-        from app.services.billing import generate_bill_for_user
         
         user = User(
             id=uuid4(),
@@ -243,7 +239,6 @@ class TestGenerateBillForUser:
         """Test that generating a bill updates existing one."""
         from app.models.user import User
         from app.models.bill import Bill
-        from app.services.billing import generate_bill_for_user
         
         user = User(
             id=uuid4(),
@@ -286,7 +281,6 @@ class TestGenerateBillForUser:
     @pytest.mark.asyncio
     async def test_bill_generation_user_not_found(self, db_session):
         """Test that non-existent user raises ValueError."""
-        from app.services.billing import generate_bill_for_user
         from uuid import uuid4
         
         with pytest.raises(ValueError, match="User not found"):
@@ -306,7 +300,6 @@ class TestBillingEdgeCases:
         """Test bill with consumption only on some days."""
         from app.models.user import User
         from app.models.consumption import Consumption
-        from app.services.billing import generate_bill_for_user
         
         user = User(
             id=uuid4(),
@@ -355,7 +348,6 @@ class TestBillingEdgeCases:
         """Test with very small milk quantities."""
         from app.models.user import User
         from app.models.consumption import Consumption
-        from app.services.billing import generate_bill_for_user
         
         user = User(
             id=uuid4(),

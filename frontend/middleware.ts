@@ -22,21 +22,14 @@ export function middleware(request: NextRequest) {
 
     // RBAC checks
     if (pathname.startsWith('/admin')) {
-        // We can't easily check role from httpOnly JWT on client middleware without decoding
-        // For now, we trust the redirect logic, but for maximum security we'd decode the JWT JTI/claims here
-        // or rely on a 'role' cookie set by the backend
         const userRole = request.cookies.get('user_role')?.value
-        if (userRole && userRole !== 'ADMIN') {
-            return NextResponse.redirect(new URL('/user/dashboard', request.url))
+        if (userRole && userRole !== 'admin' && userRole !== 'ADMIN') {
+            return NextResponse.redirect(new URL('/customer/dashboard', request.url))
         }
     }
 
-    if (pathname.startsWith('/user')) {
-        const userRole = request.cookies.get('user_role')?.value
-        if (userRole && userRole === 'ADMIN') {
-            // Admins are allowed in user areas generally or redirected to admin
-            // return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-        }
+    if (pathname.startsWith('/customer')) {
+        // Customers are allowed here
     }
 
     return NextResponse.next()

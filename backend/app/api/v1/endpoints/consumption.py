@@ -1,5 +1,5 @@
 
-from typing import Any, List, Dict
+from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,8 @@ from app.models.consumption_audit import ConsumptionAudit
 
 from app.services.lock_service import LockService
 from app.schemas.common import StatusResponse
+from app.services.audit_service import AuditService
+from fastapi import Request as FastAPIRequest
 
 router = APIRouter()
 
@@ -34,17 +36,26 @@ async def get_consumption_grid(
 ) -> Any:
     redis = get_redis()
     cache_key = f"grid:{month}"
-    cached = await redis.get(cache_key)
-    if cached:
-        import json
-        return json.loads(cached)
+    if redis:
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                import json
+                return json.loads(cached)
+        except Exception:
+            pass
     year, month_num = map(int, month.split("-"))
     start_date = datetime.date(year, month_num, 1)
-    _, last_day = monthrange(year, month_num)
-    end_date = datetime.date(year, month_num, last_day)
+    
+    if month_num == 12:
+        end_date = datetime.date(year + 1, 1, 1)
+    else:
+        end_date = datetime.date(year, month_num + 1, 1)
 
     # Get all active users
-    users_result = await db.execute(select(User).where(User.role == "USER", User.is_active == True))
+    users_result = await db.execute(
+        select(User).where(User.role == "USER", User.is_active)
+    )
     users = users_result.scalars().all()
 
     # Get consumption for the month
@@ -52,7 +63,7 @@ async def get_consumption_grid(
         select(Consumption).where(
             and_(
                 Consumption.date >= start_date,
-                Consumption.date <= end_date
+                Consumption.date < end_date
             )
         )
     )
@@ -97,14 +108,17 @@ async def get_consumption_grid(
     for user in users:
         row = {
             "user_id": str(user.id),
-            "user_name": user.name,
-            "days": {},
+            "name": user.name,
+            "phone": user.phone,
+            "daily_liters": {},
             "audits": {}
         }
+        _, last_day = monthrange(year, month_num)
         for d in range(1, last_day + 1):
             current_date = datetime.date(year, month_num, d)
             qty = consumption_map.get(user.id, {}).get(current_date, 0)
-            row["days"][d] = qty
+            # Use YYYY-MM-DD string keys for daily_liters as frontend expects
+            row["daily_liters"][current_date.isoformat()] = float(qty)
 
             if user.id in audit_map and current_date in audit_map[user.id]:
                 row["audits"][d] = audit_map[user.id][current_date]
@@ -112,11 +126,12 @@ async def get_consumption_grid(
         grid_data.append(row)
 
     # Cache result
-    try:
-        import json
-        await redis.set(cache_key, json.dumps(grid_data), ex=300)
-    except Exception as e:
-        print(f"Cache error: {e}")
+    if redis:
+        try:
+            import json
+            await redis.set(cache_key, json.dumps(grid_data), ex=300)
+        except Exception as e:
+            print(f"Cache error: {e}")
     return grid_data
 
 @router.get("/mine", response_model=List[ConsumptionSchema])
@@ -141,106 +156,104 @@ async def get_my_consumption(
     )
     return result.scalars().all()
 
-    from app.services.audit_service import AuditService
-    from fastapi import Request as FastAPIRequest
 
-    # Injection for IP/Agent
-    @router.patch("/")
-    async def upsert_consumption(
-        *,
-        request: FastAPIRequest,
-        db: AsyncSession = Depends(get_db),
-        consumption_in: ConsumptionCreate,
-        current_user: User = Depends(deps.get_current_active_admin),
-    ) -> Any:
-        # Check lock rule using settings
-        if LockService.is_date_locked(consumption_in.date):
-            raise HTTPException(
-                status_code=403,
-                detail=f"Cannot modify data older than {settings.LOCK_DAYS} days"
-            )
+# Injection for IP/Agent
+@router.patch("/")
+async def upsert_consumption(
+    *,
+    request: FastAPIRequest,
+    db: AsyncSession = Depends(get_db),
+    consumption_in: ConsumptionCreate,
+    current_user: User = Depends(deps.get_current_active_admin),
+) -> Any:
+    # Check lock rule using settings
+    if LockService.is_date_locked(consumption_in.date):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Cannot modify data older than {settings.LOCK_DAYS} days"
+        )
 
-        # Upsert logic
-        result = await db.execute(
-            select(Consumption).where(
-                and_(
-                    Consumption.user_id == consumption_in.user_id,
-                    Consumption.date == consumption_in.date
-                )
+    # Upsert logic
+    result = await db.execute(
+        select(Consumption).where(
+            and_(
+                Consumption.user_id == consumption_in.user_id,
+                Consumption.date == consumption_in.date
             )
         )
-        existing = result.scalars().first()
+    )
+    existing = result.scalars().first()
 
-        if existing:
-            if existing.locked:
-                 raise HTTPException(status_code=400, detail="This entry has been explicitly locked")
+    if existing:
+        if existing.locked:
+             raise HTTPException(status_code=400, detail="This entry has been explicitly locked")
 
-            old_qty = float(existing.quantity)
-            if old_qty == float(consumption_in.quantity):
-                return {"status": "unchanged"}
+        old_qty = float(existing.quantity)
+        if old_qty == float(consumption_in.quantity):
+            return {"status": "unchanged"}
 
-            existing.quantity = consumption_in.quantity
-            db.add(existing)
+        existing.quantity = consumption_in.quantity
+        db.add(existing)
 
-            # Record legacy audit
-            db.add(ConsumptionAudit(
-                user_id=existing.user_id,
-                admin_id=current_user.id,
-                date=existing.date,
-                old_quantity=old_qty,
-                new_quantity=consumption_in.quantity,
-            ))
+        # Record legacy audit
+        db.add(ConsumptionAudit(
+            user_id=existing.user_id,
+            admin_id=current_user.id,
+            date=existing.date,
+            old_quantity=old_qty,
+            new_quantity=consumption_in.quantity,
+        ))
 
-            # Record enterprise audit
-            await AuditService.log_action(
-                db=db,
-                user_id=current_user.id,
-                action="UPDATE_CONSUMPTION",
-                target_type="CONSUMPTION",
-                target_id=str(existing.id),
-                details={
-                    "user_id": str(existing.user_id),
-                    "date": str(existing.date),
-                    "old_quantity": old_qty,
-                    "new_quantity": float(consumption_in.quantity)
-                },
-                ip_address=request.client.host if request.client else None,
-                user_agent=request.headers.get("user-agent")
-            )
-        else:
-            new_consumption = Consumption(
-                user_id=consumption_in.user_id,
-                date=consumption_in.date,
-                quantity=consumption_in.quantity
-            )
-            db.add(new_consumption)
+        # Record enterprise audit
+        await AuditService.log_action(
+            db=db,
+            user_id=current_user.id,
+            action="UPDATE_CONSUMPTION",
+            target_type="CONSUMPTION",
+            target_id=str(existing.id),
+            details={
+                "user_id": str(existing.user_id),
+                "date": str(existing.date),
+                "old_quantity": old_qty,
+                "new_quantity": float(consumption_in.quantity)
+            },
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
+    else:
+        new_consumption = Consumption(
+            user_id=consumption_in.user_id,
+            date=consumption_in.date,
+            quantity=consumption_in.quantity
+        )
+        db.add(new_consumption)
 
-            # Record legacy audit
-            db.add(ConsumptionAudit(
-                user_id=new_consumption.user_id,
-                admin_id=current_user.id,
-                date=new_consumption.date,
-                old_quantity=None,
-                new_quantity=new_consumption.quantity,
-            ))
+        # Record legacy audit
+        db.add(ConsumptionAudit(
+            user_id=new_consumption.user_id,
+            admin_id=current_user.id,
+            date=new_consumption.date,
+            old_quantity=None,
+            new_quantity=new_consumption.quantity,
+        ))
 
-            # Record enterprise audit
-            await AuditService.log_action(
-                db=db,
-                user_id=current_user.id,
-                action="CREATE_CONSUMPTION",
-                target_type="CONSUMPTION",
-                target_id=None, # Will be set after flush if needed, but we provide user/date
-                details={
-                    "user_id": str(new_consumption.user_id),
-                    "date": str(new_consumption.date),
-                    "quantity": float(new_consumption.quantity)
-                },
-                ip_address=request.client.host if request.client else None,
-                user_agent=request.headers.get("user-agent")
-            )
+        # Record enterprise audit
+        await AuditService.log_action(
+            db=db,
+            user_id=current_user.id,
+            action="CREATE_CONSUMPTION",
+            target_type="CONSUMPTION",
+            target_id=None, # Will be set after flush if needed, but we provide user/date
+            details={
+                "user_id": str(new_consumption.user_id),
+                "date": str(new_consumption.date),
+                "quantity": float(new_consumption.quantity)
+            },
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
 
-        await db.commit()
+    await db.commit()
     # Invalidate cache for the month
     try:
         redis = get_redis()
@@ -321,9 +334,13 @@ async def upload_consumption(
             # 4. Parse Quantity
             try:
                 quantity = float(quantity_val)
-                if quantity < 0: raise ValueError()
-            except:
-                errors.append(f"Row {line_num}: Invalid quantity '{quantity_val}'. Must be a positive number.")
+                if quantity < 0:
+                    raise ValueError()
+            except ValueError:
+                errors.append(
+                    f"Row {line_num}: Invalid quantity '{quantity_val}'. "
+                    "Must be a positive number."
+                )
                 continue
 
             # 5. Upsert
@@ -383,7 +400,9 @@ async def export_consumption(
     _, last_day = monthrange(year, month_num)
     end_date = datetime.date(year, month_num, last_day)
 
-    users_result = await db.execute(select(User).where(User.role == "USER", User.is_active == True))
+    users_result = await db.execute(
+        select(User).where(User.role == "USER", User.is_active)
+    )
     users = users_result.scalars().all()
 
     consumption_result = await db.execute(

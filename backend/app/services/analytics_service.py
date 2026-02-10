@@ -1,11 +1,9 @@
 from typing import Dict, List, Any
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, extract
 from app.models.user import User
 from app.models.bill import Bill
-from app.models.payment import Payment
 from app.models.consumption import Consumption
 import logging
 
@@ -29,7 +27,6 @@ class AnalyticsService:
         """
         try:
             now = datetime.now()
-            current_month_start = datetime(now.year, now.month, 1)
 
             # Previous month dates
             if now.month == 1:
@@ -38,27 +35,40 @@ class AnalyticsService:
             else:
                 prev_month = now.month - 1
                 prev_year = now.year
-            prev_month_start = datetime(prev_year, prev_month, 1)
+
+            start_of_month = now.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
+            if now.month == 12:
+                next_month = now.replace(year=now.year + 1, month=1, day=1)
+            else:
+                next_month = now.replace(month=now.month + 1, day=1)
 
             # Current month revenue
             current_revenue_result = await db.execute(
                 select(func.coalesce(func.sum(Bill.total_amount), 0))
                 .where(
                     and_(
-                        extract('year', Bill.created_at) == now.year,
-                        extract('month', Bill.created_at) == now.month
+                        Bill.created_at >= start_of_month,
+                        Bill.created_at < next_month
                     )
                 )
             )
             current_revenue = float(current_revenue_result.scalar() or 0)
+
+            # Previous month dates
+            start_of_prev = start_of_month.replace(
+                year=prev_year, month=prev_month
+            )
+            end_of_prev = start_of_month
 
             # Previous month revenue
             prev_revenue_result = await db.execute(
                 select(func.coalesce(func.sum(Bill.total_amount), 0))
                 .where(
                     and_(
-                        extract('year', Bill.created_at) == prev_year,
-                        extract('month', Bill.created_at) == prev_month
+                        Bill.created_at >= start_of_prev,
+                        Bill.created_at < end_of_prev
                     )
                 )
             )
@@ -71,41 +81,64 @@ class AnalyticsService:
                 monthly_growth = 100 if current_revenue > 0 else 0
 
             # Active customers
-            active_customers_result = await db.execute(
-                select(func.count(User.id)).where(User.is_active == True)
-            )
+            q = select(func.count(User.id)).where(User.is_active)
+            active_customers_result = await db.execute(q)
             active_customers = active_customers_result.scalar() or 0
 
             # Pending payments (unpaid bills)
-            pending_payments_result = await db.execute(
-                select(func.count(Bill.id)).where(Bill.payment_status == 'pending')
+            pending_payments_q = select(func.count()).select_from(Bill).where(
+                Bill.status == 'UNPAID'
             )
-            pending_payments = pending_payments_result.scalar() or 0
+            pending_payments_res = await db.execute(pending_payments_q)
+            pending_payments = pending_payments_res.scalar() or 0
 
             # Total unpaid amount
-            unpaid_amount_result = await db.execute(
-                select(func.coalesce(func.sum(Bill.total_amount), 0))
-                .where(Bill.payment_status == 'pending')
+            unpaid_amount_q = select(func.coalesce(func.sum(Bill.total_amount), 0)).where(
+                Bill.status == 'UNPAID'
             )
-            unpaid_amount = float(unpaid_amount_result.scalar() or 0)
+            unpaid_amount_res = await db.execute(unpaid_amount_q)
+            unpaid_amount = float(unpaid_amount_res.scalar() or 0)
 
-            logger.info(
+            # Today's Intake (from Consumption)
+            today = datetime.now().date()
+            today_liters_result = await db.execute(
+                select(func.coalesce(func.sum(Consumption.quantity), 0))
+                .where(Consumption.date == today)
+            )
+            today_liters = float(today_liters_result.scalar() or 0)
+
+            # New customers this month
+            new_customers_result = await db.execute(
+                select(func.count(User.id)).where(
+                    and_(
+                        User.created_at >= start_of_month,
+                        User.created_at < next_month
+                    )
+                )
+            )
+            new_customers = new_customers_result.scalar() or 0
+
+            msg = (
                 f"Dashboard KPIs calculated: revenue={current_revenue}, "
                 f"customers={active_customers}, pending={pending_payments}"
             )
+            logger.info(msg)
 
             return {
-                "total_revenue": current_revenue,
+                "monthly_revenue": current_revenue,
                 "previous_revenue": prev_revenue,
                 "monthly_growth": round(monthly_growth, 2),
-                "active_customers": active_customers,
-                "pending_payments": pending_payments,
+                "total_customers": active_customers,
+                "new_customers": new_customers,
+                "today_liters": today_liters,
+                "pending_bills": pending_payments,
                 "unpaid_amount": unpaid_amount,
                 "period": now.strftime("%B %Y")
             }
 
         except Exception as e:
-            logger.error(f"Error calculating dashboard KPIs: {str(e)}", exc_info=True)
+            msg = f"Error calculating dashboard KPIs: {str(e)}"
+            logger.error(msg, exc_info=True)
             raise
 
     @staticmethod
@@ -147,7 +180,8 @@ class AnalyticsService:
                 )
                 revenue = float(revenue_result.scalar() or 0)
 
-                month_name = datetime(target_year, target_month, 1).strftime("%b %Y")
+                start_of_target = datetime(target_year, target_month, 1)
+                month_name = start_of_target.strftime("%b %Y")
                 trends.append({
                     "month": month_name,
                     "revenue": revenue,
@@ -159,7 +193,8 @@ class AnalyticsService:
             return trends
 
         except Exception as e:
-            logger.error(f"Error calculating revenue trend: {str(e)}", exc_info=True)
+            msg = f"Error calculating revenue trend: {str(e)}"
+            logger.error(msg, exc_info=True)
             raise
 
     @staticmethod
@@ -181,9 +216,10 @@ class AnalyticsService:
             # Add a slight growth bias (2%)
             forecast = avg_revenue * 1.02
 
+            confidence = "medium" if len(revenues) >= 3 else "low"
             return {
                 "forecast_amount": round(forecast, 2),
-                "confidence": "medium" if len(revenues) >= 3 else "low",
+                "confidence": confidence,
                 "method": "SMA-3",
                 "period": "Next Month"
             }
@@ -206,28 +242,33 @@ class AnalyticsService:
 
             # Active vs Inactive
             active_result = await db.execute(
-                select(func.count(User.id)).where(User.is_active == True)
+                select(func.count(User.id)).where(User.is_active)
             )
             active = active_result.scalar() or 0
             inactive = total - active
 
             # Average revenue per user (ARPU)
-            revenue_result = await db.execute(
-                select(func.coalesce(func.sum(Bill.total_amount), 0))
-            )
-            total_revenue = float(revenue_result.scalar()  or 0)
-            arpu = total_revenue / active if active > 0 else 0
+            try:
+                revenue_q = select(func.coalesce(func.sum(Bill.total_amount), 0))
+                revenue_res = await db.execute(revenue_q)
+                total_revenue = float(revenue_res.scalar() or 0)
+                arpu = total_revenue / active if active > 0 else 0
+            except Exception as e:
+                logger.error(f"Error calculating ARPU: {e}")
+                arpu = 0
 
             logger.info("Customer insights calculated")
 
+            activation_rate = (active / total * 100) if total > 0 else 0
             return {
                 "total_customers": total,
                 "active_customers": active,
                 "inactive_customers": inactive,
                 "arpu": round(arpu, 2),
-                "activation_rate": round((active / total * 100) if total > 0 else 0, 2)
+                "activation_rate": round(activation_rate, 2)
             }
 
         except Exception as e:
-            logger.error(f"Error calculating customer insights: {str(e)}", exc_info=True)
+            msg = f"Error calculating customer insights: {str(e)}"
+            logger.error(msg, exc_info=True)
             raise

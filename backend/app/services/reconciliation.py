@@ -2,9 +2,6 @@ import logging
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.bill import Bill
-from app.models.payment import Payment
-from app.core.razorpay_utils import get_razorpay_client
-from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +13,6 @@ async def reconcile_payments(db: AsyncSession):
     result = await db.execute(select(Bill).where(Bill.status == 'UNPAID'))
     unpaid_bills = result.scalars().all()
     
-    client = get_razorpay_client()
     reconciled_count = 0
 
     for bill in unpaid_bills:

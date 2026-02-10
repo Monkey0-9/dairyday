@@ -1,17 +1,21 @@
-
-from typing import Any, List
 import logging
-from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+import json
+from typing import Any, List
 from uuid import UUID
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy import select, func, and_
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core import security
 from app.db.session import get_db
 from app.models.user import User
+from app.models.consumption import Consumption
 from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
+from app.core.redis import get_redis
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -23,28 +27,96 @@ async def read_user_me(
     """Get current user."""
     return current_user
 
+
 @router.get("/", response_model=List[UserSchema])
 async def read_users(
     db: AsyncSession = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
+    month: str | None = None,
     current_user: User = Depends(deps.get_current_active_admin),
 ) -> Any:
-    """Retrieve all users with pagination."""
+    """Retrieve all users with pagination and monthly consumption."""
     try:
-        logger.info(f"Fetching users: skip={skip}, limit={limit}")
-        result = await db.execute(select(User).offset(skip).limit(limit))
-        users = result.scalars().all()
-        logger.info(f"Successfully retrieved {len(users)} users")
-        return users
+        msg = f"Fetching users: skip={skip}, limit={limit}, month={month}"
+        logger.info(msg)
+
+        # Try Cache
+        redis = get_redis()
+        cache_key = f"users_list:{month}:{skip}:{limit}"
+        if redis:
+            cached = await redis.get(cache_key)
+            if cached:
+                logger.info("Returning cached users list")
+                return json.loads(cached)
+
+        # Determine date range (Start of month -> Start of NEXT month)
+        if month:
+            year, month_num = map(int, month.split("-"))
+            start_date = date(year, month_num, 1)
+            # Get first day of next month safely
+            if month_num == 12:
+                end_date = date(year + 1, 1, 1)
+            else:
+                end_date = date(year, month_num + 1, 1)
+        else:
+            today = date.today()
+            start_date = date(today.year, today.month, 1)
+            if today.month == 12:
+                end_date = date(today.year + 1, 1, 1)
+            else:
+                end_date = date(today.year, today.month + 1, 1)
+
+        # Single query with left join and aggregation (STRICT RANGE)
+        query = (
+            select(
+                User,
+                func.coalesce(func.sum(Consumption.quantity), 0).label(
+                    "month_liters"
+                )
+            )
+            .outerjoin(
+                Consumption,
+                and_(
+                    Consumption.user_id == User.id,
+                    Consumption.date >= start_date,
+                    Consumption.date < end_date
+                )
+            )
+            .group_by(User.id)
+            .offset(skip)
+            .limit(limit)
+        )
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        enriched_users = []
+        for user, month_liters in rows:
+            user_data = UserSchema.model_validate(user)
+            user_data.total_liters = month_liters or 0
+            enriched_users.append(user_data)
+
+        logger.info(f"Successfully retrieved {len(enriched_users)} users")
+
+        # Save to Cache
+        if redis:
+            await redis.set(
+                cache_key,
+                json.dumps([u.model_dump() for u in enriched_users]),
+                ex=300  # 5 minutes TTL
+            )
+
+        return enriched_users
     except Exception as e:
         logger.error(f"Error fetching users: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve users: {str(e)}"
-        )
+        ) from e
 
-@router.post("/", response_model=UserSchema)
+
+@router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 async def create_user(
     *,
     db: AsyncSession = Depends(get_db),
@@ -53,7 +125,8 @@ async def create_user(
 ) -> Any:
     """Create a new user/customer."""
     try:
-        logger.info(f"Creating new user: email={user_in.email}, name={user_in.name}")
+        msg = f"Creating new user: email={user_in.email}, name={user_in.name}"
+        logger.info(msg)
 
         # Check for existing user
         result = await db.execute(select(User).where(User.email == user_in.email))
@@ -93,6 +166,7 @@ async def create_user(
             detail=f"Failed to create user: {str(e)}"
         )
 
+
 @router.patch("/{user_id}", response_model=UserSchema)
 async def update_user(
     *,
@@ -128,6 +202,7 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
     return user
+
 
 @router.delete("/{user_id}", response_model=UserSchema)
 async def delete_user(

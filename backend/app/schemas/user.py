@@ -39,6 +39,11 @@ class UserBase(BaseModel):
         default=True,
         description="Whether the user account is active"
     )
+    total_liters: Optional[Decimal] = Field(
+        default=None,
+        description="Total liters consumed in current month"
+    )
+
 
 
 class UserCreate(UserBase):

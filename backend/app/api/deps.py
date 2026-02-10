@@ -11,7 +11,10 @@ from app.db.session import get_db
 from app.models.user import User
 from sqlalchemy import select
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False
+)
 
 
 def is_date_locked(consumption_date: date) -> bool:
@@ -30,9 +33,9 @@ def is_date_locked(consumption_date: date) -> bool:
 
 
 async def get_current_user(
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    token: str = Depends(oauth2_scheme),
-    request: Request = None
+    token: str = Depends(oauth2_scheme)
 ) -> User:
     """
     Get the current authenticated user from the JWT token.
@@ -56,7 +59,7 @@ async def get_current_user(
 
         # Check if token is blacklisted
         jti = payload.get("jti")
-        if jti and security.is_blacklisted(jti):
+        if jti and await security.is_blacklisted(jti):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has been revoked",
@@ -79,6 +82,10 @@ async def get_current_user(
             )
 
     except JWTError as e:
+        print(f"DEBUG: JWT Validation Error: {str(e)}")
+        print(f"DEBUG: Token: {token[:20]}...")
+        import logging
+        logging.error(f"JWT Validation Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token validation failed: {str(e)}",
@@ -105,6 +112,20 @@ def get_current_active_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user doesn't have enough privileges"
+        )
+    return current_user
+
+
+def get_current_active_billing_manager(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Ensure the current user is an admin or a billing admin.
+    """
+    if current_user.role not in ["ADMIN", "BILLING_ADMIN"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires billing management privileges"
         )
     return current_user
 
@@ -158,7 +179,7 @@ async def get_optional_current_user(
         return None
 
     try:
-        return await get_current_user(db, token, request)
+        return await get_current_user(request=request, db=db, token=token)
     except HTTPException:
         return None
 

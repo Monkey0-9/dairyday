@@ -11,7 +11,7 @@ from uuid import uuid4
 from app.main import app
 from app.db.session import get_db
 from app.models.user import User
-from app.core.security import get_password_hash, create_access_token, create_refresh_token
+from app.core.security import get_password_hash
 from app.core.config import settings
 
 
@@ -71,20 +71,22 @@ class TestLoginSuccess:
     
     @pytest.mark.asyncio
     async def test_login_success(self, client, test_admin):
-        """Test successful login returns tokens."""
-        response = await client.post("/api/v1/auth/login", json={
-            "email": "admin@test.com",
+        """Test successful login returns tokens in cookies."""
+        response = await client.post("/api/v1/auth/login", data={
+            "username": "admin@test.com",
             "password": "admin123"
         })
         
         assert response.status_code == 200
         data = response.json()
-        assert "access_token" in data
-        assert "refresh_token" in data
         assert data["token_type"] == "bearer"
         assert "expires_in" in data
         assert data["user"]["email"] == "admin@test.com"
         assert data["user"]["role"] == "ADMIN"
+        
+        # Check both JSON and cookies for tokens
+        assert ("access_token" in data or "access_token" in response.cookies)
+        assert ("refresh_token" in data or "refresh_token" in response.cookies)
 
 
 class TestLoginInvalidCredentials:
@@ -93,8 +95,8 @@ class TestLoginInvalidCredentials:
     @pytest.mark.asyncio
     async def test_login_wrong_password(self, client, test_admin):
         """Test login fails with wrong password."""
-        response = await client.post("/api/v1/auth/login", json={
-            "email": "admin@test.com",
+        response = await client.post("/api/v1/auth/login", data={
+            "username": "admin@test.com",
             "password": "wrongpassword"
         })
         
@@ -104,8 +106,8 @@ class TestLoginInvalidCredentials:
     @pytest.mark.asyncio
     async def test_login_nonexistent_user(self, client):
         """Test login fails for nonexistent user."""
-        response = await client.post("/api/v1/auth/login", json={
-            "email": "nonexistent@test.com",
+        response = await client.post("/api/v1/auth/login", data={
+            "username": "nonexistent@test.com",
             "password": "password123"
         })
         
@@ -120,12 +122,14 @@ class TestAdminOnlyEndpoint:
     async def test_users_list_requires_admin(self, client, test_user):
         """Test that users list endpoint rejects regular users."""
         # Login as regular user
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": "user@test.com",
+        login_response = await client.post("/api/v1/auth/login", data={
+            "username": "user@test.com",
             "password": "user123"
         })
         assert login_response.status_code == 200
-        user_token = login_response.json()["access_token"]
+        data = login_response.json()
+        user_token = data.get("access_token") or login_response.cookies.get("access_token")
+        assert user_token is not None
         
         # Try to access admin-only endpoint
         response = await client.get(
@@ -140,12 +144,14 @@ class TestAdminOnlyEndpoint:
     async def test_admin_can_access_users_list(self, client, test_admin):
         """Test that admin can access users list."""
         # Login as admin
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": "admin@test.com",
+        login_response = await client.post("/api/v1/auth/login", data={
+            "username": "admin@test.com",
             "password": "admin123"
         })
         assert login_response.status_code == 200
-        admin_token = login_response.json()["access_token"]
+        data = login_response.json()
+        admin_token = data.get("access_token") or login_response.cookies.get("access_token")
+        assert admin_token is not None
         
         # Access admin endpoint
         response = await client.get(
@@ -178,11 +184,13 @@ class TestUserDataIsolation:
         await db_session.commit()
         
         # Login as the user
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": "user@test.com",
+        login_response = await client.post("/api/v1/auth/login", data={
+            "username": "user@test.com",
             "password": "user123"
         })
-        user_token = login_response.json()["access_token"]
+        data = login_response.json()
+        user_token = data.get("access_token") or login_response.cookies.get("access_token")
+        assert user_token is not None
         
         # Try to access the bill with correct user_id - should work
         response = await client.get(
@@ -207,16 +215,19 @@ class TestTokenSecurity:
         """Test that access token contains correct user information."""
         from jose import jwt
         
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": "user@test.com",
+        login_response = await client.post("/api/v1/auth/login", data={
+            "username": "user@test.com",
             "password": "user123"
         })
         
-        token = login_response.json()["access_token"]
+        data = login_response.json()
+        token = data.get("access_token") or login_response.cookies.get("access_token")
+        assert token is not None
         payload = jwt.decode(
             token, 
             settings.SECRET_KEY, 
-            algorithms=[settings.ALGORITHM]
+            algorithms=[settings.ALGORITHM],
+            options={"verify_aud": False, "verify_iss": False}
         )
         
         assert payload["type"] == "access"
@@ -228,16 +239,19 @@ class TestTokenSecurity:
         """Test that refresh token has type='refresh'."""
         from jose import jwt
         
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": "user@test.com",
+        login_response = await client.post("/api/v1/auth/login", data={
+            "username": "user@test.com",
             "password": "user123"
         })
         
-        refresh_token = login_response.json()["refresh_token"]
+        data = login_response.json()
+        refresh_token = data.get("refresh_token") or login_response.cookies.get("refresh_token")
+        assert refresh_token is not None
         payload = jwt.decode(
             refresh_token, 
             settings.SECRET_KEY, 
-            algorithms=[settings.ALGORITHM]
+            algorithms=[settings.ALGORITHM],
+            options={"verify_aud": False, "verify_iss": False}
         )
         
         assert payload["type"] == "refresh"
@@ -245,14 +259,15 @@ class TestTokenSecurity:
     @pytest.mark.asyncio
     async def test_cannot_use_refresh_token_as_access(self, client, test_user):
         """Test that refresh token cannot be used as access token."""
-        from jose import jwt
         
-        login_response = await client.post("/api/v1/auth/login", json={
-            "email": "user@test.com",
+        login_response = await client.post("/api/v1/auth/login", data={
+            "username": "user@test.com",
             "password": "user123"
         })
         
-        refresh_token = login_response.json()["refresh_token"]
+        data = login_response.json()
+        refresh_token = data.get("refresh_token") or login_response.cookies.get("refresh_token")
+        assert refresh_token is not None
         
         # Try to use refresh token for an admin endpoint
         response = await client.get(

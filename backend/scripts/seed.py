@@ -5,7 +5,6 @@ Creates sample users and consumption data for development and testing.
 """
 
 import asyncio
-import random
 from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4

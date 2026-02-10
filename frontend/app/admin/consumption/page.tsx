@@ -1,721 +1,294 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { AgGridReact } from "ag-grid-react"
-import { ColDef, GridApi, GridReadyEvent, ValueFormatterParams, CellStyle } from "ag-grid-community"
-import axios from "axios"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { useState, useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { 
-  Loader2, RefreshCw, Download, Calendar, Filter, Lock, 
-  CheckCircle, XCircle, Clock, Search, ChevronLeft, ChevronRight, Info, FileText
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  isSameDay, 
+  isToday,
+  isFuture,
+  isPast
+} from "date-fns"
+import { 
+  Download, 
+  ChevronLeft, 
+  ChevronRight, 
+  Lock, 
+  Calendar as CalendarIcon,
+  Filter,
+  History,
+  Info
 } from "lucide-react"
-import { useTheme } from "next-themes"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { consumptionApi } from "@/lib/api"
+import { Skeleton } from "@/components/ui/skeleton"
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table"
 import { cn } from "@/lib/utils"
-import { toast } from "sonner"
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
 
-interface AuditLog {
-  id: number
-  user_id: string
-  date: string
-  oldValue: any
-  newValue: any
-  timestamp: Date
-  status: "success" | "error" | "pending"
-}
+export default function ConsumptionGridPage() {
+  const [selectedMonth, setSelectedMonth] = useState(new Date())
+  const monthStr = format(selectedMonth, "yyyy-MM")
 
-interface ConsumptionRow {
-  user_id: string
-  user_name: string
-  [key: string]: any
-}
+  const { data: gridData, isLoading, isError, error } = useQuery({
+    queryKey: ["consumption", monthStr],
+    queryFn: () => consumptionApi.getGrid(monthStr).then(res => res.data),
+    staleTime: 30_000,
+    retry: 2,
+  })
 
-export default function ConsumptionGrid() {
-  const { theme } = useTheme()
-  const [rowData, setRowData] = useState<ConsumptionRow[]>([])
-  const [columnDefs, setColumnDefs] = useState<ColDef[]>([])
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const [gridApi, setGridApi] = useState<GridApi | null>(null)
-  const [auditLog, setAuditLog] = useState<AuditLog[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [quickFilterText, setQuickFilterText] = useState("")
-  const [pinnedBottomRowData, setPinnedBottomRowData] = useState<ConsumptionRow[]>([])
-  const inputMonthRef = useRef<HTMLInputElement>(null)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+  const daysInMonth = useMemo(() => {
+    return eachDayOfInterval({
+      start: startOfMonth(selectedMonth),
+      end: endOfMonth(selectedMonth),
+    })
+  }, [selectedMonth])
 
-  const gridTheme = useMemo(() => {
-    return theme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz"
-  }, [theme])
-
-  const today = useMemo(() => new Date(), [])
-  
-  // Calculate day status
-  const getDayStatus = useCallback((day: number) => {
-    const dateStr = `${month}-${String(day).padStart(2, "0")}`
-    const date = new Date(dateStr + "T00:00:00")
-    const diffTime = today.getTime() - date.getTime()
-    const diffDays = diffTime / (1000 * 60 * 60 * 24)
-    
-    if (diffDays < 0) return "future"
-    if (diffDays <= 7) return "editable"
-    return "locked"
-  }, [month, today])
-
-  const defaultColDef = useMemo<ColDef>(() => ({
-    sortable: true,
-    resizable: true,
-    filter: true,
-    suppressHeaderKeyboardTraversal: true,
-    headerClass: "font-semibold tracking-wide",
-    cellClass: "text-sm font-tabular-nums",
-  }), [])
-
-  const fetchGridData = useCallback(async () => {
-    if (!token) return
-
-    setIsLoading(true)
-    try {
-      const res = await axios.get(`${API_URL}/consumption/grid?month=${month}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      const data = res.data
-
-      if (!data || data.length === 0) {
-        setRowData([])
-        setPinnedBottomRowData([])
-        setColumnDefs([])
-        setIsLoading(false)
-        return
-      }
-
-      const transformed = data.map((row: any) => {
-        const newRow: ConsumptionRow = { user_id: row.user_id, user_name: row.user_name }
-        Object.keys(row.days || {}).forEach(day => {
-          newRow[`day_${day}`] = row.days[day]
-        })
-        Object.keys(row.audits || {}).forEach(day => {
-          newRow[`audit_${day}`] = row.audits[day]
-        })
-        return newRow
-      })
-      setRowData(transformed)
-
-      const daysInMonth = new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]), 0).getDate()
-
-      const baseCols: ColDef[] = [
-        {
-          field: "user_name",
-          headerName: "Customer",
-          pinned: "left",
-          width: 200,
-          filter: true,
-          sortable: true,
-          resizable: true,
-          cellClass: "font-medium",
-        }
-      ]
-
-      const dayCols: ColDef[] = []
-      const todayDate = today.getDate()
-      const currentMonth = month
-
-      for (let i = 1; i <= daysInMonth; i++) {
-        const status = getDayStatus(i)
-        const isEditable = status === "editable"
-        const isLocked = status === "locked"
-        const isFuture = status === "future"
-        const isToday = currentMonth === new Date().toISOString().slice(0, 7) && i === todayDate
-
-        dayCols.push({
-          field: `day_${i}`,
-          headerName: `${i}`,
-          width: 55,
-          editable: isEditable,
-          cellStyle: (params): CellStyle => {
-            const base: CellStyle = {
-              transition: "all 0.2s ease",
-            }
-            
-            if (isLocked) {
-              return {
-                ...base,
-                opacity: 0.8,
-                backgroundColor: theme === "dark" 
-                  ? "rgba(55, 65, 81, 0.4)" 
-                  : "rgba(239, 68, 68, 0.08)",
-                cursor: "not-allowed",
-              }
-            }
-            
-            if (isFuture) {
-              return {
-                ...base,
-                opacity: 0.4,
-                backgroundColor: "transparent",
-                cursor: "not-allowed",
-              }
-            }
-            
-            if (isToday) {
-              return {
-                ...base,
-                backgroundColor: theme === "dark"
-                  ? "rgba(234, 179, 8, 0.15)"
-                  : "rgba(234, 179, 8, 0.1)",
-                borderLeft: "2px solid rgb(234, 179, 8)",
-              }
-            }
-            
-            if (isEditable) {
-              return {
-                ...base,
-                cursor: "text",
-              }
-            }
-            
-            return base
-          },
-          cellRenderer: (params: any) => {
-            const value = params.value
-            const dayStr = params.colDef.field?.replace("day_", "") || "0"
-            const day = parseInt(dayStr)
-            const status = getDayStatus(day)
-            const isLocked = status === "locked"
-            const isFuture = status === "future"
-            const audit = params.data[`audit_${day}`]
-
-            if (isFuture) {
-              return (
-                <div className="flex items-center justify-center h-full text-muted-foreground/40">
-                  —
-                </div>
-              )
-            }
-
-            return (
-              <div 
-                className={cn(
-                  "flex items-center justify-center h-full w-full relative px-1",
-                  audit && "box-border border border-red-500/50 bg-red-500/10"
-                )}
-                title={audit ? `Edited by ${audit.modified_by}\nOn: ${new Date(audit.modified_at).toLocaleString()}\nOld: ${audit.old_val} -> New: ${audit.new_val}` : (isLocked ? "Locked (>7 days)" : undefined)}
-              >
-                {value !== null && value !== undefined && value !== "" ? (
-                   <span className={cn(
-                     "font-mono font-medium transition-all",
-                     value > 0 ? "text-foreground" : "text-muted-foreground/60",
-                     audit && "text-red-600 dark:text-red-400 font-bold"
-                   )}>
-                     {Number(value).toFixed(2).replace(/\.00$/, '')}
-                   </span>
-                ) : (
-                   isLocked ? <span className="text-muted-foreground/30">-</span> : ""
-                )}
-
-                {isLocked && (
-                    <Lock className="h-2.5 w-2.5 absolute top-0.5 right-0.5 opacity-40 text-red-500" />
-                )}
-                
-                {audit && (
-                    <div className="absolute top-0 right-0 h-1.5 w-1.5 bg-red-500 rounded-full" />
-                )}
-              </div>
-            )
-          },
-          valueParser: (params: any) => {
-            const val = params.newValue
-            if (val === "" || val === null) return null
-            const num = Number(val)
-            if (isNaN(num)) return params.oldValue
-            return Math.max(0, num)
-          },
-          valueFormatter: (params: ValueFormatterParams) => {
-            if (params.value === null || params.value === undefined) return ""
-            return Number(params.value).toFixed(2)
-          },
-          tooltipValueGetter: (params: any) => {
-            const day = params.colDef.field?.replace("day_", "")
-            const dateStr = `${month}-${String(day).padStart(2, "0")}`
-            const value = params.value
-            const status = getDayStatus(parseInt(day || "0"))
-            
-            if (status === "locked") return `${dateStr} • Locked (>7 days)`
-            if (status === "future") return `${dateStr} • Future entry`
-            return `${dateStr} • ${value || 0}L`
-          },
-        })
-      }
-
-      const totalCol: ColDef = {
-        headerName: "Total",
-        valueGetter: (params: any) => {
-          let total = 0
-          Object.keys(params.data).forEach(key => {
-            if (key.startsWith("day_")) {
-              const val = Number(params.data[key] || 0)
-              total += val
-            }
-          })
-          return total
-        },
-        width: 90,
-        pinned: "right",
-        valueFormatter: (params: ValueFormatterParams) => params.value?.toFixed(2) || "0.00",
-        cellClass: "font-semibold font-mono",
-        headerClass: "font-semibold",
-      }
-
-      const cols: ColDef[] = [...baseCols, ...dayCols, totalCol]
-      setColumnDefs(cols)
-
-      const grandTotal = transformed.reduce((acc: number, r: ConsumptionRow) => {
-        let t = 0
-        Object.keys(r).forEach(k => {
-          if (k.startsWith("day_")) t += Number(r[k] || 0)
-        })
-        return acc + t
-      }, 0)
-
-      const emptyDays: Record<string, null> = {}
-      for (let i = 1; i <= daysInMonth; i++) {
-        emptyDays[`day_${i}`] = null
-      }
-
-      setPinnedBottomRowData([{
-        user_id: "__summary__",
-        user_name: "Total",
-        ...emptyDays,
-        total: grandTotal
-      } as ConsumptionRow])
-
-    } catch (error) {
-      console.error("Failed to fetch grid data", error)
-      toast.error("Failed to load consumption data")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [month, API_URL, token, theme, getDayStatus, today])
-
-  useEffect(() => {
-    fetchGridData()
-  }, [fetchGridData])
-
-  const onCellValueChanged = async (event: any) => {
-    const { data, colDef, newValue, oldValue } = event
-    if (newValue === oldValue || newValue === null) return
-
-    const day = colDef.field?.replace("day_", "")
-    if (!day) return
-
-    const dateStr = `${month}-${day.padStart(2, "0")}`
-    const newVal = newValue === "" ? null : Number(newValue)
-
-    const logId = Date.now()
-    const newLog: AuditLog = {
-      id: logId,
-      user_id: data.user_id,
-      date: dateStr,
-      oldValue,
-      newValue: newVal,
-      timestamp: new Date(),
-      status: "pending"
-    }
-
-    setAuditLog(prev => [newLog, ...prev])
-    setIsSaving(true)
-
-    try {
-      await axios.patch(`${API_URL}/consumption/`, {
-        user_id: data.user_id,
-        date: dateStr,
-        quantity: newVal
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-
-      setAuditLog(prev => prev.map(log =>
-        log.id === logId ? { ...log, status: "success" } : log
-      ))
-
-      // Refresh totals
-      fetchGridData()
-
-      toast.success("Entry saved", {
-        description: `${data.user_name}: ${dateStr} → ${newVal}L`
-      })
-
-    } catch (error: any) {
-      console.error("Update failed", error)
-
-      // Revert change in grid
-      if (gridApi && colDef.field) {
-        const rowNode = gridApi.getRowNode(data.user_id)
-        if (rowNode) {
-          rowNode.setDataValue(colDef.field, oldValue)
-          gridApi.refreshCells({ rowNodes: [rowNode], force: true })
-        }
-      }
-
-      setAuditLog(prev => prev.map(log =>
-        log.id === logId ? { ...log, status: "error" } : log
-      ))
-
-      toast.error("Failed to save", {
-        description: error.response?.data?.detail || "Entry is locked (>7 days old)"
-      })
-    } finally {
-      setIsSaving(false)
-    }
+  const handlePrevMonth = () => {
+    setSelectedMonth(prev => {
+      const d = new Date(prev)
+      d.setMonth(d.getMonth() - 1)
+      return d
+    })
   }
 
-  const handleExportCSV = async () => {
+  const handleNextMonth = () => {
+    setSelectedMonth(prev => {
+      const d = new Date(prev)
+      d.setMonth(d.getMonth() + 1)
+      return d
+    })
+  }
+
+  const handleExport = async () => {
     try {
-      const response = await axios.get(`${API_URL}/consumption/export?month=${month}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: "blob",
-      })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const res = await consumptionApi.export(monthStr)
+      const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement("a")
       link.href = url
-      link.setAttribute("download", `consumption_${month}.csv`)
+      link.setAttribute("download", `consumption_${monthStr}.csv`)
       document.body.appendChild(link)
       link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Export failed", error)
-      toast.error("Export failed")
     }
-  }
-  
-  const handleExportSpreadsheet = () => {
-    try {
-      const [yearStr, monthStr] = month.split("-")
-      const year = parseInt(yearStr, 10)
-      const monthNum = parseInt(monthStr, 10)
-      const daysInMonth = new Date(year, monthNum, 0).getDate()
-      
-      const headers: string[] = ["id", "name"]
-      for (let i = 1; i <= daysInMonth; i++) {
-        const dateStr = `${month}-${String(i).padStart(2, "0")}`
-        headers.push(dateStr)
-      }
-      headers.push("total_liters")
-      
-      const escape = (val: any) => {
-        if (val === null || val === undefined) return ""
-        const str = String(val)
-        if (str.includes(",") || str.includes("\"") || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`
-        }
-        return str
-      }
-      
-      const rows = rowData.map((r) => {
-        const values: (string | number)[] = [r.user_id, r.user_name]
-        let total = 0
-        for (let i = 1; i <= daysInMonth; i++) {
-          const val = Number(r[`day_${i}`] ?? 0)
-          values.push(val ? Number(val.toFixed(2)) : "")
-          total += val
-        }
-        values.push(Number(total.toFixed(2)))
-        return values.map(escape).join(",")
-      })
-      
-      const csv = [headers.join(","), ...rows].join("\n")
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `consumption_spreadsheet_${month}.csv`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-      
-      toast.success("Spreadsheet exported")
-    } catch (e) {
-      console.error("Client export failed", e)
-      toast.error("Export failed")
-    }
-  }
-
-  const handleExportPDF = () => {
-    try {
-      const doc = new jsPDF()
-      
-      // Title
-      doc.setFontSize(18)
-      doc.text("Consumption Report", 14, 20)
-      
-      doc.setFontSize(11)
-      doc.setTextColor(100)
-      doc.text(`Month: ${month}`, 14, 30)
-      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 35)
-
-      const [yearStr, monthStr] = month.split("-")
-      const year = parseInt(yearStr, 10)
-      const monthNum = parseInt(monthStr, 10)
-      const daysInMonth = new Date(year, monthNum, 0).getDate()
-
-      const head = [["Customer", "Total"]]
-      const body = rowData.map(row => {
-        let total = 0
-        for (let i = 1; i <= daysInMonth; i++) {
-          total += Number(row[`day_${i}`] || 0)
-        }
-        return [row.user_name, total.toFixed(2)]
-      })
-
-      // Calculate grand total
-      const grandTotal = body.reduce((acc, row) => acc + Number(row[1]), 0)
-      body.push(["GRAND TOTAL", grandTotal.toFixed(2)])
-
-      autoTable(doc, {
-        head: head,
-        body: body,
-        startY: 40,
-        theme: 'grid',
-        headStyles: { fillColor: [15, 23, 42] }, // Slate 900
-        styles: { fontSize: 10 },
-        columnStyles: {
-          0: { cellWidth: 'auto' },
-          1: { cellWidth: 40, halign: 'right' },
-        },
-      })
-
-      doc.save(`consumption-report-${month}.pdf`)
-      toast.success("PDF exported")
-    } catch (error) {
-      console.error("PDF export failed", error)
-      toast.error("Failed to generate PDF")
-    }
-  }
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const [year, m] = month.split("-").map(Number)
-    let newMonth: number
-    let newYear = year
-    
-    if (direction === 'prev') {
-      newMonth = m - 1
-      if (newMonth < 1) {
-        newMonth = 12
-        newYear -= 1
-      }
-    } else {
-      newMonth = m + 1
-      if (newMonth > 12) {
-        newMonth = 1
-        newYear += 1
-      }
-    }
-    
-    const newMonthStr = `${newYear}-${String(newMonth).padStart(2, "0")}`
-    setMonth(newMonthStr)
-  }
-
-  // Status Legend Component
-  const StatusLegend = () => (
-    <div className="flex items-center gap-4 text-xs">
-      <div className="flex items-center gap-1.5">
-        <div className="w-4 h-4 rounded bg-red-100 border border-red-200 flex items-center justify-center">
-          <Lock className="h-2.5 w-2.5 text-red-500" />
-        </div>
-        <span className="text-muted-foreground">Locked (&gt;7 days)</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-300" />
-        <span className="text-muted-foreground">Today</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <div className="w-4 h-4 rounded bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center">
-          <span className="text-gray-400 text-xs">—</span>
-        </div>
-        <span className="text-muted-foreground">Future</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-        <span className="text-muted-foreground">Saved</span>
-      </div>
-    </div>
-  )
-
-  // Loading overlay
-  if (isLoading && rowData.length === 0) {
-    return (
-      <div className="container py-6 md:py-8 h-[calc(100vh-3.5rem)] flex flex-col">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">Consumption Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage daily milk delivery records.</p>
-        </div>
-        <Card className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading consumption data...</p>
-          </div>
-        </Card>
-      </div>
-    )
   }
 
   return (
-    <div className="container py-6 md:py-8 h-[calc(100vh-3.5rem)] flex flex-col animate-in">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-gradient">Consumption Management</h1>
-          <p className="text-sm text-muted-foreground">Manage daily milk delivery records.</p>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Monthly Consumption</h1>
+          <p className="text-muted-foreground">Detailed daily records for all customers.</p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Filter customers..."
-              value={quickFilterText}
-              onChange={(e) => {
-                setQuickFilterText(e.target.value)
-                gridApi?.setGridOption("quickFilterText", e.target.value)
-              }}
-              className="pl-9 w-64 bg-background"
-            />
-          </div>
-
-          {/* Month Selector */}
-          <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-md border">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigateMonth('prev')}
-              className="h-8 w-8"
-            >
+        
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-white dark:bg-slate-900 border rounded-lg overflow-hidden shadow-sm">
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none border-r" onClick={handlePrevMonth}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-1 px-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <input
-                ref={inputMonthRef}
-                type="month"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                className="border-0 focus-visible:ring-0 w-auto bg-transparent h-7 text-sm font-medium"
-              />
+            <div className="px-3 py-1 flex items-center gap-2 min-w-[140px] justify-center text-sm font-semibold">
+              <CalendarIcon className="h-4 w-4 text-primary" />
+              {format(selectedMonth, "MMMM yyyy")}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigateMonth('next')}
-              disabled={month >= new Date().toISOString().slice(0, 7)}
-              className="h-8 w-8"
-            >
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none border-l" onClick={handleNextMonth}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-
-          {/* Refresh */}
-          <Button
-            onClick={() => fetchGridData()}
-            variant="outline"
-            size="icon"
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-          </Button>
-
-          {/* Export buttons */}
-          <div className="h-6 w-px bg-border" />
-          <Button onClick={handleExportCSV} variant="outline" size="sm" className="h-9 hidden md:flex">
-            <Download className="mr-2 h-4 w-4" /> CSV
-          </Button>
-          <Button onClick={handleExportPDF} variant="outline" size="sm" className="h-9">
-             <FileText className="mr-2 h-4 w-4" /> PDF
-          </Button>
-          <Button onClick={handleExportSpreadsheet} variant="default" size="sm" className="h-9">
-            <Download className="mr-2 h-4 w-4" /> Excel
+          
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export</span>
           </Button>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="mb-4">
-        <StatusLegend />
-      </div>
+      <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-250px)]">
+          <Table className="relative border-collapse">
+            <TableHeader className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10 shadow-sm">
+              <TableRow>
+                <TableHead className="sticky left-0 bg-slate-50 dark:bg-slate-800 min-w-[180px] z-20 font-bold border-r">
+                  Customer Name
+                </TableHead>
+                {daysInMonth.map((day) => (
+                  <TableHead 
+                    key={day.toISOString()} 
+                    className={cn(
+                      "min-w-[45px] text-center p-2 text-[10px] font-bold uppercase tracking-tighter border-r",
+                      isToday(day) && "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
+                    )}
+                  >
+                    <div className="flex flex-col">
+                      <span>{format(day, "eee")}</span>
+                      <span className="text-sm">{format(day, "d")}</span>
+                    </div>
+                  </TableHead>
+                ))}
+                <TableHead className="min-w-[70px] text-center font-bold bg-slate-100 dark:bg-slate-700">
+                  Total
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="sticky left-0 bg-white dark:bg-slate-900 border-r"><Skeleton className="h-4 w-24" /></TableCell>
+                    {daysInMonth.map((day) => (
+                      <TableCell key={day.toISOString()} className="border-r"><Skeleton className="h-4 w-6 mx-auto" /></TableCell>
+                    ))}
+                    <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : gridData?.length > 0 ? (
+                gridData.map((row: any) => {
+                  let rowTotal = 0;
+                  return (
+                    <TableRow key={row.user_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <TableCell className="sticky left-0 bg-white dark:bg-slate-900 font-medium border-r z-10 py-3">
+                        <div className="flex flex-col">
+                          <span>{row.name}</span>
+                          <span className="text-[10px] text-muted-foreground leading-none">{row.phone}</span>
+                        </div>
+                      </TableCell>
+                      {daysInMonth.map((day) => {
+                        const dateStr = format(day, "yyyy-MM-dd")
+                        const dayNum = day.getDate()
+                        const value = row.daily_liters[dateStr] || 0
+                        rowTotal += value
+                        const isLocked = isPast(day) && !isToday(day)
+                        
+                        return (
+                          <TableCell 
+                            key={dateStr} 
+                            className={cn(
+                              "text-center p-0 border-r text-sm min-w-[45px]",
+                              isToday(day) && "bg-primary/5",
+                              isFuture(day) && "bg-slate-50/50 dark:bg-slate-900/50 opacity-40 cursor-not-allowed",
+                              isLocked && "bg-slate-50/30 dark:bg-slate-900/10"
+                            )}
+                          >
+                            <div className="h-10 flex items-center justify-center relative group">
+                              {value > 0 ? (
+                                <div className="flex items-center gap-0.5">
+                                  <span className={cn(
+                                    "font-bold",
+                                    isToday(day) ? "text-primary" : "text-foreground/80"
+                                  )}>
+                                    {value % 1 === 0 ? value : value.toFixed(1)}
+                                  </span>
+                                  {row.audits?.[dayNum] && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <button className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <Info className="h-3 w-3 text-amber-500" />
+                                        </button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-56 p-3 text-xs" side="top">
+                                        <div className="space-y-2">
+                                          <div className="flex items-center gap-1.5 font-bold text-amber-600">
+                                            <History className="h-3 w-3" />
+                                            Audit Information
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                                            <span className="text-muted-foreground">Admin:</span>
+                                            <span className="font-medium">{row.audits[dayNum].modified_by}</span>
+                                            <span className="text-muted-foreground">Before:</span>
+                                            <span className="font-medium">{row.audits[dayNum].old_val} L</span>
+                                            <span className="text-muted-foreground">After:</span>
+                                            <span className="font-medium">{row.audits[dayNum].new_val} L</span>
+                                            <span className="text-muted-foreground">Date:</span>
+                                            <span className="font-medium">{format(new Date(row.audits[dayNum].modified_at), "MMM d, HH:mm")}</span>
+                                          </div>
+                                        </div>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                </div>
+                              ) : isLocked ? (
+                                <Lock className="h-4 w-4 text-muted-foreground/30" />
+                              ) : (
+                                <span className="text-muted-foreground/20 italic">-</span>
+                              )}
+                            </div>
+                          </TableCell>
+                        )
+                      })}
+                      <TableCell className="bg-slate-50/80 dark:bg-slate-800/80 text-center font-black text-primary py-3">
+                        {rowTotal.toFixed(1)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={daysInMonth.length + 2} className="h-32 text-center">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <span className="text-red-500 font-medium">Failed to load data</span>
+                      <span className="text-sm">Please check your connection and try again</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : gridData?.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={daysInMonth.length + 2} className="h-32 text-center text-muted-foreground">
+                    No milk consumption data for this month yet. Start by adding entries in Daily Entry.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={daysInMonth.length + 2} className="h-32 text-center text-muted-foreground">
+                    No customers found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+            <TableBody className="sticky bottom-0 bg-slate-100 dark:bg-slate-800 font-bold z-10 border-t shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
+              <TableRow>
+                <TableCell className="sticky left-0 bg-slate-100 dark:bg-slate-800 border-r py-4 font-black">
+                  DAILY TOTALS
+                </TableCell>
+                {daysInMonth.map((day) => {
+                  const dateStr = format(day, "yyyy-MM-dd")
+                  const dayTotal = gridData?.reduce((sum: number, row: any) => sum + (row.daily_liters[dateStr] || 0), 0) || 0
+                  return (
+                    <TableCell key={dateStr} className="text-center border-r text-primary">
+                      {dayTotal > 0 ? (dayTotal % 1 === 0 ? dayTotal : dayTotal.toFixed(1)) : "-"}
+                    </TableCell>
+                  )
+                })}
+                <TableCell className="text-center text-lg font-black bg-primary text-primary-foreground">
+                  {gridData?.reduce((sum: number, row: any) => sum + Object.values(row.daily_liters as Record<string, number>).reduce((s, v) => s + v, 0), 0).toFixed(1)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      {/* Grid */}
-      <div className="flex-1 w-full min-h-0 premium-card rounded-xl shadow-elev-2">
-        <div className={cn("h-full w-full overflow-hidden p-1", gridTheme)}>
-          <AgGridReact
-            rowData={rowData}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            onCellValueChanged={onCellValueChanged}
-            onGridReady={(params: GridReadyEvent) => {
-              setGridApi(params.api)
-            }}
-            onFirstDataRendered={(e: any) => {
-              e.api.sizeColumnsToFit()
-            }}
-            pagination={true}
-            paginationPageSize={20}
-            rowSelection="multiple"
-            suppressRowClickSelection={true}
-            enableCellTextSelection={true}
-            animateRows={true}
-            getRowId={(params) => params.data.user_id}
-            pinnedBottomRowData={pinnedBottomRowData}
-            tooltipShowDelay={0}
-            enableBrowserTooltips={true}
-            overlayNoRowsTemplate={`<div class="flex items-center justify-center h-full w-full text-center p-8"><div class="space-y-2"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto h-12 w-12 text-muted-foreground"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><h3 class="text-lg font-semibold">No consumption data</h3><p class="text-sm text-muted-foreground max-w-sm">No entries for ${month}. Enter today's data or import a CSV to get started.</p></div></div>`}
-            overlayLoadingTemplate={`<div class="flex items-center gap-2"><svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span>Loading...</span></div>`}
-          />
-        </div>
-      </div>
-
-      {/* Status Footer */}
-      <div className="mt-4 flex items-center justify-between text-xs border-t pt-4">
-        <div className="flex items-center gap-6">
-          <span className="text-muted-foreground">
-            Total Customers: <span className="font-semibold text-foreground">{rowData.length}</span>
-          </span>
-
-          {/* Edit status */}
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle className="h-3 w-3 text-green-500" />
-              {auditLog.filter(l => l.status === "success").length} saved
-            </span>
-            <span className="flex items-center gap-1.5">
-              <XCircle className="h-3 w-3 text-red-500" />
-              {auditLog.filter(l => l.status === "error").length} failed
-            </span>
-            {isSaving && (
-              <span className="flex items-center gap-1.5 text-primary">
-                <Clock className="h-3 w-3 animate-pulse" />
-                Saving...
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Info className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground">
-            Entries older than 7 days are locked
-          </span>
-        </div>
+      <div className="flex items-center gap-6 text-[10px] uppercase font-bold text-muted-foreground bg-slate-100 dark:bg-slate-800 p-3 rounded-lg border">
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-primary/20 rounded-sm" /> Today</div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-slate-200 dark:bg-slate-700 rounded-sm" /> Past / Locked</div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-slate-50 dark:bg-slate-900 opacity-40 rounded-sm" /> Future</div>
       </div>
     </div>
   )
 }
-

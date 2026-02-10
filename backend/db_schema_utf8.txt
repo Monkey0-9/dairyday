@@ -1,0 +1,10 @@
+Columns in users:
+(0, 'id', 'UUID', 1, 'gen_random_uuid()', 1)
+(1, 'name', 'VARCHAR', 1, None, 0)
+(2, 'email', 'VARCHAR', 0, None, 0)
+(3, 'phone', 'VARCHAR', 0, None, 0)
+(4, 'role', 'VARCHAR', 1, None, 0)
+(5, 'price_per_liter', 'NUMERIC(10, 3)', 1, None, 0)
+(6, 'is_active', 'BOOLEAN', 0, None, 0)
+(7, 'hashed_password', 'VARCHAR', 0, None, 0)
+(8, 'created_at', 'DATETIME', 0, 'CURRENT_TIMESTAMP', 0)

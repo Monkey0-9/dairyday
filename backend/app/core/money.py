@@ -8,7 +8,6 @@ Provides consistent monetary handling with:
 """
 from decimal import Decimal, ROUND_HALF_EVEN
 from dataclasses import dataclass
-from typing import Optional
 
 # Rounding policy: Banker's rounding for financial accuracy
 DEFAULT_ROUNDING = ROUND_HALF_EVEN

@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime, JSON, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from app.db.base import Base
+from app.db.base_class import Base
 
 class AuditLog(Base):
     """

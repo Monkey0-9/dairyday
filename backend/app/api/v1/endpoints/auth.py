@@ -44,35 +44,39 @@ MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION_SECONDS = 900  # 15 minutes
 
 
-def get_login_attempts_key(email: str) -> str:
+
+async def get_login_attempts_key(email: str) -> str:
     """Generate Redis key for login attempt tracking."""
     return f"{LOGIN_ATTEMPTS_PREFIX}{email.lower()}"
 
 
-def record_failed_attempt(redis, email: str) -> int:
+async def record_failed_attempt(redis, email: str) -> int:
     """Record a failed login attempt and return current count.
 
     Uses atomic increment with expiry for rate limiting.
     """
-    key = get_login_attempts_key(email)
-    pipe = redis.pipeline()
-    pipe.incr(key)
-    pipe.expire(key, LOCKOUT_DURATION_SECONDS)
-    pipe.execute()
-    return int(redis.get(key) or 0)
+    key = await get_login_attempts_key(email)
+    async with redis.pipeline() as pipe:
+        await pipe.incr(key)
+        await pipe.expire(key, LOCKOUT_DURATION_SECONDS)
+        await pipe.execute()
+    
+    val = await redis.get(key)
+    return int(val or 0)
 
 
-def check_account_locked(redis, email: str) -> bool:
+async def check_account_locked(redis, email: str) -> bool:
     """Check if account is temporarily locked due to too many failed attempts."""
-    key = get_login_attempts_key(email)
-    attempts = int(redis.get(key) or 0)
+    key = await get_login_attempts_key(email)
+    val = await redis.get(key)
+    attempts = int(val or 0)
     return attempts >= MAX_LOGIN_ATTEMPTS
 
 
-def clear_login_attempts(redis, email: str) -> None:
+async def clear_login_attempts(redis, email: str) -> None:
     """Clear login attempts on successful login."""
-    key = get_login_attempts_key(email)
-    redis.delete(key)
+    key = await get_login_attempts_key(email)
+    await redis.delete(key)
 
 
 def is_production() -> bool:
@@ -102,7 +106,7 @@ async def login_access_token(
     # 1. Check for account lockout
     try:
         redis = get_redis()
-        if check_account_locked(redis, email):
+        if redis and await check_account_locked(redis, email):
             logger.warning(
                 "Login blocked for locked account: %s",
                 email
@@ -113,7 +117,9 @@ async def login_access_token(
                 headers={"Retry-After": str(LOCKOUT_DURATION_SECONDS)}
             )
     except Exception as redis_err:
-        logger.warning("Redis unavailable, skipping rate limit: %s", redis_err)
+        if isinstance(redis_err, HTTPException):
+            raise
+        logger.warning("Redis unavailable or error, skipping rate limit: %s", redis_err)
         redis = None
 
     # 2. Verify credentials
@@ -123,7 +129,7 @@ async def login_access_token(
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         failed_attempts = 0
         if redis:
-            failed_attempts = record_failed_attempt(redis, email)
+            failed_attempts = await record_failed_attempt(redis, email)
 
         logger.warning(
             "Failed login attempt for: %s (attempts: %d)",
@@ -146,7 +152,7 @@ async def login_access_token(
 
     # 3. Clear login attempts on success
     if redis:
-        clear_login_attempts(redis, email)
+        await clear_login_attempts(redis, email)
 
     # 4. Create tokens
     access_token_expires = datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -208,6 +214,8 @@ async def login_access_token(
     )
 
     return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         "user": {
@@ -253,7 +261,7 @@ async def refresh_access_token(
 
         # Check revocation
         jti = payload.get("jti")
-        if jti and security.is_blacklisted(jti):
+        if jti and await security.is_blacklisted(jti):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has been revoked",
@@ -272,7 +280,7 @@ async def refresh_access_token(
             exp = payload.get("exp")
             now = datetime.datetime.now(datetime.timezone.utc).timestamp()
             ttl = int(exp - now) if exp else 3600
-            security.add_to_blacklist(jti, ttl)
+            await security.add_to_blacklist(jti, ttl)
 
         # Create new tokens
         access_jti = str(uuid.uuid4())
@@ -315,6 +323,8 @@ async def refresh_access_token(
         )
 
         return {
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer",
             "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         }
@@ -352,7 +362,7 @@ async def logout(
                 exp = payload.get("exp")
                 now = datetime.datetime.now(datetime.timezone.utc).timestamp()
                 ttl = int(exp - now) if exp else 3600
-                security.add_to_blacklist(jti, ttl)
+                await security.add_to_blacklist(jti, ttl)
         except Exception:
             pass
 

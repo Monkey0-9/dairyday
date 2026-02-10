@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime, UniqueConstraint, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-from app.db.base import Base
+from app.db.base_class import Base
 
 class IdempotencyKey(Base):
     __tablename__ = "idempotency_keys"

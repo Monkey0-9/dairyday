@@ -1,4 +1,3 @@
-import datetime
 from datetime import date as date_type
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer

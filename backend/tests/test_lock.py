@@ -3,10 +3,7 @@ Lock rule tests for DairyOS.
 Tests the 7-day lock rule for consumption editing.
 """
 
-import pytest
 from datetime import date, timedelta
-from decimal import Decimal
-from uuid import uuid4
 
 
 def test_date_locking_logic():

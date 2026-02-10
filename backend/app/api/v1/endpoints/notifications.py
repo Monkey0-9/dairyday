@@ -1,8 +1,6 @@
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
-from app.api import deps
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.websocket.connection_manager import manager
-from app.models.user import User
 import logging
 
 router = APIRouter()
@@ -17,7 +15,6 @@ async def websocket_endpoint(
     WebSocket endpoint for real-time notifications.
     Token must be provided as a query param for initial handshake.
     """
-    user = None
     try:
         # Manual auth for websocket
         from jose import jwt

@@ -41,6 +41,11 @@ class BillBase(BaseModel):
         None,
         description="URL to the PDF invoice"
     )
+    is_locked: bool = Field(
+        default=False,
+        description="Whether the bill is finalized and locked"
+    )
+    generated_at: Optional[datetime.datetime] = None
 
 
 class BillCreate(BaseModel):
@@ -87,7 +92,7 @@ class BillInDBBase(BillBase):
 
 class Bill(BillInDBBase):
     """Public bill schema."""
-    pass
+    user_name: Optional[str] = None
 
 
 class BillSummary(BaseModel):

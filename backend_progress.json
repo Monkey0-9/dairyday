@@ -1,0 +1,7 @@
+[
+  {
+    "id": 1,
+    "status": "In Progress",
+    "notes": "Backend test failures: 49/57 passing. Fixing remaining auth and flow assertions."
+  }
+]

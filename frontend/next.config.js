@@ -1,10 +1,14 @@
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  disable: process.env.NODE_ENV === 'development',
+  register: true,
+  skipWaiting: true,
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
-  
-  // Production optimizations
-  swcMinify: true,
   
   // Enable React strict mode
   reactStrictMode: true,
@@ -50,13 +54,18 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: '/user',
-        destination: '/user/dashboard',
+        source: '/customer',
+        destination: '/customer/dashboard',
+        permanent: true,
+      },
+      {
+        source: '/user/:path*',
+        destination: '/customer/:path*',
         permanent: true,
       },
     ];
   },
 };
 
-module.exports = nextConfig;
+module.exports = withPWA(nextConfig);
 

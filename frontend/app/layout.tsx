@@ -1,36 +1,38 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { cn } from "@/lib/utils";
-import { Providers } from "@/components/providers";
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Providers } from '@/components/providers'
+import { Toaster } from 'sonner'
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "dairyday Management System",
-  description: "Enterprise grade dairyday management platform",
-  manifest: "/manifest.json",
-};
-
-export const viewport = {
-  themeColor: "#0f172a",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-};
+  title: 'DairyOS',
+  description: 'Manage your dairy business effortlessly',
+  manifest: '/manifest.json',
+}
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background text-foreground font-sans antialiased", inter.variable)}>
-        <Providers>
-          {children}
-        </Providers>
+      <body className={inter.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Providers>
+            {children}
+            <Toaster position="bottom-right" />
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

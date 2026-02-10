@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 try:
     h = pwd_context.hash("admin123")
     print(f"Hash: {h}")

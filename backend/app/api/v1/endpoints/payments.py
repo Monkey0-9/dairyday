@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from uuid import UUID
+import uuid
 import hmac
 import hashlib
 import json
@@ -25,12 +26,11 @@ from app.models.webhook_event import WebhookEvent
 from app.core.config import settings
 from app.core.context import get_request_id
 from app.core.redis import get_redis
+from app.core.razorpay_utils import get_razorpay_client
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-from app.core.razorpay_utils import get_razorpay_client
 
 
 @router.get("/last")
@@ -67,7 +67,9 @@ async def create_payment_order(
     bill_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    idempotency_key: str | None = Header(
+        default=None, alias="Idempotency-Key"
+    ),
 ) -> Any:
     """Create a payment order for a bill.
 
@@ -82,7 +84,9 @@ async def create_payment_order(
 
     # Verify user owns this bill (or is admin)
     if current_user.role != "ADMIN" and bill.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to pay this bill")
+        raise HTTPException(
+            status_code=403, detail="Not authorized to pay this bill"
+        )
 
     if bill.status == "PAID":
         raise HTTPException(status_code=400, detail="Bill already paid")
@@ -136,13 +140,15 @@ async def create_payment_order(
 
     except Exception as e:
         logger.error("Failed to create payment order: %s", str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to create order: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create order: {str(e)}"
+        )
 
 
 @router.post("/webhook")
 async def payment_webhook(
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db)  # noqa: B008
 ) -> dict:
     """Handle payment webhooks from Razorpay.
 
@@ -208,13 +214,17 @@ async def payment_webhook(
                     "Webhook %s invalid timestamp header: %s",
                     request_id, str(e)
                 )
-                raise HTTPException(status_code=400, detail="Invalid timestamp format")
+                raise HTTPException(
+                    status_code=400, detail="Invalid timestamp format"
+                )
 
     # 5. Parse payload
     try:
-        data = json.loads(body_bytes.decode('utf-8'))
-    except json.JSONDecodeError as e:
-        logger.warning("Webhook %s invalid JSON: %s", request_id, str(e))
+        body_str = body_bytes.decode('utf-8')
+        logger.info(f"Webhook {request_id} body: {body_str}")
+        data = json.loads(body_str)
+    except Exception as e:
+        logger.error(f"Webhook {request_id} parse error: {str(e)}")
         return {"status": "error", "message": "invalid_json"}
 
     # 6. Extract event information
@@ -356,19 +366,25 @@ async def payment_webhook(
 
     except Exception as e:
         await db.rollback()
-        logger.error(
-            "Webhook %s processing error: %s",
-            request_id, str(e)
+        import traceback
+        error_msg = (
+            f"Webhook {request_id} processing error: {str(e)}\n"
+            f"{traceback.format_exc()}"
         )
+        logger.error(error_msg)
+        print(error_msg)  # Direct print for pytest -s
 
         # Update webhook event status
-        webhook_event.status = "failed"
-        try:
-            await db.commit()
-        except Exception:
-            pass
+        if 'webhook_event' in locals():
+            webhook_event.status = "failed"
+            try:
+                await db.commit()
+            except Exception:
+                pass
 
-        raise HTTPException(status_code=500, detail="Internal processing error")
+        raise HTTPException(
+            status_code=500, detail=f"Internal processing error: {str(e)}"
+        )
 
 
 async def _handle_payment_failed(
@@ -426,3 +442,51 @@ async def _handle_payment_failed(
 
     return {"status": "success", "message": "payment_failure_recorded"}
 
+
+@router.post("/mark-paid/{bill_id}")
+async def mark_bill_as_paid(
+    bill_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_billing_manager),
+) -> Any:
+    """
+    Mark a bill as PAID by Admin (Cash Payment).
+    """
+    # 1. Fetch Bill
+    result = await db.execute(select(Bill).where(Bill.id == bill_id))
+    bill = result.scalars().first()
+
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+
+    if bill.status == "PAID":
+        raise HTTPException(status_code=400, detail="Bill is already marked as PAID")
+
+    # 2. Update Bill Status
+    bill.status = "PAID"
+    bill.updated_at = func.now()
+
+    # 3. Create Cash Payment Record
+    payment = Payment(
+        bill_id=bill.id,
+        provider="CASH",
+        provider_payment_id=f"CASH-{uuid.uuid4().hex[:8].upper()}",
+        amount=bill.total_amount,
+        status="SUCCESS",
+        paid_at=func.now()
+    )
+
+    db.add(bill)
+    db.add(payment)
+    await db.commit()
+
+    logger.info(
+        "Bill %s marked as PAID (CASH) by admin %s",
+        bill_id, current_user.email
+    )
+
+    return {
+        "message": "Bill marked as PAID via Cash",
+        "bill_id": str(bill.id),
+        "status": "PAID"
+    }

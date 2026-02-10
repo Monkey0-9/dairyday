@@ -87,7 +87,7 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             status_code = response.status_code
-        except Exception as e:
+        except Exception:
             status_code = 500
             raise
         finally:

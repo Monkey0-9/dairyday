@@ -3,18 +3,14 @@ Full flow integration tests for DairyOS.
 Tests the complete flow: login → consumption → billing → payment
 """
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, timedelta
 from decimal import Decimal
 import uuid
 
-from app.main import app
-from app.db.session import get_db
 from app.models.user import User
 from app.models.consumption import Consumption
-from app.models.bill import Bill
 from app.core.security import get_password_hash
 
 
@@ -95,8 +91,8 @@ async def test_full_flow(
     bill_data = response.json()
     
     # Verify bill calculation: 10.5 liters * ₹60/liter = ₹630
-    assert float(bill_data["total_liters"]) == 10.5
-    assert float(bill_data["total_amount"]) == 630.0
+    assert float(bill_data["total_liters"]) == pytest.approx(10.5)
+    assert float(bill_data["total_amount"]) == pytest.approx(630.0)
     assert bill_data["status"] == "UNPAID"
     
     # 6. User can view own bill
@@ -158,7 +154,28 @@ async def test_full_flow(
     assert "access_token" in new_tokens
     assert "refresh_token" in new_tokens
     
-    # 12. Logout works
+    # 12. Admin marks bill as PAID (Cash)
+    bill_id = bill_data["bill_id"]
+    response = await client.post(
+        f"/api/v1/payments/mark-paid/{bill_id}",
+        headers=admin_headers
+    )
+    assert response.status_code == 200, f"Mark as paid failed: {response.text}"
+    assert response.json()["status"] == "PAID"
+    
+    # Verify bill status is now PAID
+    response = await client.get(
+        f"/api/v1/bills/{regular_user.id}/{month_str}",
+        headers=user_headers
+    )
+    assert response.json()["status"] == "PAID"
+    
+    # 13. Logout works
+    response = await client.post("/api/v1/auth/logout", headers=user_headers)
+    assert response.status_code == 200
+    assert response.json()["message"] == "Successfully logged out"
+
+    # 13. Logout works
     response = await client.post("/api/v1/auth/logout", headers=user_headers)
     assert response.status_code == 200
     assert response.json()["message"] == "Successfully logged out"

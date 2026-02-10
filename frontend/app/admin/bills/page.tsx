@@ -1,370 +1,502 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
-import { AgGridReact } from "ag-grid-react"
-import { ColDef, GridApi, GridReadyEvent, ValueFormatterParams, ICellRendererParams } from "ag-grid-community"
-import axios from "axios"
+import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import {
+  Loader2,
+  Receipt,
+  Search,
+  FileText,
+  RefreshCw,
+  Download,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  Milk,
+  IndianRupee,
+  FileCheck,
+  Banknote,
+  Filter,
+  ArrowRight
+} from "lucide-react"
+import { toast } from "sonner"
+import { format } from "date-fns"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import { Loader2, Plus, Download, Calendar, FileText, Clock, Share2, RefreshCw } from "lucide-react"
-import { useTheme } from "next-themes"
-import { cn } from "@/lib/utils"
-import { useQuery } from "@tanstack/react-query"
-import { EmptyState, LoadingState } from "@/components/ui/empty-state"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { billsApi, paymentsApi } from "@/lib/api"
+import { cn, formatApiError } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
-interface BillRow {
-    id: string
-    user_id: string
-    user_name: string
-    total_liters: number
-    total_amount: number
-    status: string
-    pdf_url?: string | null
-    isGenerating?: boolean
-}
+export default function AdminBillsPage() {
+  const queryClient = useQueryClient()
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showOnlyUnpaid, setShowOnlyUnpaid] = useState(false)
+  
+  // For Recording Cash Payment
+  const [selectedBill, setSelectedBill] = useState<any>(null)
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false)
 
-export default function BillsManagement() {
-    const [rowData, setRowData] = useState<BillRow[]>([])
-    const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-    const [gridApi, setGridApi] = useState<GridApi | null>(null)
-    const [generatingBills, setGeneratingBills] = useState<Set<string>>(new Set())
-    const [isGeneratingAll, setIsGeneratingAll] = useState(false)
-    const { theme } = useTheme()
-    
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+  const { data: bills = [], isLoading } = useQuery({
+    queryKey: ["admin-bills", month],
+    queryFn: async () => {
+      const res = await billsApi.list(month)
+      return res.data
+    },
+    staleTime: 30_000,
+  })
 
-    const gridTheme = useMemo(() => theme === "dark" ? "ag-theme-quartz-dark" : "ag-theme-quartz", [theme])
-    
-    const defaultColDef = useMemo<ColDef>(() => ({
-        sortable: true,
-        filter: true,
-        resizable: true,
-        headerClass: "font-semibold tracking-wide",
-        cellClass: "text-sm font-tabular-nums",
-        suppressHeaderKeyboardTraversal: true,
-    }), [])
-
-    const fetchUsers = useCallback(async () => {
-        if (!token) return {}
-        try {
-            const res = await axios.get(`${API_URL}/users/`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            const usersMap: Record<string, string> = {}
-            res.data.forEach((u: any) => usersMap[u.id] = u.name)
-            return usersMap
-        } catch {
-            return {}
-        }
-    }, [API_URL, token])
-
-    const { data: usersMap } = useQuery({
-        queryKey: ["usersMap"],
-        queryFn: fetchUsers,
-        staleTime: 1000 * 60 * 5
-    })
-
-    const fetchBills = useCallback(async () => {
-        if (!token) return
-        try {
-            const res = await axios.get(`${API_URL}/bills/?month=${month}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            
-            const enrichedData = res.data.map((b: any) => ({
-                ...b,
-                user_name: usersMap?.[b.user_id] || b.user_id,
-                isGenerating: !b.pdf_url
-            }))
-
-            setRowData(enrichedData)
-        } catch (error) {
-            console.error("Failed to fetch bills", error)
-        }
-    }, [month, API_URL, token, usersMap])
-
-    useEffect(() => {
-        fetchBills()
-    }, [fetchBills])
-
-    const generateBill = useCallback(async (userId: string) => {
-        if (!token || !userId) return
-        
-        setGeneratingBills(prev => new Set(prev).add(userId))
-        try {
-            const response = await axios.post(
-                `${API_URL}/bills/generate/${userId}/${month}`, 
-                {},
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
-            )
-            
-            if (response.status === 202) {
-                // Poll for PDF URL completion
-                setTimeout(() => {
-                    setGeneratingBills(prev => {
-                        const next = new Set(prev)
-                        next.delete(userId)
-                        return next
-                    })
-                    fetchBills()
-                }, 5000)  // Check after 5 seconds
-            }
-        } catch (error) {
-            console.error("Failed to generate bill", error)
-        } finally {
-            setGeneratingBills(prev => {
-                const next = new Set(prev)
-                next.delete(userId)
-                return next
-            })
-        }
-    }, [API_URL, token, month, fetchBills])
-
-    const generateAllBills = useCallback(async () => {
-        if (!token || !confirm(`Generate bills for ALL active customers for ${month}?`)) return
-        
-        setIsGeneratingAll(true)
-        try {
-            const response = await axios.post(
-                `${API_URL}/bills/generate-all?month=${month}`, 
-                {},
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
-            )
-            
-            if (response.status === 202) {
-                // Refresh after delay
-                setTimeout(() => {
-                    fetchBills()
-                }, 5000)
-            }
-        } catch (error) {
-            console.error("Error generating bills", error)
-        } finally {
-            setIsGeneratingAll(false)
-        }
-    }, [API_URL, token, month, fetchBills])
-
-    const columnDefs = useMemo<ColDef<BillRow>[]>(() => [
-        { 
-            field: "user_name", 
-            headerName: "Customer", 
-            flex: 1, 
-            filter: true, 
-            sortable: true,
-            cellClass: "font-medium"
-        },
-        { 
-            field: "total_liters", 
-            headerName: "Liters", 
-            width: 100,
-            valueFormatter: (p: ValueFormatterParams) => {
-                const val = p.value
-                return typeof val === "number" ? val.toFixed(2) : "0.00"
-            }
-        },
-        { 
-            field: "total_amount", 
-            headerName: "Amount (₹)", 
-            width: 130,
-            cellStyle: { fontWeight: 600 },
-            valueFormatter: (p: ValueFormatterParams) => {
-                const val = p.value
-                return typeof val === "number" ? `₹${val.toFixed(2)}` : "₹0.00"
-            }
-        },
-        { 
-            field: "status", 
-            headerName: "Status", 
-            width: 110,
-            cellStyle: (params) => {
-                const status = params.value
-                const isPaid = status === "PAID"
-                return { 
-                    color: isPaid ? "var(--color-success)" : "var(--color-warning)",
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    fontSize: "11px"
-                }
-            },
-            valueFormatter: (p: ValueFormatterParams) => p.value || "PENDING"
-        },
-        { 
-            headerName: "Invoice",
-            width: 140,
-            cellRenderer: (params: ICellRendererParams<BillRow>) => {
-                const bill = params.data
-                if (!bill) return null
-                
-                // Check if PDF is being generated
-                const isGenerating = generatingBills.has(bill.user_id) || bill.isGenerating
-                
-                if (isGenerating) {
-                    return (
-                        <div className="flex items-center gap-1.5 text-amber-500 text-xs">
-                            <Clock className="h-3 w-3 animate-pulse" />
-                            <span>Generating...</span>
-                        </div>
-                    )
-                }
-                
-                // Check for valid PDF URL
-                if (bill.pdf_url) {
-                    return (
-                        <a 
-                            href={bill.pdf_url}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium"
-                        >
-                            <Download className="h-3 w-3" />
-                            Download
-                        </a>
-                    )
-                }
-                
-                return (
-                    <span className="text-muted-foreground text-xs">Not ready</span>
-                )
-            }
-        },
-        {
-            headerName: "Actions",
-            width: 170,
-            cellRenderer: (params: ICellRendererParams<BillRow>) => {
-                const bill = params.data
-                if (!bill) return null
-                
-                const isGenerating = generatingBills.has(bill.user_id) || bill.isGenerating
-                
-                const handleShare = () => {
-                    const text = `Hello ${bill.user_name}, your milk bill for ${month} is generated.\nTotal: ₹${bill.total_amount}\nLink: ${bill.pdf_url || "Please contact admin"}`
-                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank")
-                }
-
-                return (
-                    <div className="flex items-center gap-1">
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => generateBill(bill.user_id)}
-                            disabled={isGenerating || isGeneratingAll}
-                            className="h-7 px-2 text-xs"
-                            title="Regenerate Bill"
-                        >
-                            {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleShare}
-                            disabled={!bill.pdf_url}
-                            className="h-7 px-2 text-xs text-green-600 hover:text-green-700"
-                            title="Share on WhatsApp"
-                        >
-                            <Share2 className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
-                )
-            }
-        }
-    ], [generateBill, generatingBills, isGeneratingAll])
-
-    const pinnedBottomRowData = useMemo(() => {
-        const totalLiters = rowData.reduce((acc, r) => acc + Number(r.total_liters || 0), 0)
-        const totalAmount = rowData.reduce((acc, r) => acc + Number(r.total_amount || 0), 0)
-        return [{ 
-            user_name: "Totals", 
-            total_liters: Number(totalLiters.toFixed(2)), 
-            total_amount: Number(totalAmount.toFixed(2)), 
-            status: "", 
-            pdf_url: "" 
-        }]
-    }, [rowData])
-
-    // Loading state
-    if (!token) {
-        return (
-            <div className="container py-6 md:py-8 h-[calc(100vh-3.5rem)] flex items-center justify-center">
-                <LoadingState message="Checking authentication..." />
-            </div>
-        )
+  const generateAllMutation = useMutation({
+    mutationFn: async () => {
+      const res = await billsApi.generateAll(month)
+      return res.data
+    },
+    onSuccess: (data: any) => {
+      toast.success(data.message || "Bills generated successfully")
+      // Invalidate all related queries
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ["admin-bills"] })
+      queryClient.invalidateQueries({ queryKey: ["bills"] })
+      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["consumption"] })
+      queryClient.invalidateQueries({ queryKey: ["consumption-grid"] })
+      queryClient.invalidateQueries({ queryKey: ["payments"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics"] })
+    },
+    onError: (error: any) => {
+      toast.error(formatApiError(error))
     }
+  })
 
-    return (
-        <div className="container py-6 md:py-8 h-[calc(100vh-3.5rem)] flex flex-col">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">Monthly Bills</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Generate and manage customer invoices.</p>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 bg-secondary/50 p-1 rounded-md border">
-                        <Calendar className="ml-2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            type="month" 
-                            value={month} 
-                            onChange={(e) => setMonth(e.target.value)} 
-                            className="border-0 focus-visible:ring-0 w-auto bg-transparent h-8 text-sm font-medium"
-                        />
-                    </div>
 
-                    <Button 
-                        onClick={generateAllBills} 
-                        disabled={isGeneratingAll} 
-                        size="sm"
-                    >
-                        {isGeneratingAll ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Plus className="mr-2 h-4 w-4" />
-                        )}
-                        Generate All
-                    </Button>
-                </div>
-            </div>
+  const markPaidMutation = useMutation({
+    mutationFn: async ({ billId, method, notes }: { billId: string, method: string, notes: string }) => {
+      return paymentsApi.markPaid(billId, method, notes)
+    },
+    onSuccess: () => {
+      // Invalidate all related queries for data consistency
+      queryClient.invalidateQueries({ queryKey: ["admin-bills"] })
+      queryClient.invalidateQueries({ queryKey: ["bills"] })
+      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["consumption"] })
+      queryClient.invalidateQueries({ queryKey: ["consumption-grid"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      queryClient.invalidateQueries({ queryKey: ["payments"] })
+      
+      toast.success("Payment recorded and user account updated")
+      setIsCashModalOpen(false)
+      setSelectedBill(null)
+    },
+    onError: (error: any) => {
+      toast.error(formatApiError(error))
+    }
+  })
 
-            <div className="flex-1 w-full min-h-0">
-                <div className={cn("h-full w-full rounded-md overflow-hidden shadow-sm", gridTheme)}>
-                    <AgGridReact
-                        rowData={rowData}
-                        columnDefs={columnDefs}
-                        defaultColDef={defaultColDef}
-                        onGridReady={(params: GridReadyEvent) => {
-                            setGridApi(params.api)
-                            params.api.sizeColumnsToFit()
-                        }}
-                        pagination={true}
-                        paginationPageSize={20}
-                        pinnedBottomRowData={pinnedBottomRowData}
-                        overlayNoRowsTemplate={`<div class="flex items-center justify-center h-full w-full">${document.getElementById('bills-empty-template')?.innerHTML || ''}</div>`}
-                        overlayLoadingTemplate={`<div class="flex items-center gap-2"><svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg><span>Loading bills...</span></div>`}
-                    />
-                </div>
-            </div>
 
-            {/* Footer */}
-            <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground border-t pt-4">
-                <div className="flex items-center gap-4">
-                    <span>Total Bills: {rowData.length}</span>
-                    <span className="text-success">
-                        {rowData.filter(b => b.status === "PAID").length} Paid
-                    </span>
-                    <span className="text-warning">
-                        {rowData.filter(b => b.status !== "PAID").length} Unpaid
-                    </span>
-                </div>
-                <div>
-                    PDF generation runs asynchronously
-                </div>
-            </div>
+  // Calculations with safe number cast
+  const totalLiters = bills.reduce((acc: number, bill: any) => acc + Number(bill.total_liters || 0), 0)
+  const totalAmount = bills.reduce((acc: number, bill: any) => acc + Number(bill.total_amount || 0), 0)
+  const paidCount = bills.filter((b: any) => b.status === "PAID").length
+  const unpaidCount = bills.filter((b: any) => b.status === "UNPAID").length
+  const unpaidAmount = bills
+    .filter((b: any) => b.status === "UNPAID")
+    .reduce((acc: number, b: any) => acc + Number(b.total_amount || 0), 0)
+
+  const filteredBills = bills.filter((bill: any) => {
+    const matchesSearch = 
+      bill.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(bill.id).toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesFilter = !showOnlyUnpaid || bill.status === "UNPAID"
+    
+    return matchesSearch && matchesFilter
+  })
+
+  // Sort: Unpaid first, then amount descending
+  const sortedBills = [...filteredBills].sort((a, b) => {
+    if (a.status !== b.status) {
+      return a.status === "UNPAID" ? -1 : 1
+    }
+    return Number(b.total_amount) - Number(a.total_amount)
+  })
+
+  const handleRecordCash = (bill: any) => {
+    setSelectedBill(bill)
+    setIsCashModalOpen(true)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
+            Billing Management
+          </h1>
+          <p className="text-muted-foreground">Manage dues, record cash payments, and generate monthly reports.</p>
         </div>
-    )
+        <div className="flex items-center gap-2">
+          <Input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="w-[180px] h-10 shadow-sm"
+          />
+            <Button
+            onClick={() => generateAllMutation.mutate()}
+            disabled={generateAllMutation.isPending}
+            className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 h-10 font-bold"
+          >
+            {generateAllMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Generate Bills for Unpaid
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <StatCard
+          title="Total Bills"
+          value={bills.length}
+          icon={<Receipt className="h-5 w-5" />}
+          gradient="from-blue-500 to-indigo-500"
+          loading={isLoading}
+        />
+        <StatCard
+          title="Total Liters"
+          value={`${totalLiters.toFixed(1)} L`}
+          icon={<Milk className="h-5 w-5" />}
+          gradient="from-violet-500 to-fuchsia-500"
+          loading={isLoading}
+        />
+        <StatCard
+          title="Pending Dues"
+          value={`₹${unpaidAmount.toLocaleString()}`}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          gradient="from-orange-500 to-red-500"
+          loading={isLoading}
+          subtext={`${unpaidCount} bills to collect`}
+        />
+        <StatCard
+          title="Collection Rate"
+          value={bills.length > 0 ? `${Math.round((paidCount / bills.length) * 100)}%` : "0%"}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          gradient="from-emerald-500 to-teal-500"
+          loading={isLoading}
+          subtext={`${paidCount} bills cleared`}
+        />
+      </div>
+
+      {/* Bills Table Section */}
+      <Card className="border-none shadow-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl font-bold">Ledger: {format(new Date(month + "-01"), "MMMM yyyy")}</CardTitle>
+              <CardDescription>Search by name to verify current status or record offline payments.</CardDescription>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Find customer by name..."
+                  className="pl-10 h-10 rounded-xl"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button
+                variant={showOnlyUnpaid ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowOnlyUnpaid(!showOnlyUnpaid)}
+                className={cn(
+                  "h-10 px-4 rounded-xl gap-2",
+                  showOnlyUnpaid && "bg-orange-500 hover:bg-orange-600 border-none"
+                )}
+              >
+                <Filter className="h-4 w-4" />
+                {showOnlyUnpaid ? "Showing Unpaid" : "All Bills"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-2xl border overflow-hidden bg-white dark:bg-slate-900">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/50 dark:bg-slate-800/50 hover:bg-transparent">
+                  <TableHead className="font-bold py-4 px-6">Customer & ID</TableHead>
+                  <TableHead className="text-right font-bold py-4">Total Consumed</TableHead>
+                  <TableHead className="text-right font-bold py-4">Bill Amount</TableHead>
+                  <TableHead className="font-bold py-4 text-center">Status</TableHead>
+                  <TableHead className="text-right font-bold py-4 px-6">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="px-6"><Skeleton className="h-10 w-40" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-20 ml-auto" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-16 ml-auto" /></TableCell>
+                      <TableCell className="text-center"><Skeleton className="h-8 w-16 mx-auto rounded-full" /></TableCell>
+                      <TableCell className="px-6"><Skeleton className="h-10 w-24 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : sortedBills.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-64 text-center">
+                      <div className="flex flex-col items-center justify-center space-y-3">
+                        <div className="p-4 rounded-full bg-slate-100 dark:bg-slate-800">
+                          <Search className="h-8 w-8 text-slate-400" />
+                        </div>
+                        <p className="text-slate-500 font-medium">
+                          {searchTerm ? `No results for "${searchTerm}"` : "No bills generated for this month."}
+                        </p>
+                        {searchTerm && (
+                          <Button variant="link" onClick={() => setSearchTerm("")}>Clear search</Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedBills.map((bill: any) => (
+                    <TableRow key={bill.id} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                      <TableCell className="py-4 px-6">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+                              {bill.user_name || "Guest Customer"}
+                            </p>
+                            {bill.is_locked && (
+                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-slate-100 text-slate-500">
+                                Locked
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs font-medium text-slate-400">ID: {bill.user_id?.split('-')[0].toUpperCase()}</p>
+
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums text-slate-600 dark:text-slate-400">
+                        {Number(bill.total_liters || 0).toFixed(1)} L
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <div className="inline-flex flex-col items-end">
+                           <span className="text-lg font-black text-slate-900 dark:text-slate-100">
+                             ₹{Number(bill.total_amount || 0).toLocaleString()}
+                           </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest gap-1.5 transition-all shadow-sm",
+                            bill.status === "PAID"
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                              : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                          )}
+                        >
+                          {bill.status === "PAID" ? (
+                            <CheckCircle2 className="h-3 w-3" />
+                          ) : (
+                            <Clock className="h-3 w-3" />
+                          )}
+                          {bill.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right py-4 px-6">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {bill.status === "UNPAID" && (
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 h-8 gap-1.5"
+                              onClick={() => handleRecordCash(bill)}
+                            >
+                              <Banknote className="h-3.5 w-3.5" />
+                              Pay in Cash
+                            </Button>
+                          )}
+                          <PdfDownloadButton bill={bill} />
+                        </div>
+                        {/* Always show "Pay Now" on mobile or when not hovered if unpaid */}
+                        <div className="group-hover:hidden">
+                           {bill.status === "UNPAID" ? (
+                             <span className="text-rose-500 text-xs font-bold flex items-center justify-end gap-1">
+                               Due <ArrowRight className="h-3 w-3" />
+                             </span>
+                           ) : (
+                             <span className="text-emerald-500 text-xs font-bold">Cleared</span>
+                           )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cash Modal */}
+      <Dialog open={isCashModalOpen} onOpenChange={setIsCashModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+               <Banknote className="h-5 w-5 text-emerald-600" />
+               Record Cash Payment
+            </DialogTitle>
+            <DialogDescription>
+              Marking this bill as paid will reflect immediately in the customer's dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedBill && (
+             <div className="py-6 space-y-4">
+               <div className="flex justify-between items-center p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Customer</p>
+                    <p className="font-bold">{selectedBill.user_name || "Guest Customer"}</p>
+                    <p className="text-[10px] font-mono text-slate-400">ID: {selectedBill.user_id?.split('-')[0].toUpperCase()}</p>
+                  </div>
+                 <div className="text-right">
+                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</p>
+                   <p className="text-xl font-black text-emerald-600">₹{selectedBill.total_amount}</p>
+                 </div>
+               </div>
+               
+               <p className="text-sm text-muted-foreground italic text-center">
+                 "Admin manually collecting cash for {selectedBill.month} bill."
+               </p>
+             </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCashModalOpen(false)}>Cancel</Button>
+            <Button 
+               className="bg-emerald-600 hover:bg-emerald-700" 
+               onClick={() => markPaidMutation.mutate({ 
+                 billId: selectedBill.id, 
+                 method: "CASH", 
+                 notes: "Cash collection by Admin" 
+               })}
+               disabled={markPaidMutation.isPending}
+            >
+              {markPaidMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Payment Received
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
 
+function StatCard({ title, value, icon, gradient, loading, subtext }: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  gradient: string;
+  loading: boolean;
+  subtext?: string;
+}) {
+  return (
+    <Card className="relative overflow-hidden border-none shadow-premium transition-all duration-300 hover:scale-[1.02]">
+      <div className={cn("absolute inset-0 opacity-5 bg-gradient-to-br", gradient)} />
+      <CardContent className="p-6 relative">
+        <div className="flex items-center justify-between mb-4">
+          <div className={cn("p-2.5 rounded-xl bg-gradient-to-br shadow-lg text-white", gradient)}>
+            {icon}
+          </div>
+          {subtext && !loading && (
+            <span className="text-[10px] font-bold text-muted-foreground bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              {subtext}
+            </span>
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-1">{title}</p>
+          {loading ? (
+            <Skeleton className="h-10 w-24" />
+          ) : (
+            <p className="text-3xl font-black tracking-tight">{value}</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function PdfDownloadButton({ bill }: { bill: any }) {
+  const { data: statusData, isLoading } = useQuery({
+    queryKey: ["pdf-status", bill.id],
+    queryFn: async () => {
+      const res = await billsApi.getPdfStatus(bill.id)
+      return res.data
+    },
+    enabled: !!bill.is_locked && !bill.pdf_url,
+    refetchInterval: (data: any) => data?.status === "completed" ? false : 5000,
+  })
+
+  // If bill already has URL from list or has polled URL
+  const pdfUrl = bill.pdf_url || statusData?.pdf_url
+
+  if (pdfUrl) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => window.open(pdfUrl, '_blank')}
+        className="h-8 gap-1.5 rounded-lg border-slate-200"
+      >
+        <FileText className="h-3.5 w-3.5" />
+        PDF
+      </Button>
+    )
+  }
+
+  // If locked but no URL, check status
+  if (bill.is_locked) {
+    return (
+      <Button variant="outline" size="sm" disabled className="h-8 gap-1.5 rounded-lg border-slate-200 opacity-70">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        {isLoading || statusData?.status === "queued" ? "Generating..." : "Processing"}
+      </Button>
+    )
+  }
+
+  // Fallback (Unlocked/Draft)
+  return <span className="text-xs text-muted-foreground">-</span>
+}

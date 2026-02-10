@@ -1,13 +1,11 @@
 """Celery tasks for DairyOS background jobs."""
 
 import io
-import json
 import logging
 from typing import Any, Dict
 from datetime import date, datetime
 
 import anyio
-from celery import Celery
 from celery.exceptions import MaxRetriesExceededError
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import select, update
@@ -91,7 +89,7 @@ def generate_and_upload_pdf(self, bill_id: str) -> Dict[str, Any]:
             file_name = f"invoices/{bill.month}/{bill.user_id}.pdf"
             bucket_name = "dairyday-bills"
 
-            s3_url = upload_file_to_s3(pdf_buffer, bucket_name, file_name)
+            upload_file_to_s3(pdf_buffer, bucket_name, file_name)
 
             # Generate presigned URL for download (expires in 1 hour)
             presigned_url = generate_presigned_url(bucket_name, file_name, expiration=3600)
@@ -192,7 +190,7 @@ def archive_old_consumption(self) -> Dict[str, Any]:
                 result = await session.execute(
                     select(Consumption).where(
                         Consumption.date < cutoff_date,
-                        Consumption.is_archived == False
+                        not Consumption.is_archived
                     )
                 )
                 consumptions_to_archive = result.scalars().all()

@@ -11,8 +11,6 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-import sentry_sdk
-from sentry_sdk.integrations.logging import LoggingIntegration
 
 from app.core.config import settings
 from app.core.context import get_request_id, get_user_id, get_task_id

@@ -1,9 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional
 from uuid import UUID
 import datetime
 from decimal import Decimal
-import re
 
 
 class ConsumptionBase(BaseModel):

@@ -4,7 +4,6 @@ Tests bill calculation and generation logic.
 """
 
 import pytest
-import pytest_asyncio
 from decimal import Decimal
 from datetime import date
 from uuid import uuid4
@@ -64,18 +63,18 @@ async def test_bill_total_calculation(db_session):
     db_session.add(user)
     await db_session.flush()
     
-    # Add consumption: 10L for the user
+    # Add consumption: 10L for the user in January 2026
     for i in range(10):
         consumption = Consumption(
             id=uuid4(),
             user_id=user.id,
-            date=date.today().replace(day=i+1),
+            date=date(2026, 1, i+1),
             quantity=Decimal("1.0")
         )
         db_session.add(consumption)
     await db_session.commit()
     
-    # Generate bill
+    # Generate bill for January 2026
     bill = await generate_bill_for_user(db_session, user.id, "2026-01", enqueue_pdf=False)
     
     assert bill is not None

@@ -3,7 +3,8 @@ import uuid
 from sqlalchemy import Column, ForeignKey, String, Numeric, DateTime, text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.db.base import Base
+from sqlalchemy.sql import func
+from app.db.base_class import Base
 
 class Payment(Base):
     __tablename__ = "payments"
@@ -15,6 +16,8 @@ class Payment(Base):
     amount = Column(Numeric(12, 2), nullable=True)
     status = Column(String, nullable=True)
     paid_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     bill = relationship("Bill", backref="payments")
     __table_args__ = (

@@ -9,7 +9,6 @@ from botocore.exceptions import ClientError
 import io
 import json
 import logging
-from typing import Optional
 
 from app.core.config import settings
 
@@ -197,6 +196,20 @@ def check_object_exists(bucket_name: str, object_name: str) -> bool:
             return False
         logger.exception("Error checking object %s: %s", object_name, e)
         raise
+
+
+def upload_json_to_s3(data: dict, bucket_name: str, object_name: str) -> str:
+    """
+    Upload a small JSON payload to S3 and return its URL.
+    """
+    # Serialize to bytes
+    buffer = io.BytesIO(json.dumps(data).encode("utf-8"))
+    return upload_file_to_s3(
+        file_obj=buffer,
+        bucket_name=bucket_name,
+        object_name=object_name,
+        content_type="application/json",
+    )
 
 
 def delete_object(bucket_name: str, object_name: str) -> bool:

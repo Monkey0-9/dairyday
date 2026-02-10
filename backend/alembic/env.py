@@ -1,28 +1,19 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
 import os
 import sys
-from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(BASE_DIR)
 
-from app.db.base import Base
-from app.core.config import settings
+from app.db.base import Base  # noqa: E402
+from app.core.config import settings  # noqa: E402
 
 # Import all models so Base.metadata has them
-from app.models.user import User
-from app.models.consumption import Consumption
-from app.models.bill import Bill
-from app.models.payment import Payment
-from app.models.idempotency_key import IdempotencyKey
-from app.models.webhook_event import WebhookEvent
-from app.models.consumption_audit import ConsumptionAudit
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -42,8 +33,8 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 # target_metadata = None
 
-import asyncio
-from sqlalchemy.ext.asyncio import async_engine_from_config
+import asyncio  # noqa: E402
+from sqlalchemy.ext.asyncio import async_engine_from_config  # noqa: E402
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

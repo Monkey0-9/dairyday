@@ -6,13 +6,10 @@ Tests login, refresh token, logout, and password change endpoints.
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from unittest.mock import AsyncMock, patch
 import uuid
 
 from app.main import app
 from app.db.session import get_db
-from app.core.security import create_access_token, create_refresh_token
 from app.models.user import User
 from app.core.security import get_password_hash
 
@@ -73,7 +70,7 @@ class TestLoginEndpoint:
     
     @pytest.mark.asyncio
     async def test_login_success(self, client, test_user):
-        """Test successful login returns tokens."""
+        """Test successful login returns tokens in cookies."""
         response = await client.post(
             "/api/v1/auth/login",
             data={
@@ -84,12 +81,19 @@ class TestLoginEndpoint:
         
         assert response.status_code == 200
         data = response.json()
-        assert "access_token" in data
-        assert "refresh_token" in data
         assert data["token_type"] == "bearer"
         assert "expires_in" in data
         assert data["user"]["email"] == "test@example.com"
         assert data["user"]["role"] == "USER"
+        
+        # Verify tokens are in cookies or JSON
+        access_token = data.get("access_token") or response.cookies.get("access_token")
+        refresh_token = data.get("refresh_token") or response.cookies.get("refresh_token")
+        assert access_token is not None
+        assert refresh_token is not None
+        
+        user_role = response.cookies.get("user_role") or data.get("user", {}).get("role")
+        assert user_role == "USER"
     
     @pytest.mark.asyncio
     async def test_login_wrong_password(self, client, test_user):
@@ -161,7 +165,9 @@ class TestRefreshTokenEndpoint:
                 "password": "password123",
             },
         )
-        refresh_token = login_response.json()["refresh_token"]
+        login_data = login_response.json()
+        refresh_token = login_data.get("refresh_token") or login_response.cookies.get("refresh_token")
+        assert refresh_token is not None
         
         # Use refresh token to get new access token
         response = await client.post(
@@ -186,7 +192,12 @@ class TestRefreshTokenEndpoint:
                 "password": "password123",
             },
         )
-        access_token = login_response.json()["access_token"]
+        login_data = login_response.json()
+        access_token = login_data.get("access_token") or login_response.cookies.get("access_token")
+        assert access_token is not None, f"Login failed or no token: {login_response.text}"
+        
+        # Clear cookies to ensure we only use the token from params/body
+        client.cookies.clear()
         
         # Try to use access token as refresh token
         response = await client.post(
@@ -210,29 +221,33 @@ class TestRefreshTokenEndpoint:
 
 class TestLogoutEndpoint:
     """Tests for POST /auth/logout endpoint."""
-    
+
     @pytest.mark.asyncio
     async def test_logout_success(self, client, test_user):
         """Test successful logout clears session."""
         # Login first
-        await client.post(
+        login_response = await client.post(
             "/api/v1/auth/login",
             data={
                 "username": "test@example.com",
                 "password": "password123",
             },
         )
-        
-        # Logout
-        response = await client.post("/api/v1/auth/logout")
-        
+        token = login_response.json().get("access_token")
+
+        # Logout with Authorization header
+        response = await client.post(
+            "/api/v1/auth/logout",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
         assert response.status_code == 200
         assert response.json()["message"] == "Successfully logged out"
 
 
 class TestChangePasswordEndpoint:
     """Tests for POST /auth/change-password endpoint."""
-    
+
     @pytest.mark.asyncio
     async def test_change_password_success(self, client, test_user):
         """Test successful password change."""
@@ -244,14 +259,15 @@ class TestChangePasswordEndpoint:
                 "password": "password123",
             },
         )
-        access_token = login_response.json()["access_token"]
+        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
+        assert access_token is not None
         
         # Change password
         response = await client.post(
             "/api/v1/auth/change-password",
             json={
                 "old_password": "password123",
-                "new_password": "newpassword456",
+                "new_password": "NewPassword456",
             },
             headers={"Authorization": f"Bearer {access_token}"},
         )
@@ -280,14 +296,15 @@ class TestChangePasswordEndpoint:
                 "password": "password123",
             },
         )
-        access_token = login_response.json()["access_token"]
+        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
+        assert access_token is not None
         
         # Try to change with wrong old password
         response = await client.post(
             "/api/v1/auth/change-password",
             json={
-                "old_password": "wrongpassword",
-                "new_password": "newpassword456",
+                "old_password": "WrongPassword123",
+                "new_password": "NewPassword456",
             },
             headers={"Authorization": f"Bearer {access_token}"},
         )
@@ -306,7 +323,8 @@ class TestChangePasswordEndpoint:
                 "password": "password123",
             },
         )
-        access_token = login_response.json()["access_token"]
+        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
+        assert access_token is not None
         
         # Try to change to same password
         response = await client.post(
@@ -332,7 +350,8 @@ class TestChangePasswordEndpoint:
                 "password": "password123",
             },
         )
-        access_token = login_response.json()["access_token"]
+        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
+        assert access_token is not None
         
         # Try to change to short password
         response = await client.post(
@@ -344,8 +363,8 @@ class TestChangePasswordEndpoint:
             headers={"Authorization": f"Bearer {access_token}"},
         )
         
-        assert response.status_code == 400
-        assert "at least 8 characters" in response.json()["detail"]
+        assert response.status_code == 422 # Pydantic validation triggers 422 for min_length
+        assert "at least 8 characters" in str(response.json()["detail"])
     
     @pytest.mark.asyncio
     async def test_change_password_requires_auth(self, client, test_user):

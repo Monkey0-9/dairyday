@@ -1,0 +1,55 @@
+﻿
+> dairyday-frontend@0.1.0 build
+> next build
+
+  Γû▓ Next.js 15.0.0
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+> [PWA] Compile server
+> [PWA] Compile server
+> [PWA] Compile client (static)
+> [PWA] Auto register service worker with: C:\dairy\frontend\node_modules\next-pwa\register.js
+> [PWA] Service worker: C:\dairy\frontend\public\sw.js
+> [PWA]   url: /sw.js
+> [PWA]   scope: /
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+node.exe : Failed to compile.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to  
+   compile.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+./app_archive/admin/audit-logs/page.tsx:4:29
+Type error: Cannot find module 'ag-grid-react' or its 
+corresponding type declarations.
+
+[0m [90m 2 |[39m[0m
+[0m [90m 3 |[39m [36mimport[39m { 
+useState[33m,[39m useEffect[33m,[39m 
+useCallback[33m,[39m useMemo } [36mfrom[39m 
+[32m"react"[39m[0m
+[0m[31m[1m>[22m[39m[90m 4 |[39m [36mimport[39m 
+{ [33mAgGridReact[39m } [36mfrom[39m 
+[32m"ag-grid-react"[39m[0m
+[0m [90m   |[39m                             
+[31m[1m^[22m[39m[0m
+[0m [90m 5 |[39m [36mimport[39m { 
+[33mColDef[39m[33m,[39m 
+[33mGridReadyEvent[39m[33m,[39m 
+[33mFirstDataRenderedEvent[39m } [36mfrom[39m 
+[32m"ag-grid-community"[39m[0m
+[0m [90m 6 |[39m [36mimport[39m axios 
+[36mfrom[39m [32m"axios"[39m[0m
+[0m [90m 7 |[39m [36mimport[39m { 
+[33mCard[39m[33m,[39m 
+[33mCardHeader[39m[33m,[39m 
+[33mCardTitle[39m[33m,[39m 
+[33mCardDescription[39m } [36mfrom[39m 
+[32m"@/components/ui/card"[39m[0m

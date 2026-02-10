@@ -1,6 +1,7 @@
 from celery import Celery
 from app.core.config import settings
 import redis
+from celery.schedules import crontab
 
 # Configure Celery; fall back to in-memory broker/backend if Redis unavailable
 broker_url = settings.REDIS_URL
@@ -12,7 +13,6 @@ except Exception:
     broker_url = "memory://"
     backend_url = "cache+memory://"
 
-from celery.schedules import crontab
 
 celery_app = Celery("dairyday", broker=broker_url, backend=backend_url)
 
@@ -32,7 +32,6 @@ def generate_invoice_task(bill_id: str):
     # Import inside to avoid early async engine issues
     from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
     from sqlalchemy.orm import sessionmaker
-    from app.db.base import Base
     from app.models.bill import Bill
     from app.models.user import User
     from app.models.consumption import Consumption
@@ -69,7 +68,7 @@ def generate_invoice_task(bill_id: str):
             pdf_buffer = generate_invoice_pdf(user, bill, consumptions)
             file_name = f"invoices/{bill.month}/{user.id}.pdf"
             bucket_name = cfg.AWS_BUCKET_NAME or "dairy-invoices-dev"
-            url = upload_file_to_s3(pdf_buffer, bucket_name, file_name)
+            upload_file_to_s3(pdf_buffer, bucket_name, file_name)
             bill.pdf_url = file_name
             db.add(bill)
             await db.commit()

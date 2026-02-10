@@ -7,7 +7,7 @@ Uses centralized Money utilities from app.core.money for monetary correctness.
 from decimal import Decimal, ROUND_HALF_EVEN
 from datetime import datetime, date
 import calendar
-from typing import Tuple, Optional, List
+from typing import Tuple, List
 from uuid import UUID
 import logging
 import uuid
@@ -16,7 +16,7 @@ import asyncio
 from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.money import Money, calculate_amount, round_liters
+from app.core.money import Money
 from app.core.redis import get_redis
 from app.models.user import User
 from app.models.consumption import Consumption
@@ -282,7 +282,7 @@ async def generate_all_bills(
         List of generated bills
     """
     users_result = await db.execute(
-        select(User).where(User.role == "USER", User.is_active == True)
+        select(User).where(User.role == "USER", User.is_active)
     )
     users = users_result.scalars().all()
 

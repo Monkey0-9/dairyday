@@ -8,9 +8,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy import text
 from app.db.base import Base
-from app.core.config import settings
 from app.models.user import User
 from app.core.security import get_password_hash
 import random
@@ -108,7 +106,7 @@ async def create_initial_data(engine):
                 consumption_count += 1
         
         await session.commit()
-        print(f"\n✓ Initial data created successfully!")
+        print("\n✓ Initial data created successfully!")
         print(f"✓ Total consumption records: {consumption_count}")
 
 

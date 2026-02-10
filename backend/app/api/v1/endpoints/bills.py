@@ -1,11 +1,10 @@
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Response
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from calendar import monthrange
 import datetime
 from uuid import UUID
-import json
 from decimal import Decimal
 
 from app.api import deps
@@ -15,8 +14,6 @@ from app.models.consumption import Consumption
 from app.models.user import User
 from app.schemas.bill import Bill as BillSchema
 from app.core.config import settings
-from app.core.redis import get_redis
-from app.core.money import calculate_amount, LITER_PRECISION, DEFAULT_ROUNDING
 from app.workers.celery_app import generate_invoice_task
 from app.services.s3_uploader import generate_presigned_url
 
@@ -83,7 +80,7 @@ async def generate_pdf_task(bill_id: UUID):
         # Upload to S3
         file_name = f"invoices/{bill.month}/{user.id}.pdf"
         bucket_name = settings.AWS_BUCKET_NAME or "dairy-invoices-dev"
-        url = upload_file_to_s3(pdf_buffer, bucket_name, file_name)
+        upload_file_to_s3(pdf_buffer, bucket_name, file_name)
 
         # Update Bill with S3 key (not signed URL)
         bill.pdf_url = file_name
@@ -96,11 +93,12 @@ async def generate_all_bills(
     month: str,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_active_billing_manager),
 ) -> Any:
     """
     Generate bills for all active users for a specific month.
-    Returns 202 Accepted as PDF generation is queued asynchronously.
+    Locks the bills upon generation.
+    Returns 202 Accepted.
     """
     # 1. Get all active users
     users_result = await db.execute(select(User).where(User.role == "USER", User.is_active))
@@ -109,87 +107,51 @@ async def generate_all_bills(
     if not users:
         return {"status": "success", "count": 0, "message": "No active users found"}
 
-    year, month_num = map(int, month.split("-"))
-    start_date = datetime.date(year, month_num, 1)
-    _, last_day = monthrange(year, month_num)
-    end_date = datetime.date(year, month_num, last_day)
-
-    # 2. Bulk fetch all consumption for the month
-    consumption_result = await db.execute(
-        select(Consumption).where(
-            and_(
-                Consumption.date >= start_date,
-                Consumption.date <= end_date
-            )
-        )
-    )
-    all_consumptions = consumption_result.scalars().all()
-
-    # Map consumption by user_id
-    consumption_map: dict[UUID, Decimal] = {}
-    for c in all_consumptions:
-        if c.user_id not in consumption_map:
-            consumption_map[c.user_id] = Decimal("0.000")
-        qty = Decimal(str(c.quantity)).quantize(
-            LITER_PRECISION, rounding=DEFAULT_ROUNDING
-        )
-        consumption_map[c.user_id] += qty
+    from app.services.billing_service import BillingService
 
     count = 0
+    generated_count = 0
+    skipped_count = 0
+    
     for user in users:
-        total_liters = consumption_map.get(user.id, Decimal("0.000"))
-        unit_price = Decimal(str(user.price_per_liter))
-        # Use centralized Money utility for rounding
-        money_obj = calculate_amount(total_liters, unit_price)
-        total_amount = money_obj.amount
-
-        # Upsert Bill
+        # Check if bill exists and is locked
         bill_result = await db.execute(
             select(Bill).where(and_(Bill.user_id == user.id, Bill.month == month))
         )
         existing_bill = bill_result.scalars().first()
 
-        bill_id = None
-        if existing_bill:
-            if existing_bill.status == "PAID":
-                continue  # Don't update paid bills
-            existing_bill.total_liters = total_liters
-            existing_bill.total_amount = total_amount
-            existing_bill.pdf_url = None  # Reset for regeneration
-            db.add(existing_bill)
-            await db.flush()
-            bill_id = existing_bill.id
-        else:
-            new_bill = Bill(
-                user_id=user.id,
-                month=month,
-                total_liters=total_liters,
-                total_amount=total_amount,
-                status="UNPAID"
-            )
-            db.add(new_bill)
-            await db.flush()
-            bill_id = new_bill.id
+        if existing_bill and existing_bill.is_locked:
+            skipped_count += 1
+            continue
 
-        # Dispatch PDF generation
-        try:
-            r = get_redis()
-            generate_invoice_task.delay(str(bill_id))
-        except Exception:
-            background_tasks.add_task(generate_pdf_task, bill_id)
+        # Recalculate (creates or updates UNPAID/unlocked bill)
+        bill = await BillingService.recalculate_bill(db, user.id, month)
+        
+        if bill:
+            # Lock the bill
+            bill.is_locked = True
+            bill.generated_at = datetime.datetime.now(datetime.timezone.utc)
+            db.add(bill)
+            await db.flush()
+            
+            # Dispatch PDF generation
+            try:
+                generate_invoice_task.delay(str(bill.id))
+            except Exception:
+                background_tasks.add_task(generate_pdf_task, bill.id)
+            
+            generated_count += 1
+        
         count += 1
 
     await db.commit()
 
-    return Response(
-        status_code=202,
-        content=json.dumps({
-            "status": "queued",
-            "count": count,
-            "message": f"Bill generation started for {count} users. PDFs will be ready in 1-2 minutes."
-        }),
-        media_type="application/json"
-    )
+    return {
+        "status": "success",
+        "generated": generated_count,
+        "skipped": skipped_count,
+        "message": f"Generated {generated_count} bills. Skipped {skipped_count} locked bills."
+    }
 
 
 @router.post("/generate/{user_id}/{month}")
@@ -198,11 +160,11 @@ async def generate_bill(
     month: str,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    current_user: User = Depends(deps.get_current_active_billing_manager),
 ) -> Any:
     """
-    Generate or regenerate a bill for a specific user and month.
-    Returns 202 Accepted as PDF generation is queued asynchronously.
+    Generate a bill for a specific user and month.
+    Locks the bill.
     """
     # 1. Fetch User
     user_result = await db.execute(select(User).where(User.id == user_id))
@@ -210,62 +172,30 @@ async def generate_bill(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 2. Calculate totals
-    year, month_num = map(int, month.split("-"))
-    start_date = datetime.date(year, month_num, 1)
-    _, last_day = monthrange(year, month_num)
-    end_date = datetime.date(year, month_num, last_day)
-
-    consumption_result = await db.execute(
-        select(Consumption).where(
-            and_(
-                Consumption.user_id == user_id,
-                Consumption.date >= start_date,
-                Consumption.date <= end_date
-            )
-        )
-    )
-    consumptions = consumption_result.scalars().all()
-
-    total_liters = Decimal("0.000")
-    for c in consumptions:
-        qty = Decimal(str(c.quantity)).quantize(
-            LITER_PRECISION, rounding=DEFAULT_ROUNDING
-        )
-        total_liters += qty
-    unit_price = Decimal(str(user.price_per_liter))
-    # Use centralized Money utility for rounding
-    money_obj = calculate_amount(total_liters, unit_price)
-    total_amount = money_obj.amount
-
-    # 3. Upsert Bill
+    # Check lock status first
     bill_result = await db.execute(
         select(Bill).where(and_(Bill.user_id == user_id, Bill.month == month))
     )
     existing_bill = bill_result.scalars().first()
+    if existing_bill and existing_bill.is_locked:
+         raise HTTPException(status_code=400, detail="Bill is already generated and locked.")
 
-    if existing_bill:
-        if existing_bill.status == "PAID":
-            raise HTTPException(status_code=400, detail="Cannot regenerate a paid bill")
-        existing_bill.total_liters = total_liters
-        existing_bill.total_amount = total_amount
-        existing_bill.pdf_url = None  # Reset for regeneration
-        db.add(existing_bill)
-        await db.flush()
-        bill_id = existing_bill.id
-    else:
-        new_bill = Bill(
-            user_id=user_id,
-            month=month,
-            total_liters=total_liters,
-            total_amount=total_amount,
-            status="UNPAID"
-        )
-        db.add(new_bill)
-        await db.flush()
-        bill_id = new_bill.id
+    # 2. Use BillingService to recalculate
+    from app.services.billing_service import BillingService
+    bill = await BillingService.recalculate_bill(db, user_id, month)
+    
+    if not bill:
+        raise HTTPException(status_code=400, detail="No consumption found to generate bill")
 
+    # Lock it
+    bill.is_locked = True
+    bill.generated_at = datetime.datetime.now(datetime.timezone.utc)
+    db.add(bill)
     await db.commit()
+
+    total_liters = bill.total_liters
+    total_amount = bill.total_amount
+    bill_id = bill.id
 
     # 4. Notify User (Fire and forget or awaited)
     from app.services.notification_service import NotificationService
@@ -293,22 +223,51 @@ async def generate_bill(
 
     # 6. Queue PDF generation (async)
     try:
-        r = get_redis()
         generate_invoice_task.delay(str(bill_id))
     except Exception:
         background_tasks.add_task(generate_pdf_task, bill_id)
 
-    # 7. Return 202 Accepted
-    return Response(
-        status_code=202,
-        content=json.dumps({
+    # 7. Return summary for tests to verify
+    return {
+        "bill_id": str(bill_id),
+        "total_liters": float(total_liters),
+        "total_amount": float(total_amount),
+        "status": "UNPAID",
+        "message": "Bill generated and locked. PDF queued."
+    }
+
+
+@router.get("/{bill_id}/pdf-status")
+async def check_pdf_status(
+    bill_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_billing_manager),
+) -> Any:
+    """
+    Check if PDF is generated for a bill.
+    """
+    result = await db.execute(select(Bill).where(Bill.id == bill_id))
+    bill = result.scalars().first()
+    
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+        
+    if bill.pdf_url:
+        # Generate signed URL
+        url = bill.pdf_url
+        if not url.startswith("http"):
+            bucket_name = settings.AWS_BUCKET_NAME or "dairy-invoices-dev"
+            url = generate_presigned_url(bucket_name, bill.pdf_url)
+            
+        return {
+            "status": "completed",
+            "pdf_url": url
+        }
+    else:
+        return {
             "status": "queued",
-            "job": "pdf_generation",
-            "bill_id": str(bill_id),
-            "message": "PDF generation started. Customer will be notified."
-        }),
-        media_type="application/json"
-    )
+            "message": "PDF is being generated..."
+        }
 
 
 @router.get("/{user_id}/{month}", response_model=BillSchema)
@@ -322,7 +281,7 @@ async def get_bill(
     Get a specific bill. Users can only see their own bills.
     """
     # Users can only see their own bills
-    if current_user.role != "ADMIN" and current_user.id != user_id:
+    if current_user.role not in ["ADMIN", "BILLING_ADMIN", "SUPERADMIN"] and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
     result = await db.execute(
@@ -350,18 +309,35 @@ async def list_bills(
     List all bills for a specific month.
     Admins can see all, users only their own.
     """
-    if current_user.role == "ADMIN" or current_user.role == "SUPERADMIN":
-        result = await db.execute(select(Bill).where(Bill.month == month))
-    else:
-        result = await db.execute(
-            select(Bill).where(and_(Bill.month == month, Bill.user_id == current_user.id))
+    if current_user.role in ["ADMIN", "BILLING_ADMIN", "SUPERADMIN"]:
+        # Join with User to get names
+        query = (
+            select(Bill, User.name.label("user_name"))
+            .join(User, Bill.user_id == User.id)
+            .where(Bill.month == month)
         )
-    bills = result.scalars().all()
-
-    # Generate presigned URLs for PDFs
-    for bill in bills:
-        if bill.pdf_url and not bill.pdf_url.startswith("http"):
-            bucket_name = settings.AWS_BUCKET_NAME or "dairy-invoices-dev"
-            bill.pdf_url = generate_presigned_url(bucket_name, bill.pdf_url)
+    else:
+        query = (
+            select(Bill, User.name.label("user_name"))
+            .join(User, Bill.user_id == User.id)
+            .where(and_(Bill.month == month, Bill.user_id == current_user.id))
+        )
+    
+    result = await db.execute(query)
+    rows = result.all()
+    
+    bills = []
+    bucket_name = settings.AWS_BUCKET_NAME or "dairy-invoices-dev"
+    
+    for bill_obj, user_name in rows:
+        # Generate presigned URLs for PDFs if needed
+        if bill_obj.pdf_url and not bill_obj.pdf_url.startswith("http"):
+            bill_obj.pdf_url = generate_presigned_url(bucket_name, bill_obj.pdf_url)
+        
+        # Create schema object from DB object
+        bill_data = BillSchema.model_validate(bill_obj)
+        bill_data.user_name = str(user_name) if user_name else "Guest Customer"
+        bills.append(bill_data)
 
     return bills
+

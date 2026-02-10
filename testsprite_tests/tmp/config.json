@@ -1,0 +1,7 @@
+{
+  "status": "init",
+  "scope": "diff",
+  "type": "backend",
+  "localEndpoint": "http://localhost:8000/",
+  "serverPort": 61999
+}

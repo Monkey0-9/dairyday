@@ -4,9 +4,19 @@ Pytest configuration and fixtures for DairyOS tests.
 import os
 import sys
 import asyncio
-import pytest
 import pytest_asyncio
 from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import StaticPool
+from httpx import AsyncClient, ASGITransport
+from app.db.base import Base
+from app.main import app
+from app.db.session import get_db
+from app.models.user import User
+from app.models.consumption import Consumption
+from app.core.security import get_password_hash
+from decimal import Decimal
+import uuid
 
 # Add backend to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -17,18 +27,8 @@ os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
 os.environ["SENTRY_DSN"] = ""  # Disable Sentry in tests
 os.environ["POSTGRES_SERVER"] = "localhost"
-
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.pool import StaticPool
-from httpx import AsyncClient, ASGITransport
-
-from app.db.base import Base
-from app.main import app
-from app.db.session import get_db
-from app.models.user import User
-from app.core.security import get_password_hash
-from decimal import Decimal
-import uuid
+os.environ["JWT_AUDIENCE"] = "dairy-os"
+os.environ["JWT_ISSUER"] = "dairy-os"
 
 
 # Create async engine for tests
@@ -81,14 +81,24 @@ async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create async test client with database dependency override."""
+    from app.core.config import get_settings
+    
+    # Force settings override for JWT claims
+    app_settings = get_settings()
+    app_settings.JWT_AUDIENCE = "dairy-os"
+    app_settings.JWT_ISSUER = "dairy-os"
     
     async def override_get_db():
         yield db_session
+        
+    async def override_get_settings():
+        return app_settings
     
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_get_settings
     
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://localhost") as ac:
         yield ac
     
     app.dependency_overrides.clear()
@@ -138,7 +148,10 @@ async def admin_token(client: AsyncClient, test_admin: User) -> str:
         data={"username": "admin@example.com", "password": "adminpass123"}
     )
     assert response.status_code == 200
-    return response.json()["access_token"]
+    data = response.json()
+    token = data.get("access_token") or response.cookies.get("access_token")
+    assert token is not None
+    return token
 
 
 @pytest_asyncio.fixture
@@ -149,7 +162,10 @@ async def user_token(client: AsyncClient, test_user: User) -> str:
         data={"username": "test@example.com", "password": "password123"}
     )
     assert response.status_code == 200
-    return response.json()["access_token"]
+    data = response.json()
+    token = data.get("access_token") or response.cookies.get("access_token")
+    assert token is not None
+    return token
 
 
 @pytest_asyncio.fixture
@@ -162,12 +178,6 @@ async def auth_headers(admin_token: str) -> dict:
 async def user_auth_headers(user_token: str) -> dict:
     """Get authorization headers for user requests."""
     return {"Authorization": f"Bearer {user_token}"}
-
-
-# Import models for fixture use
-from app.models.consumption import Consumption
-from app.models.bill import Bill
-from app.models.payment import Payment
 
 
 @pytest_asyncio.fixture
@@ -184,4 +194,3 @@ async def test_consumption(db_session: AsyncSession, test_user: User) -> Consump
     await db_session.commit()
     await db_session.refresh(consumption)
     return consumption
-

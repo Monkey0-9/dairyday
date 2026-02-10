@@ -29,12 +29,19 @@ async def get_dashboard_analytics(
     try:
         logger.info(f"Fetching dashboard analytics for admin user: {current_user.id}")
 
+        # Debug logging to trace execution and force reload
+        logger.info("Calling AnalyticsService.get_dashboard_kpis...")
         kpis = await AnalyticsService.get_dashboard_kpis(db)
+        logger.info(f"KPIs retrieved: {kpis.keys()}")
+
+        logger.info("Calling AnalyticsService.get_revenue_trend...")
         revenue_trend = await AnalyticsService.get_revenue_trend(db, months=12)
+        
+        logger.info("Calling AnalyticsService.get_customer_insights...")
         customer_insights = await AnalyticsService.get_customer_insights(db)
 
         return {
-            "kpis": kpis,
+            **kpis,
             "revenue_trend": revenue_trend,
             "customer_insights": customer_insights
         }

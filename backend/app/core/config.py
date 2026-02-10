@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     LOCK_DAYS: int = 7  # Number of days after which consumption entries become immutable
 
     # JWT settings
-    JWT_AUDIENCE: str = "dairy-os"
-    JWT_ISSUER: str = "dairy-os"
+    JWT_AUDIENCE: str = Field(default="dairy-os", env="JWT_AUDIENCE")
+    JWT_ISSUER: str = Field(default="dairy-os", env="JWT_ISSUER")
 
     # Rate limiting
     RATE_LIMIT: str = "100/minute"
@@ -82,4 +82,4 @@ def get_settings() -> Settings:
     return Settings()
 
 
-settings = Settings()
+settings = get_settings()
