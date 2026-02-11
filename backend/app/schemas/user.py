@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
-from typing import Optional
+from typing import Optional, Dict, Any
 from uuid import UUID
 import datetime
 from decimal import Decimal
@@ -22,8 +22,8 @@ class UserBase(BaseModel):
     )
     phone: Optional[str] = Field(
         None,
-        pattern=r'^\+?[1-9]\d{1,14}$',
-        description="Phone number in E.164 format"
+        pattern=r'^\+?[\d\s-]{5,20}$',
+        description="Phone number"
     )
     role: str = Field(
         default="USER",
@@ -42,6 +42,10 @@ class UserBase(BaseModel):
     total_liters: Optional[Decimal] = Field(
         default=None,
         description="Total liters consumed in current month"
+    )
+    preferences: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="User preferences (dark mode, notifications, etc.)"
     )
 
 
@@ -97,6 +101,7 @@ class UserUpdate(BaseModel):
         min_length=8,
         max_length=128
     )
+    preferences: Optional[Dict[str, Any]] = None
 
 
 class PasswordChange(BaseModel):

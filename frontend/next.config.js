@@ -45,6 +45,16 @@ const nextConfig = {
     ];
   },
   
+  // Rewrites to proxy API requests (Fixes CORS/Cookie issues)
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: 'http://localhost:8000/api/v1/:path*',
+      },
+    ];
+  },
+
   // Redirects
   async redirects() {
     return [

@@ -143,6 +143,15 @@
     @apply bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800;
   }
   
+  /* Text Glows */
+  .text-glow {
+    text-shadow: 0 0 10px rgba(99, 102, 241, 0.5), 0 0 20px rgba(99, 102, 241, 0.3);
+  }
+  
+  .text-glow-gold {
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.5), 0 0 20px rgba(245, 158, 11, 0.3);
+  }
+  
   /* Animated Stats */
   .stat-number {
     @apply tabular-nums font-black tracking-tight;
@@ -191,6 +200,15 @@
     @apply before:absolute before:inset-0;
     @apply before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent;
     @apply before:animate-shimmer;
+  }
+
+  /* Testimonial Hover */
+  .testimonial-card {
+    @apply transition-all duration-300;
+  }
+  .testimonial-card:hover {
+    box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.2);
+    transform: translateY(-4px);
   }
 }
 

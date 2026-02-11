@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useMemo, useEffect, useRef } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { 
   format, 
   startOfMonth, 
@@ -10,7 +10,10 @@ import {
   isSameDay, 
   isToday,
   isFuture,
-  isPast
+  isPast,
+  subMonths,
+  addMonths,
+  subDays
 } from "date-fns"
 import { 
   Download, 
@@ -18,42 +21,61 @@ import {
   ChevronRight, 
   Lock, 
   Calendar as CalendarIcon,
-  Filter,
-  History,
-  Info
+  Search,
+  Loader2,
+  AlertCircle,
+  FileText
 } from "lucide-react"
 
+import { useTranslation } from "@/context/language-context"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { consumptionApi } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+
+
+interface GridRow {
+  user_id: string
+  name: string
+  phone: string
+  daily_liters: Record<string, number>
+  audits: Record<string, any>
+}
 
 export default function ConsumptionGridPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date())
+  const [search, setSearch] = useState("")
+  const [editingCell, setEditingCell] = useState<{ userId: string, date: string } | null>(null)
+  const { t } = useTranslation()
+  
+  const queryClient = useQueryClient()
   const monthStr = format(selectedMonth, "yyyy-MM")
+  const LOCK_DAYS = 7 // Matches backend settings
 
-  const { data: gridData, isLoading, isError, error } = useQuery({
+  // Fetch Data
+  const { data: gridData, isLoading } = useQuery({
     queryKey: ["consumption", monthStr],
     queryFn: () => consumptionApi.getGrid(monthStr).then(res => res.data),
-    staleTime: 30_000,
-    retry: 2,
+    staleTime: 60 * 1000, 
   })
 
+  // Mutation for Saving
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => consumptionApi.upsert(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["consumption", monthStr] })
+      toast.success("Saved", { duration: 1000 })
+      setEditingCell(null)
+    },
+    onError: (err: any) => {
+        toast.error("Failed to save: " + (err.response?.data?.detail || err.message))
+    }
+  })
 
+  // Date Logic
   const daysInMonth = useMemo(() => {
     return eachDayOfInterval({
       start: startOfMonth(selectedMonth),
@@ -61,234 +83,305 @@ export default function ConsumptionGridPage() {
     })
   }, [selectedMonth])
 
-  const handlePrevMonth = () => {
-    setSelectedMonth(prev => {
-      const d = new Date(prev)
-      d.setMonth(d.getMonth() - 1)
-      return d
+  // Computed Totals
+  const totals = useMemo(() => {
+    if (!gridData) return { rows: {}, cols: {}, grand: 0 }
+    
+    const rowTotals: Record<string, number> = {}
+    const colTotals: Record<string, number> = {}
+    let grandTotal = 0
+
+    gridData.forEach((row: GridRow) => {
+      // Filter logic applies here too for totals consistency
+      if (search && !row.name.toLowerCase().includes(search.toLowerCase()) && !row.phone.includes(search)) return
+
+      let rTotal = 0
+      Object.entries(row.daily_liters).forEach(([date, qty]) => {
+        rTotal += qty
+        colTotals[date] = (colTotals[date] || 0) + qty
+        grandTotal += qty
+      })
+      rowTotals[row.user_id] = rTotal
+    })
+
+    return { rows: rowTotals, cols: colTotals, grand: grandTotal }
+  }, [gridData, search])
+
+  const filteredData = useMemo(() => {
+    if (!gridData) return []
+    return gridData.filter((row: GridRow) => 
+      row.name.toLowerCase().includes(search.toLowerCase()) || 
+      row.phone.includes(search)
+    )
+  }, [gridData, search])
+
+  // Handlers
+  const handleCellClick = (userId: string, dateStr: string, isLocked: boolean) => {
+    if (isLocked) return
+    setEditingCell({ userId, date: dateStr })
+  }
+
+  const handleSave = (userId: string, dateStr: string, value: string) => {
+    const numValue = parseFloat(value)
+    if (isNaN(numValue) && value !== "") return 
+    
+    const quantity = value === "" ? 0 : numValue
+
+    updateMutation.mutate({
+        user_id: userId,
+        date: dateStr,
+        quantity: quantity
     })
   }
 
-  const handleNextMonth = () => {
-    setSelectedMonth(prev => {
-      const d = new Date(prev)
-      d.setMonth(d.getMonth() + 1)
-      return d
-    })
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, userId: string, dateStr: string, value: string) => {
+      if (e.key === "Enter") {
+          e.currentTarget.blur()
+      }
+      if (e.key === "Escape") {
+          setEditingCell(null)
+      }
   }
 
   const handleExport = async () => {
     try {
       const res = await consumptionApi.export(monthStr)
-      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }))
       const link = document.createElement("a")
       link.href = url
       link.setAttribute("download", `consumption_${monthStr}.csv`)
       document.body.appendChild(link)
       link.click()
     } catch (error) {
-      console.error("Export failed", error)
+      toast.error("Export failed")
+    }
+  }
+
+  const handleExportPdf = async () => {
+    try {
+      const res = await consumptionApi.exportPdf(monthStr)
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `consumption_report_${monthStr}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      toast.success("PDF Report downloaded")
+    } catch (error) {
+           toast.error("Export failed")
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Monthly Consumption</h1>
-          <p className="text-muted-foreground">Detailed daily records for all customers.</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-white dark:bg-slate-900 border rounded-lg overflow-hidden shadow-sm">
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none border-r" onClick={handlePrevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="px-3 py-1 flex items-center gap-2 min-w-[140px] justify-center text-sm font-semibold">
-              <CalendarIcon className="h-4 w-4 text-primary" />
-              {format(selectedMonth, "MMMM yyyy")}
+    <div className="min-h-screen bg-black text-white p-6 space-y-6">
+        {/* Header & Controls */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 sticky top-0 z-40 bg-black/80 backdrop-blur-md py-4 border-b border-white/10 -mx-6 px-6">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+                    {t('monthlyConsumption')}
+                </h1>
+                <p className="text-muted-foreground text-sm mt-1">{t('recordsSub')}</p>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-none border-l" onClick={handleNextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Export</span>
-          </Button>
+
+            <div className="flex items-center gap-3">
+                {/* Search */}
+                <div className="relative hidden md:block">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder={t('searchCustomers')}
+                        className="pl-9 h-10 w-[200px] md:w-[300px] bg-white/5 border-white/10 text-white focus:ring-indigo-500 focus:border-indigo-500 rounded-lg placeholder:text-muted-foreground/50"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+
+                {/* Month Selector */}
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-lg overflow-hidden p-1 shadow-sm">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-white" onClick={() => setSelectedMonth(subMonths(selectedMonth, 1))}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="px-4 text-sm font-semibold min-w-[120px] text-center text-white">
+                        {format(selectedMonth, "MMMM yyyy")}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-white" onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+
+                {/* Export */}
+                <div className="flex gap-2">
+                    <Button 
+                        onClick={handleExportPdf}
+                        className="bg-red-600 hover:bg-red-700 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)] border-none transition-all hover:scale-105"
+                    >
+                        <FileText className="mr-2 h-4 w-4" /> 
+                        <span className="hidden sm:inline">PDF</span>
+                    </Button>
+                    <Button 
+                        onClick={handleExport}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)] border-none transition-all hover:scale-105"
+                    >
+                        <Download className="mr-2 h-4 w-4" /> 
+                        <span className="hidden sm:inline">CSV</span>
+                    </Button>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <Card className="border-none shadow-sm overflow-hidden bg-white dark:bg-slate-900">
-        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-250px)]">
-          <Table className="relative border-collapse">
-            <TableHeader className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10 shadow-sm">
-              <TableRow>
-                <TableHead className="sticky left-0 bg-slate-50 dark:bg-slate-800 min-w-[180px] z-20 font-bold border-r">
-                  Customer Name
-                </TableHead>
-                {daysInMonth.map((day) => (
-                  <TableHead 
-                    key={day.toISOString()} 
-                    className={cn(
-                      "min-w-[45px] text-center p-2 text-[10px] font-bold uppercase tracking-tighter border-r",
-                      isToday(day) && "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20"
-                    )}
-                  >
-                    <div className="flex flex-col">
-                      <span>{format(day, "eee")}</span>
-                      <span className="text-sm">{format(day, "d")}</span>
-                    </div>
-                  </TableHead>
-                ))}
-                <TableHead className="min-w-[70px] text-center font-bold bg-slate-100 dark:bg-slate-700">
-                  Total
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 10 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="sticky left-0 bg-white dark:bg-slate-900 border-r"><Skeleton className="h-4 w-24" /></TableCell>
-                    {daysInMonth.map((day) => (
-                      <TableCell key={day.toISOString()} className="border-r"><Skeleton className="h-4 w-6 mx-auto" /></TableCell>
-                    ))}
-                    <TableCell><Skeleton className="h-4 w-8 mx-auto" /></TableCell>
-                  </TableRow>
-                ))
-              ) : gridData?.length > 0 ? (
-                gridData.map((row: any) => {
-                  let rowTotal = 0;
-                  return (
-                    <TableRow key={row.user_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <TableCell className="sticky left-0 bg-white dark:bg-slate-900 font-medium border-r z-10 py-3">
-                        <div className="flex flex-col">
-                          <span>{row.name}</span>
-                          <span className="text-[10px] text-muted-foreground leading-none">{row.phone}</span>
-                        </div>
-                      </TableCell>
-                      {daysInMonth.map((day) => {
-                        const dateStr = format(day, "yyyy-MM-dd")
-                        const dayNum = day.getDate()
-                        const value = row.daily_liters[dateStr] || 0
-                        rowTotal += value
-                        const isLocked = isPast(day) && !isToday(day)
-                        
-                        return (
-                          <TableCell 
-                            key={dateStr} 
-                            className={cn(
-                              "text-center p-0 border-r text-sm min-w-[45px]",
-                              isToday(day) && "bg-primary/5",
-                              isFuture(day) && "bg-slate-50/50 dark:bg-slate-900/50 opacity-40 cursor-not-allowed",
-                              isLocked && "bg-slate-50/30 dark:bg-slate-900/10"
+        {/* Mobile Search (visible only on small screens) */}
+        <div className="md:hidden">
+            <Input 
+                placeholder={t('searchCustomers')}
+                className="w-full bg-white/5 border-white/10 text-white focus:ring-indigo-500 rounded-lg"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+            />
+        </div>
+
+        {/* The Grid Card */}
+        <Card className="border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl overflow-hidden rounded-xl ring-1 ring-white/5">
+            <CardContent className="p-0">
+                <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-220px)] relative scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    <table className="w-full border-collapse text-left text-sm">
+                        {/* Header Row */}
+                        <thead>
+                            <tr className="border-b border-white/10">
+                                <th className="sticky left-0 top-0 z-30 bg-[#0a0a0a] min-w-[180px] p-4 font-semibold text-white border-r border-white/10 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+                                    {t('name')}
+                                </th>
+                                {daysInMonth.map((day) => {
+                                    const isT = isToday(day)
+                                    return (
+                                        <th 
+                                            key={day.toISOString()} 
+                                            className={cn(
+                                                "sticky top-0 z-20 min-w-[60px] p-2 text-center border-r border-white/5 bg-[#0a0a0a]",
+                                                isT && "bg-indigo-900/20 text-indigo-400 box-content border-b-2 border-b-indigo-500"
+                                            )}
+                                        >
+                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{format(day, "EEE")}</div>
+                                            <div className="text-sm font-bold">{format(day, "d")}</div>
+                                        </th>
+                                    )
+                                })}
+                                <th className="sticky top-0 z-20 min-w-[80px] p-4 text-center bg-[#0a0a0a] font-bold text-emerald-400 border-l border-white/10">
+                                    {t('total')}
+                                </th>
+                            </tr>
+                        </thead>
+
+                        {/* Body */}
+                        <tbody className="divide-y divide-white/5">
+                            {isLoading ? (
+                                <tr><td colSpan={daysInMonth.length + 2} className="p-8 text-center text-muted-foreground">{t('loading')}</td></tr>
+                            ) : filteredData.length === 0 ? (
+                                <tr><td colSpan={daysInMonth.length + 2} className="p-8 text-center text-muted-foreground">{t('noCustomersFound')}</td></tr>
+                            ) : (
+                                filteredData.map((row: GridRow) => (
+                                    <tr key={row.user_id} className="group hover:bg-white/5 transition-colors">
+                                        {/* Sticky Name Column */}
+                                        <td className="sticky left-0 z-10 bg-[#0a0a0a] group-hover:bg-[#111] p-3 border-r border-white/10 font-medium text-white shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+                                            <div className="flex flex-col">
+                                                <span className="truncate max-w-[150px]">{row.name}</span>
+                                                <span className="text-[10px] text-muted-foreground">{row.phone}</span>
+                                            </div>
+                                        </td>
+                                        
+                                        {/* Days */}
+                                        {daysInMonth.map((day) => {
+                                            const dateStr = format(day, "yyyy-MM-dd")
+                                            const val = row.daily_liters[dateStr] || 0
+                                            const isT = isToday(day)
+                                            // Lock logic: explicit lock or older than 7 days
+                                            const isLocked = isPast(day) && !isToday(day) && (subDays(new Date(), LOCK_DAYS) > day)
+                                            const isEditing = editingCell?.userId === row.user_id && editingCell?.date === dateStr
+
+                                            return (
+                                                <td 
+                                                    key={dateStr}
+                                                    className={cn(
+                                                        "p-0 border-r border-white/5 text-center relative h-12 min-w-[60px]",
+                                                        isT && "bg-indigo-900/10",
+                                                        isLocked ? "bg-white/5 cursor-not-allowed" : "cursor-pointer hover:bg-indigo-500/10"
+                                                    )}
+                                                    onClick={() => handleCellClick(row.user_id, dateStr, isLocked)}
+                                                >
+                                                    {isEditing ? (
+                                                        <input 
+                                                            autoFocus
+                                                            defaultValue={val === 0 ? "" : val}
+                                                            type="number"
+                                                            step="0.5"
+                                                            className="w-full h-full bg-indigo-900/50 text-white text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 absolute inset-0 text-sm font-bold"
+                                                            onBlur={(e) => handleSave(row.user_id, dateStr, e.target.value)}
+                                                            onKeyDown={(e) => handleKeyDown(e, row.user_id, dateStr, e.currentTarget.value)}
+                                                        />
+                                                    ) : (
+                                                        <div className="flex items-center justify-center h-full w-full">
+                                                            {isLocked && val === 0 ? (
+                                                                <span className="text-white/10 text-xs">-</span>
+                                                            ) : isLocked ? (
+                                                                <div className="flex items-center gap-1 text-white/50" title="Locked">
+                                                                     <Lock className="h-3 w-3 opacity-50" />
+                                                                     <span className="text-xs">{val}</span>
+                                                                </div>
+                                                            ) : val === 0 ? (
+                                                                <span className="text-white/20">-</span>
+                                                            ) : (
+                                                                <span className={cn(
+                                                                    "font-bold transition-all", 
+                                                                    isT ? "text-indigo-400 text-base" : "text-white text-sm"
+                                                                )}>
+                                                                    {val}
+                                                                </span>
+                                                            )}
+                                                            
+                                                            {/* Audit Dot */}
+                                                            {row.audits?.[day.getDate()] && (
+                                                                <div className="absolute top-1 right-1 h-1 w-1 rounded-full bg-amber-500" title="Edited by Admin" />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            )
+                                        })}
+
+                                        {/* Row Total */}
+                                        <td className="p-3 text-center font-bold text-emerald-400 bg-emerald-900/5 border-l border-white/10">
+                                            {totals.rows[row.user_id] % 1 === 0 ? totals.rows[row.user_id] : totals.rows[row.user_id].toFixed(1)}   
+                                        </td>
+                                    </tr>
+                                ))
                             )}
-                          >
-                            <div className="h-10 flex items-center justify-center relative group">
-                              {value > 0 ? (
-                                <div className="flex items-center gap-0.5">
-                                  <span className={cn(
-                                    "font-bold",
-                                    isToday(day) ? "text-primary" : "text-foreground/80"
-                                  )}>
-                                    {value % 1 === 0 ? value : value.toFixed(1)}
-                                  </span>
-                                  {row.audits?.[dayNum] && (
-                                    <Popover>
-                                      <PopoverTrigger asChild>
-                                        <button className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <Info className="h-3 w-3 text-amber-500" />
-                                        </button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-56 p-3 text-xs" side="top">
-                                        <div className="space-y-2">
-                                          <div className="flex items-center gap-1.5 font-bold text-amber-600">
-                                            <History className="h-3 w-3" />
-                                            Audit Information
-                                          </div>
-                                          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                                            <span className="text-muted-foreground">Admin:</span>
-                                            <span className="font-medium">{row.audits[dayNum].modified_by}</span>
-                                            <span className="text-muted-foreground">Before:</span>
-                                            <span className="font-medium">{row.audits[dayNum].old_val} L</span>
-                                            <span className="text-muted-foreground">After:</span>
-                                            <span className="font-medium">{row.audits[dayNum].new_val} L</span>
-                                            <span className="text-muted-foreground">Date:</span>
-                                            <span className="font-medium">{format(new Date(row.audits[dayNum].modified_at), "MMM d, HH:mm")}</span>
-                                          </div>
-                                        </div>
-                                      </PopoverContent>
-                                    </Popover>
-                                  )}
-                                </div>
-                              ) : isLocked ? (
-                                <Lock className="h-4 w-4 text-muted-foreground/30" />
-                              ) : (
-                                <span className="text-muted-foreground/20 italic">-</span>
-                              )}
-                            </div>
-                          </TableCell>
-                        )
-                      })}
-                      <TableCell className="bg-slate-50/80 dark:bg-slate-800/80 text-center font-black text-primary py-3">
-                        {rowTotal.toFixed(1)}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={daysInMonth.length + 2} className="h-32 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <span className="text-red-500 font-medium">Failed to load data</span>
-                      <span className="text-sm">Please check your connection and try again</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : gridData?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={daysInMonth.length + 2} className="h-32 text-center text-muted-foreground">
-                    No milk consumption data for this month yet. Start by adding entries in Daily Entry.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={daysInMonth.length + 2} className="h-32 text-center text-muted-foreground">
-                    No customers found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-            <TableBody className="sticky bottom-0 bg-slate-100 dark:bg-slate-800 font-bold z-10 border-t shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
-              <TableRow>
-                <TableCell className="sticky left-0 bg-slate-100 dark:bg-slate-800 border-r py-4 font-black">
-                  DAILY TOTALS
-                </TableCell>
-                {daysInMonth.map((day) => {
-                  const dateStr = format(day, "yyyy-MM-dd")
-                  const dayTotal = gridData?.reduce((sum: number, row: any) => sum + (row.daily_liters[dateStr] || 0), 0) || 0
-                  return (
-                    <TableCell key={dateStr} className="text-center border-r text-primary">
-                      {dayTotal > 0 ? (dayTotal % 1 === 0 ? dayTotal : dayTotal.toFixed(1)) : "-"}
-                    </TableCell>
-                  )
-                })}
-                <TableCell className="text-center text-lg font-black bg-primary text-primary-foreground">
-                  {gridData?.reduce((sum: number, row: any) => sum + Object.values(row.daily_liters as Record<string, number>).reduce((s, v) => s + v, 0), 0).toFixed(1)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center gap-6 text-[10px] uppercase font-bold text-muted-foreground bg-slate-100 dark:bg-slate-800 p-3 rounded-lg border">
-        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-primary/20 rounded-sm" /> Today</div>
-        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-slate-200 dark:bg-slate-700 rounded-sm" /> Past / Locked</div>
-        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-slate-50 dark:bg-slate-900 opacity-40 rounded-sm" /> Future</div>
-      </div>
+                        </tbody>
+                        
+                        {/* Footer (Grand Totals) */}
+                        {!isLoading && filteredData.length > 0 && (
+                            <tfoot>
+                                <tr className="border-t-2 border-white/20 bg-[#111] font-bold">
+                                    <td className="sticky left-0 bottom-0 z-30 bg-[#111] p-4 text-right text-muted-foreground border-r border-white/10 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+                                        {t('total').toUpperCase()}
+                                    </td>
+                                    {daysInMonth.map((day) => {
+                                        const dateStr = format(day, "yyyy-MM-dd")
+                                        const total = totals.cols[dateStr] || 0
+                                        return (
+                                            <td key={dateStr} className="p-2 text-center text-white/80 border-r border-white/10">
+                                                {total > 0 ? (total % 1 === 0 ? total : total.toFixed(1)) : "-"}
+                                            </td>
+                                        )
+                                    })}
+                                    <td className="p-4 text-center text-emerald-400 text-lg border-l border-white/10 bg-emerald-900/10">
+                                        {totals.grand % 1 === 0 ? totals.grand : totals.grand.toFixed(1)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        )}
+                    </table>
+                </div>
+            </CardContent>
+        </Card>
     </div>
   )
 }

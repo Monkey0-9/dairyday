@@ -5,9 +5,13 @@ import secrets
 from functools import lru_cache
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Dairy Management System"
+    PROJECT_NAME: str = "DairyDay Management System"
     API_V1_STR: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002"
+    ]
 
     # Database configuration
     POSTGRES_SERVER: str = "postgres"
@@ -34,8 +38,9 @@ class Settings(BaseSettings):
     LOCK_DAYS: int = 7  # Number of days after which consumption entries become immutable
 
     # JWT settings
-    JWT_AUDIENCE: str = Field(default="dairy-os", env="JWT_AUDIENCE")
-    JWT_ISSUER: str = Field(default="dairy-os", env="JWT_ISSUER")
+    JWT_AUDIENCE: str = Field(default="dairyday", env="JWT_AUDIENCE")
+    JWT_ISSUER: str = Field(default="dairyday", env="JWT_ISSUER")
+
 
     # Rate limiting
     RATE_LIMIT: str = "100/minute"

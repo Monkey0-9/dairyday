@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner"
 import { format, subMonths, addMonths } from "date-fns"
 
+import { useTranslation } from "@/context/language-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -68,6 +69,7 @@ export default function CustomersPage() {
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
     const [searchQuery, setSearchQuery] = useState("")
+    const { t } = useTranslation()
     
     // Month Selection
     const [selectedMonth, setSelectedMonth] = useState(new Date())
@@ -101,8 +103,8 @@ export default function CustomersPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight">Customers</h1>
-                    <p className="text-muted-foreground">Manage your customer base and billing rates.</p>
+                    <h1 className="text-3xl font-black tracking-tight">{t('customers')}</h1>
+                    <p className="text-muted-foreground">{t('manageCustomers')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Month Selector */}
@@ -124,7 +126,7 @@ export default function CustomersPage() {
                         className="bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700 shadow-lg shadow-primary/25"
                     >
                         <Plus className="mr-2 h-4 w-4" />
-                        Add Customer
+                        {t('addCustomer')}
                     </Button>
                 </div>
             </div>
@@ -137,7 +139,7 @@ export default function CustomersPage() {
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <CardTitle>All Customers</CardTitle>
+                            <CardTitle>{t('allCustomers')}</CardTitle>
                             <Button variant="ghost" size="sm" onClick={() => refetch()} disabled={isLoading || isRefetching}>
                                 <RefreshCw className={cn("h-4 w-4", isRefetching && "animate-spin")} />
                             </Button>
@@ -145,7 +147,7 @@ export default function CustomersPage() {
                         <div className="relative w-full sm:w-72">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name, email or phone..."
+                                placeholder={t('searchCustomers')}
                                 className="pl-8"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -162,9 +164,9 @@ export default function CustomersPage() {
                                     <TableHead className="font-bold">Customer</TableHead>
                                     <TableHead className="font-bold">Contact</TableHead>
                                     <TableHead className="font-bold text-right">Consumed (Month)</TableHead>
-                                    <TableHead className="font-bold text-right">Rate (₹/L)</TableHead>
-                                    <TableHead className="font-bold">Status</TableHead>
-                                    <TableHead className="text-right font-bold">Actions</TableHead>
+                                    <TableHead className="font-bold text-right">{t('rate')} (₹/L)</TableHead>
+                                    <TableHead className="font-bold">{t('status')}</TableHead>
+                                    <TableHead className="text-right font-bold">{t('action')}</TableHead>
                                 </TableRow>
                             </TableHeader>
 
@@ -242,7 +244,7 @@ export default function CustomersPage() {
                                                     ) : (
                                                         <UserX className="h-3 w-3" />
                                                     )}
-                                                    {customer.is_active ? "Active" : "Inactive"}
+                                                    {customer.is_active ? t('active') : t('inactive')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -253,7 +255,7 @@ export default function CustomersPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuLabel>{t('action')}</DropdownMenuLabel>
                                                         <DropdownMenuItem onClick={() => {
                                                             setSelectedCustomer(customer)
                                                             setIsEditOpen(true)
@@ -278,14 +280,30 @@ export default function CustomersPage() {
                                                             {customer.is_active ? (
                                                                 <>
                                                                     <UserX className="mr-2 h-4 w-4" />
-                                                                    Deactivate
+                                                                    {t('deactivate')}
                                                                 </>
                                                             ) : (
                                                                 <>
                                                                     <UserCheck className="mr-2 h-4 w-4" />
-                                                                    Reactivate
+                                                                    {t('reactivate')}
                                                                 </>
                                                             )}
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-red-600 focus:text-red-700 focus:bg-red-50 dark:focus:bg-red-900/10"
+                                                            onClick={() => {
+                                                                if (confirm(`Are you sure you want to PERMANENTLY DELETE ${customer.name}? This action cannot be undone and will remove all associated data.`)) {
+                                                                    usersApi.delete(customer.id)
+                                                                        .then(() => {
+                                                                            toast.success("Customer deleted permanently")
+                                                                            refetch()
+                                                                        })
+                                                                        .catch(err => toast.error(formatApiError(err)))
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            {t('deletePermanently')}
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
@@ -347,6 +365,7 @@ function StatCard({ title, value, icon, gradient, loading }: {
 
 function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void }) {
     const [isLoading, setIsLoading] = useState(false)
+    const { t } = useTranslation()
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -403,10 +422,10 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
                         <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-blue-600 text-white">
                             <Sparkles className="h-4 w-4" />
                         </div>
-                        Add New Customer
+                        {t('createCustomerHeader')}
                     </DialogTitle>
                     <DialogDescription>
-                        Create a new customer account. They can log in to view their bills.
+                        {t('createCustomerSub')}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -443,7 +462,7 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="rate">Price per Liter (₹) *</Label>
+                        <Label htmlFor="rate">{t('rate')} (₹) *</Label>
                         <Input
                             id="rate"
                             type="number"
@@ -486,7 +505,7 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
                             className="bg-gradient-to-r from-primary to-blue-600"
                         >
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Customer
+                            {t('save')}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -497,6 +516,7 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
 
 function EditCustomerDialog({ customer, open, onOpenChange, onSuccess }: { customer: any, open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void }) {
     const [isLoading, setIsLoading] = useState(false)
+    const { t } = useTranslation()
     const [formData, setFormData] = useState({
         name: "",
         email: "",

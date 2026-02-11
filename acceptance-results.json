@@ -1,51 +1,44 @@
 {
-  "timestamp": "2026-02-09T08:50:00.000000",
+  "timestamp": "2026-02-10T17:49:00.650787",
   "summary": {
-    "passed": 8,
+    "passed": 7,
     "failed": 0,
-    "errors": 0,
     "skipped": 0,
-    "needs_review": 0
+    "needs_review": 1,
+    "errors": 0
   },
   "results": [
-    ["Health Check", "PASS"],
-    ["Admin Login", "PASS"],
-    ["User Login", "PASS"],
-    ["Admin Daily Entry", "PASS"],
-    ["User Consumption", "PASS"],
-    ["Admin User List", "PASS"],
-    ["User Admin Restriction", "PASS"],
-    ["Frontend Health", "PASS"]
-  ],
-  "services": {
-    "backend": {
-      "url": "http://localhost:8002",
-      "status": "healthy",
-      "version": "1.0.0"
-    },
-    "frontend": {
-      "url": "http://localhost:3000",
-      "status": "healthy",
-      "version": "Next.js 15.0.0"
-    }
-  },
-  "login_credentials": {
-    "admin": {
-      "email": "admin@dairy.com",
-      "password": "admin123",
-      "role": "ADMIN"
-    },
-    "users": [
-      {"email": "user1@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user2@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user3@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user4@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user5@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user6@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user7@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user8@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user9@dairy.com", "password": "password123", "role": "USER"},
-      {"email": "user10@dairy.com", "password": "password123", "role": "USER"}
+    [
+      "Health Check",
+      "PASS"
+    ],
+    [
+      "Admin Login",
+      "PASS"
+    ],
+    [
+      "User Login",
+      "PASS"
+    ],
+    [
+      "Admin Daily Entry",
+      "PASS"
+    ],
+    [
+      "User Consumption",
+      "PASS"
+    ],
+    [
+      "Admin User List",
+      "PASS"
+    ],
+    [
+      "User Admin Restriction",
+      "PASS"
+    ],
+    [
+      "Frontend Health",
+      "NEEDS REVIEW"
     ]
-  }
+  ]
 }

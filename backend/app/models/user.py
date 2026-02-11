@@ -1,6 +1,6 @@
 
 import uuid
-from sqlalchemy import Column, String, Boolean, Numeric, DateTime, text
+from sqlalchemy import Column, String, Boolean, Numeric, DateTime, text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -18,3 +18,4 @@ class User(Base):
     hashed_password = Column(String, nullable=True) # Added for auth
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    preferences = Column(JSON, nullable=True, default={})

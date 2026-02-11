@@ -18,6 +18,7 @@ import {
 import { motion } from "framer-motion"
 import CountUp from "react-countup"
 import Link from "next/link"
+import { useTranslation } from "@/context/language-context"
 
 import { consumptionApi, billsApi, authApi, paymentsApi } from "@/lib/api"
 
@@ -32,6 +33,7 @@ interface ConsumptionDay {
    CUSTOMER OVERVIEW — TOP 1% PREMIUM DARK MODE
    ──────────────────────────────────────────────── */
 export default function CustomerOverview() {
+  const { t } = useTranslation()
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [userId, setUserId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -125,18 +127,18 @@ export default function CustomerOverview() {
       {/* ── Month Selector ── */}
       <motion.div variants={item} className="flex items-center justify-center gap-3">
         <button onClick={handlePrev}
-          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.06] transition-all active:scale-90"
+          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-foreground hover:bg-foreground/5 transition-all active:scale-90"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="px-5 py-2 rounded-full border border-white/[0.08] bg-white/[0.03] min-w-[180px] text-center">
-          <span className="text-sm font-semibold text-white tracking-wide">
+        <div className="px-5 py-2 rounded-full border border-border bg-card/40 min-w-[180px] text-center">
+          <span className="text-sm font-semibold text-foreground tracking-wide">
             {format(selectedMonth, "MMMM yyyy")}
           </span>
         </div>
         <button onClick={handleNext}
           disabled={isSameMonth(selectedMonth, new Date())}
-          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-20 active:scale-90"
+          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-20 active:scale-90"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -164,7 +166,7 @@ export default function CustomerOverview() {
 
           <div className="relative z-10">
             <p className="text-white/50 text-xs font-bold uppercase tracking-[0.2em] mb-3">
-              Amount Due
+              {t('pendingPayment')}
             </p>
 
             {isBillLoading ? (
@@ -232,9 +234,9 @@ export default function CustomerOverview() {
       <motion.div variants={item} className="grid grid-cols-3 gap-3">
         <GlassStatCard
           icon={<Droplets className="h-4 w-4 text-indigo-400" />}
-          label="This Month"
+          label={t('consumption')}
           value={Number(totalLiters).toFixed(1)}
-          unit="L"
+          unit={t('liters')}
           loading={isConsLoading}
           mounted={mounted}
         />
@@ -261,11 +263,10 @@ export default function CustomerOverview() {
         <Link href="/customer/calendar">
           <motion.div
             whileHover={{ scale: 1.02, borderColor: "rgba(99,102,241,0.2)" }}
-            className="rounded-2xl p-4 border border-white/[0.06] transition-all group cursor-pointer"
-            style={{ background: "#111111" }}
+            className="rounded-2xl p-4 border border-border transition-all group cursor-pointer bg-card/60 dark:bg-card/40"
           >
-            <Calendar className="h-5 w-5 text-indigo-400 mb-2" />
-            <p className="text-sm font-bold text-white mb-0.5">Milk Calendar</p>
+            <Calendar className="h-5 w-5 text-indigo-500 mb-2" />
+            <p className="text-sm font-bold text-foreground mb-0.5">{t('calendar')}</p>
             <p className="text-[10px] text-neutral-500 flex items-center gap-1">
               View delivery history <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
             </p>
@@ -274,11 +275,10 @@ export default function CustomerOverview() {
         <Link href="/customer/records">
           <motion.div
             whileHover={{ scale: 1.02, borderColor: "rgba(99,102,241,0.2)" }}
-            className="rounded-2xl p-4 border border-white/[0.06] transition-all group cursor-pointer"
-            style={{ background: "#111111" }}
+            className="rounded-2xl p-4 border border-border transition-all group cursor-pointer bg-card/60 dark:bg-card/40"
           >
-            <TrendingUp className="h-5 w-5 text-emerald-400 mb-2" />
-            <p className="text-sm font-bold text-white mb-0.5">Milk Records</p>
+            <TrendingUp className="h-5 w-5 text-emerald-500 mb-2" />
+            <p className="text-sm font-bold text-foreground mb-0.5">{t('records')}</p>
             <p className="text-[10px] text-neutral-500 flex items-center gap-1">
               Detailed breakdown <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
             </p>
@@ -298,14 +298,13 @@ function GlassStatCard({
   return (
     <motion.div
       whileHover={{ scale: 1.03, borderColor: "rgba(255,255,255,0.1)" }}
-      className="rounded-2xl p-4 border border-white/[0.06] transition-all"
-      style={{ background: "rgba(17,17,17,0.6)", backdropFilter: "blur(12px)" }}
+      className="rounded-2xl p-4 border border-border transition-all bg-card/60 dark:bg-card/40 backdrop-blur-xl"
     >
       <div className="mb-2">{icon}</div>
       {loading ? (
-        <div className="h-6 w-14 bg-white/[0.04] rounded animate-pulse" />
+        <div className="h-6 w-14 bg-foreground/5 rounded animate-pulse" />
       ) : (
-        <p className="text-lg font-black text-white tracking-tight tabular-nums leading-none">
+        <p className="text-lg font-black text-foreground tracking-tight tabular-nums leading-none">
           {mounted ? <CountUp end={parseFloat(value) || 0} decimals={value.includes(".") ? 1 : 0} duration={0.8} /> : value}
           {unit && <span className="text-xs font-bold text-neutral-500 ml-0.5">{unit}</span>}
         </p>

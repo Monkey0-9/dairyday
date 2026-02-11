@@ -3,194 +3,205 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Milk,
   LayoutDashboard,
-  ClipboardCheck,
   Users,
-  Receipt,
-  CreditCard,
+  FileText,
   LogOut,
   Menu,
-  Settings,
+  CreditCard,
+  Milk,
+  ClipboardList,
+  Moon,
+  Sun,
   Bell
 } from "lucide-react"
-
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { authApi } from "@/lib/api"
 import { useState, useEffect } from "react"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { useTheme } from "next-themes"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { LanguageSelector } from "@/components/language-selector"
 
-const adminNav = [
-  { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, roles: ["ADMIN", "BILLING_ADMIN"] },
-  { name: "Daily Entry", href: "/admin/daily-entry", icon: ClipboardCheck, badge: "Today", roles: ["ADMIN"] },
-  { name: "Customers", href: "/admin/customers", icon: Users, roles: ["ADMIN"] },
-  { name: "Consumption", href: "/admin/consumption", icon: Milk, roles: ["ADMIN", "BILLING_ADMIN"] },
-  { name: "Bills", href: "/admin/bills", icon: Receipt, roles: ["ADMIN", "BILLING_ADMIN"] },
-  { name: "Payments", href: "/admin/payments", icon: CreditCard, roles: ["ADMIN", "BILLING_ADMIN"] },
-]
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+import { useTranslation } from "@/context/language-context"
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const pathname = usePathname()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [userRole, setUserRole] = useState<string | null>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const { setTheme, theme } = useTheme()
+  const { t } = useTranslation()
+  const [mounted, setMounted] = useState(false)
+
+  const sidebarItems = [
+    { icon: LayoutDashboard, label: t('dashboard'), href: "/admin/dashboard" },
+    { icon: ClipboardList, label: t('dailyEntry'), href: "/admin/daily-entry" },
+    { icon: Users, label: t('customers'), href: "/admin/customers" },
+    { icon: Milk, label: t('consumption'), href: "/admin/consumption" },
+    { icon: FileText, label: t('bills'), href: "/admin/bills" },
+    { icon: CreditCard, label: t('payments'), href: "/admin/payments" },
+  ]
 
   useEffect(() => {
-    setUserRole(authApi.getUserRole())
+    setMounted(true)
   }, [])
 
-  const handleLogout = () => {
-    authApi.logout()
-    window.location.href = "/"
-  }
-
-  const filteredNav = adminNav.filter(item => 
-    !userRole || (item.roles && item.roles.includes(userRole))
-  )
-
-  const NavContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex flex-col h-full">
-      {/* Logo Section */}
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-border/50">
-        <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-          <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 duration-300">
-            <Milk className="h-5 w-5 text-white" />
-          </div>
-        </div>
-        <div>
-          <span className="font-black text-xl tracking-tight bg-gradient-to-br from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-300 dark:to-white bg-clip-text text-transparent">DairyOS</span>
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-70">Control Center</p>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-auto">
-        <p className="px-3 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 opacity-50">Operations</p>
-        {filteredNav.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={() => mobile && setIsSidebarOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 font-bold group relative border border-transparent",
-                isActive
-                  ? "bg-slate-900 border-slate-800 text-white shadow-xl shadow-slate-900/20 dark:bg-white dark:text-slate-900 dark:shadow-white/10"
-                  : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white"
-              )}
-            >
-              <item.icon className={cn(
-                "h-5 w-5 transition-transform duration-300",
-                isActive ? "scale-110" : "group-hover:scale-110"
-              )} />
-              <span className="flex-1 text-sm tracking-tight">{item.name}</span>
-              {item.badge && (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[9px] px-1.5 py-0 font-black tracking-tighter uppercase",
-                    isActive
-                      ? "border-white/20 text-white bg-white/10 dark:border-slate-900/20 dark:text-slate-900 dark:bg-slate-900/10"
-                      : "border-primary/20 text-primary bg-primary/5"
-                  )}
-                >
-                  {item.badge}
-                </Badge>
-              )}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Footer Profile Preview & Logout */}
-      <div className="p-4 border-t border-border/50">
-        <div className="flex items-center gap-3 p-3 mb-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-          <Avatar className="h-9 w-9 border border-border/50 shadow-sm">
-            <AvatarFallback className="bg-gradient-to-br from-primary/10 to-blue-600/10 text-primary font-black text-xs">
-              {userRole?.[0] || 'A'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-black leading-none truncate uppercase tracking-tighter">
-              {userRole === 'ADMIN' ? 'System Admin' : userRole === 'BILLING_ADMIN' ? 'Billing Manager' : 'Operator'}
-            </p>
-            <p className="text-[10px] text-muted-foreground font-bold tracking-tight opacity-70">Active Session</p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-muted-foreground hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl h-11 transition-all duration-300 font-bold px-4"
-          onClick={handleLogout}
-        >
-          <LogOut className="mr-3 h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          <span className="text-sm">Sign Out</span>
-        </Button>
-      </div>
-    </div>
-  )
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 font-sans selection:bg-primary/10">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-72 bg-white dark:bg-slate-900 border-r border-border/20 sticky top-0 h-screen shadow-[1px_0_10px_rgba(0,0,0,0.02)] z-40">
-        <NavContent />
+    <div className="min-h-screen bg-background dark:bg-[#0a0a0a] text-foreground dark:text-white selection:bg-indigo-500/30 font-sans transition-colors duration-300">
+      {/* Mobile Sidebar Overlay */}
+      <div
+        className={`fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${
+          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 z-50 h-full w-64 bg-card dark:bg-[#0a0a0a] border-r border-border dark:border-white/[0.08] transition-transform duration-300 transform lg:translate-x-0 ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          {/* Logo */}
+          <div className="h-16 flex items-center px-6 border-b border-border dark:border-white/[0.08]">
+            <div className="h-8 w-8 rounded-xl bg-indigo-500 flex items-center justify-center mr-3 shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+              <Milk className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg tracking-tight">DairyDay</h1>
+              <p className="text-[10px] text-muted-foreground dark:text-neutral-500 font-mono tracking-wider">DASHBOARD</p>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+            <div className="px-3 mb-2 text-[10px] font-bold text-muted-foreground dark:text-neutral-500 uppercase tracking-wider">
+              Operations
+            </div>
+            {sidebarItems.map((item) => {
+              const isActive = pathname === item.href
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative ${
+                    isActive
+                      ? "text-primary-foreground bg-primary dark:text-white dark:bg-white/[0.08]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent dark:text-neutral-400 dark:hover:text-white dark:hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-500 rounded-r-full shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+                  )}
+                  <Icon className={`h-4 w-4 transition-colors ${isActive ? "text-primary-foreground dark:text-indigo-400" : "text-muted-foreground group-hover:text-foreground dark:text-neutral-500 dark:group-hover:text-neutral-300"}`} />
+                  {item.label}
+                  {item.href === "/admin/daily-entry" && (
+                    <span className="ml-auto text-[9px] font-bold bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/20 dark:border-indigo-500/30">
+                      TODAY
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* User Profile */}
+          <div className="p-4 border-t border-border dark:border-white/[0.08] bg-muted/20 dark:bg-white/[0.02]">
+            <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-card border border-border dark:bg-white/[0.05] dark:border-white/[0.05]">
+              <div className="h-8 w-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs border border-indigo-500/30">
+                A
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-sm font-medium truncate text-foreground dark:text-white">SYSTEM ADMIN</p>
+                <p className="text-[10px] text-green-500 dark:text-green-400 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 dark:bg-green-400 animate-pulse" />
+                  Active Session
+                </p>
+              </div>
+            </div>
+            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent dark:text-neutral-400 dark:hover:text-white dark:hover:bg-white/[0.05] rounded-lg transition-colors">
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header */}
-        <header className="h-20 flex items-center justify-between px-6 lg:px-10 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-border/20 sticky top-0 z-30 shadow-sm">
-          {/* Mobile Menu Button */}
-          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-            <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon" className="rounded-2xl transition-all active:scale-90 h-11 w-11 hover:bg-slate-100 dark:hover:bg-slate-800">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72 border-r-0 shadow-2xl">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Navigation Menu</SheetTitle>
-              </SheetHeader>
-              <NavContent mobile />
-            </SheetContent>
-          </Sheet>
-
-          {/* Search Placeholder / Breadcrumb */}
-          <div className="hidden lg:flex items-center gap-2">
-             <Badge className="bg-slate-100 dark:bg-slate-800 text-slate-500 border-none font-black text-[10px] uppercase tracking-widest px-3 py-1 scale-95 opacity-80">
-               Operational Node :: 01
-             </Badge>
+      <div 
+        className={`transition-all duration-300 min-h-screen flex flex-col ${
+          isSidebarOpen ? "lg:ml-64" : ""
+        }`}
+      >
+        {/* Header */}
+        <header className="h-16 flex items-center justify-between px-6 border-b border-border dark:border-white/[0.08] bg-background/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl sticky top-0 z-30">
+          <div className="flex items-center gap-4">
+             <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-accent dark:text-neutral-400 dark:hover:text-white dark:hover:bg-white/[0.05] lg:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 dark:bg-white/[0.05] border border-border dark:border-white/[0.08]">
+              <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />
+              <span className="text-[10px] font-mono text-muted-foreground dark:text-neutral-400">OPERATIONAL NODE :: 01</span>
+            </div>
           </div>
 
-          {/* Right side actions */}
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="relative rounded-2xl h-11 w-11 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300">
-              <Bell className="h-5 w-5 text-slate-500" />
-              <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-rose-500 border-2 border-white dark:border-slate-900 rounded-full animate-pulse" />
-            </Button>
+          <div className="flex items-center gap-4 ml-auto">
+            {/* Notification Bell with Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-accent dark:text-neutral-400 dark:hover:text-white dark:hover:bg-white/[0.05] relative transition-colors">
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 border border-background dark:border-[#0a0a0a]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-4 border-b">
+                  <h4 className="font-semibold text-sm">Notifications</h4>
+                  <p className="text-xs text-muted-foreground">You have no new notifications.</p>
+                </div>
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  All caught up!
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="h-4 w-[1px] bg-border dark:bg-white/[0.08]" />
             
-            <div className="h-8 w-px bg-border/50 mx-1" />
+            <LanguageSelector />
+
+            <div className="h-4 w-[1px] bg-border dark:bg-white/[0.08]" />
             
-            <ThemeToggle />
-            
-            <div className="hidden sm:flex items-center gap-3 pl-3">
-               <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-80 leading-tight">Live</p>
-                  <p className="text-xs font-bold leading-none mt-0.5 whitespace-nowrap">Dashboard Active</p>
-               </div>
-            </div>
+            {/* Theme Toggle */}
+              <button
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground dark:text-neutral-400 dark:hover:text-white transition-colors"
+                suppressHydrationWarning
+              >
+                <div className="hidden dark:block"><Moon className="h-4 w-4" /></div>
+                <div className="block dark:hidden"><Sun className="h-4 w-4" /></div>
+                <span className="text-xs font-medium uppercase">{mounted ? (theme === 'system' ? 'System' : theme) : ''}</span>
+              </button>
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-6 lg:p-10 max-w-[1600px] mx-auto w-full">
-          {children}
+        {/* Page Content */}
+        <main className="flex-1 p-6 relative">
+             {/* Background Gradients (only in dark mode) */}
+            <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-indigo-500/[0.05] to-transparent pointer-events-none dark:block hidden" />
+            <div className="relative z-10 text-foreground dark:text-neutral-200">
+                {children}
+            </div>
         </main>
       </div>
     </div>

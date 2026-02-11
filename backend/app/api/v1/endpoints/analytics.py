@@ -40,10 +40,14 @@ async def get_dashboard_analytics(
         logger.info("Calling AnalyticsService.get_customer_insights...")
         customer_insights = await AnalyticsService.get_customer_insights(db)
 
+        logger.info("Calling AnalyticsService.get_recent_sales...")
+        recent_sales = await AnalyticsService.get_recent_sales(db, limit=5)
+
         return {
             **kpis,
             "revenue_trend": revenue_trend,
-            "customer_insights": customer_insights
+            "customer_insights": customer_insights,
+            "recent_sales": recent_sales
         }
 
     except Exception as e:

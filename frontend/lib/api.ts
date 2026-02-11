@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_URL = typeof window === 'undefined' 
+  ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1')
+  : '/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -112,6 +114,8 @@ export const authApi = {
 // Users API
 export const usersApi = {
   list: (month?: string) => api.get(month ? `/users/?month=${month}` : '/users/'),
+  getMe: () => api.get('/users/me'),
+  updateMe: (data: any) => api.patch('/users/me', data),
   create: (user: any) => api.post('/users/', user),
   update: (userId: string, user: any) => api.patch(`/users/${userId}`, user),
   delete: (userId: string) => api.delete(`/users/${userId}`),
@@ -123,6 +127,7 @@ export const consumptionApi = {
   getMine: (month: string) => api.get(`/consumption/mine?month=${month}`),
   upsert: (data: any) => api.patch('/consumption/', data),
   export: (month: string) => api.get(`/consumption/export?month=${month}`, { responseType: 'blob' }),
+  exportPdf: (month: string) => api.get(`/consumption/export-pdf?month=${month}`, { responseType: 'blob' }),
   upload: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -166,6 +171,11 @@ export const paymentsApi = {
       payment_method: paymentMethod || 'CASH',
       notes: notes || ''
     });
+    return response.data;
+  },
+
+  submitReference: async (billId: string, utr: string) => {
+    const response = await api.post(`/payments/submit-reference/${billId}`, { utr });
     return response.data;
   },
 };

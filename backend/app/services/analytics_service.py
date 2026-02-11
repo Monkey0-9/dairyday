@@ -272,3 +272,43 @@ class AnalyticsService:
             msg = f"Error calculating customer insights: {str(e)}"
             logger.error(msg, exc_info=True)
             raise
+
+    @staticmethod
+    async def get_recent_sales(db: AsyncSession, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Get recent sales (paid bills) with user details.
+
+        Returns:
+            List of dicts with sale details
+        """
+        try:
+            # Query recent bills (PAID or PENDING) to show activity
+            stmt = (
+                select(Bill, User)
+                .join(User, Bill.user_id == User.id)
+                .where(Bill.status.in_(['PAID', 'PENDING']))
+                .order_by(Bill.updated_at.desc())
+                .limit(limit)
+            )
+            result = await db.execute(stmt)
+            rows = result.all()
+
+            sales = []
+            for bill, user in rows:
+                sales.append({
+                    "id": str(bill.id),
+                    "user_name": user.full_name,
+                    "user_email": user.email,
+                    "amount": float(bill.total_amount),
+                    "date": bill.updated_at.isoformat() if bill.updated_at else bill.created_at.isoformat(),
+                    "avatar": user.profile_image_url,
+                    "status": bill.status
+                })
+            
+            logger.info(f"Retrieved {len(sales)} recent sales")
+            return sales
+
+        except Exception as e:
+            msg = f"Error fetching recent sales: {str(e)}"
+            logger.error(msg, exc_info=True)
+            return []

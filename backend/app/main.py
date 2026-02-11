@@ -50,7 +50,8 @@ limiter = Limiter(
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    logging.info("Starting up DairyOS...")
+    logging.info("Starting up DairyDay...")
+
 
     # Initialize database (try PostgreSQL first, fallback to SQLite)
     engine = await init_models()
@@ -64,12 +65,14 @@ async def lifespan(app: FastAPI):
         environment="development"
     )
 
-    logging.info("DairyOS started successfully")
+    logging.info("DairyDay started successfully")
+
 
     yield
 
     # Shutdown
-    logging.info("Shutting down DairyOS...")
+    logging.info("Shutting down DairyDay...")
+
 
 
 # Create FastAPI app
@@ -205,9 +208,10 @@ async def health_check():
     """Health check endpoint for load balancers and monitoring."""
     return {
         "status": "healthy",
-        "service": "dairy-os",
+        "service": "dairyday",
         "version": "1.0.0",
     }
+
 
 
 # Readiness check endpoint

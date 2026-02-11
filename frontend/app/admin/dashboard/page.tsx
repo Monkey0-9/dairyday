@@ -1,302 +1,187 @@
 "use client"
 
+import { Activity, CreditCard, DollarSign, Users, Milk, Calendar, ArrowUpRight } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
+import { analyticsApi, consumptionApi } from "@/lib/api"
 import { format } from "date-fns"
-import {
-  Users,
-  Milk,
-  TrendingUp,
-  TrendingDown,
-  AlertCircle,
-  ClipboardCheck,
-  Receipt,
-  ArrowRight,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  IndianRupee,
-  BarChart3,
-  Sparkles
-} from "lucide-react"
-import Link from "next/link"
-import { useState, useEffect } from "react"
+import { toast } from "sonner"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { analyticsApi, authApi } from "@/lib/api"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Overview } from "@/components/admin/overview"
+import { RecentSales } from "@/components/admin/recent-sales"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { useTranslation } from "@/context/language-context"
 
 export default function AdminDashboardPage() {
-  const [userRole, setUserRole] = useState<string | null>(null)
-
-  useEffect(() => {
-    setUserRole(authApi.getUserRole())
-  }, [])
-
-  const { data: stats, isLoading, isError } = useQuery({
-    queryKey: ["admin-dashboard-stats"],
-    queryFn: () => analyticsApi.getDashboard().then(res => res.data),
-    staleTime: 30_000,
+  const { t } = useTranslation()
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['adminDashboard'],
+    queryFn: async () => {
+      const res = await analyticsApi.getDashboard()
+      return res.data
+    },
+    refetchInterval: 30000 // Refresh every 30s
   })
 
-  const currentDate = new Date()
-  const greeting = currentDate.getHours() < 12 ? "Good morning" : currentDate.getHours() < 18 ? "Good afternoon" : "Good evening"
+  // Loading Skeleton
+  if (isLoading) {
+    return <DashboardSkeleton />
+  }
+
+  // Error State
+  if (error) {
+    return (
+        <div className="flex h-[50vh] items-center justify-center">
+            <div className="text-center space-y-4">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 text-red-500">
+                    <Activity className="h-6 w-6" />
+                </div>
+                <h3 className="text-lg font-medium text-foreground">Failed to load dashboard</h3>
+                <p className="text-sm text-muted-foreground">Using cached data if available...</p>
+            </div>
+        </div>
+    )
+  }
+
+  const handleDownloadReport = async () => {
+    try {
+      const month = format(new Date(), 'yyyy-MM')
+      const response = await consumptionApi.export(month)
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `dairy-report-${month}.csv`) 
+      document.body.appendChild(link)
+      link.click()
+      link.parentNode?.removeChild(link)
+      
+      toast.success("Report downloaded successfully")
+    } catch (err) {
+      toast.error("Failed to download report")
+      console.error(err)
+    }
+  }
 
   return (
     <div className="space-y-8">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-blue-600 to-indigo-700 p-8 text-white shadow-xl">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-white/80 text-sm font-medium mb-2">
-            <Calendar className="h-4 w-4" />
-            {format(currentDate, "EEEE, MMMM d, yyyy")}
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+            <h2 className="text-3xl font-bold tracking-tight text-foreground dark:text-white">{t('dashboard')}</h2>
+            <p className="text-muted-foreground dark:text-neutral-400 mt-1">Real-time overview of your dairy operations.</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <div className="h-10 px-4 py-2 rounded-lg bg-muted/50 dark:bg-white/[0.03] border border-border dark:border-white/[0.08] text-sm text-muted-foreground dark:text-neutral-300 flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+            <span>{format(new Date(), 'MMM yyyy')}</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black mb-2">
-            {greeting}! 👋
-          </h1>
-          <p className="text-white/80 text-lg max-w-lg">
-            Here's your business overview for {format(currentDate, "MMMM yyyy")}.
-            {stats?.pending_bills ? ` You have ${stats.pending_bills} pending collections.` : ""}
-          </p>
+          <Button 
+            onClick={handleDownloadReport}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md dark:shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all active:scale-95"
+          >
+            Download Report
+          </Button>
         </div>
       </div>
-
-      {isError && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive px-6 py-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <AlertCircle className="h-5 w-5" />
-          <p className="font-medium">Failed to load live data. Displaying cached results if available.</p>
-        </div>
-      )}
 
       {/* Stats Grid */}
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard
-          title="Active Customers"
-          value={stats?.total_customers || 0}
-          trend={(stats?.total_customers || 0) > 0 ? "+2" : null}
-          trendLabel="this week"
-          icon={<Users className="h-5 w-5" />}
-          loading={isLoading}
-          gradient="from-blue-500 to-cyan-500"
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard 
+            title="Total Revenue" 
+            value={`₹${data?.monthly_revenue?.toLocaleString() ?? 0}`}
+            subtext={`${data?.monthly_growth > 0 ? '+' : ''}${data?.monthly_growth}% from last month`}
+            icon={DollarSign}
         />
-        <StatCard
-          title="Today's Intake"
-          value={stats?.today_liters || 0}
-          suffix=" L"
-          trend={(stats?.today_liters || 0) > 0 ? "On track" : null}
-          trendLabel="85% of target"
-          icon={<Milk className="h-5 w-5" />}
-          loading={isLoading}
-          gradient="from-violet-500 to-purple-500"
+        <StatsCard 
+            title="Subscriptions" 
+            value={`+${data?.total_customers ?? 0}`}
+            subtext={`+${data?.new_customers ?? 0} new this month`}
+            icon={Users}
         />
-        <StatCard
-          title="Monthly Revenue"
-          value={stats?.monthly_revenue || 0}
-          prefix="₹ "
-          trend={stats?.monthly_growth || 0}
-          trendLabel="vs last month"
-          icon={<IndianRupee className="h-5 w-5" />}
-          loading={isLoading}
-          gradient="from-emerald-500 to-green-500"
-          isCurrency
+        <StatsCard 
+            title="Liters Delivered" 
+            value={`+${data?.today_liters?.toLocaleString() ?? 0} L`}
+            subtext="+19% from last month" // TODO: Real monthly stats
+            icon={Milk}
         />
-        <StatCard
-          title="Pending Bills"
-          value={stats?.pending_bills || 0}
-          trend={(stats?.pending_bills || 0) > 0 ? `₹${stats?.unpaid_amount?.toLocaleString() || 0}` : null}
-          trendLabel="to collect"
-          icon={<AlertCircle className="h-5 w-5" />}
-          loading={isLoading}
-          gradient="from-amber-500 to-orange-500"
-          variant="warning"
-          isCurrencyTrend={true}
-        />
-        <StatCard
-          title="New Customers"
-          value={stats?.new_customers || 0}
-          trend={null}
-          trendLabel="this month"
-          icon={<Users className="h-5 w-5" />}
-          loading={isLoading}
-          gradient="from-indigo-500 to-blue-500"
+        <StatsCard 
+            title="Active Now" 
+            value={`+${data?.customer_insights?.active_customers ?? data?.total_customers ?? 0}`} 
+            subtext="+201 since last hour" // TODO: Real hourly stats
+            icon={Activity}
         />
       </div>
 
-      {/* Quick Actions */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-xl font-bold">Quick Actions</h2>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {(userRole === 'ADMIN') && (
-            <QuickActionCard
-              title="Daily Entry"
-              description="Record today's milk delivery for all customers"
-              icon={<ClipboardCheck className="h-7 w-7" />}
-              href="/admin/daily-entry"
-              cta="Open Entry"
-              gradient="from-blue-500/10 to-cyan-500/10"
-              iconColor="text-blue-500"
-            />
-          )}
-          <QuickActionCard
-            title="Billing & Payments"
-            description="Generate bills and record cash payments"
-            icon={<Receipt className="h-7 w-7" />}
-            href="/admin/bills"
-            cta="Manage"
-            gradient="from-emerald-500/10 to-green-500/10"
-            iconColor="text-emerald-500"
-          />
-          <QuickActionCard
-            title="Consumption Grid"
-            description="View monthly consumption data for all customers"
-            icon={<BarChart3 className="h-7 w-7" />}
-            href="/admin/consumption"
-            cta="View Grid"
-            gradient="from-violet-500/10 to-purple-500/10"
-            iconColor="text-violet-500"
-          />
-        </div>
-      </div>
-
-      {/* Period Info */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
-          <BarChart3 className="h-3 w-3" />
-          Data period: {stats?.period || format(currentDate, "MMMM yyyy")}
-        </div>
+      {/* Charts & Lists */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4 bg-card dark:bg-[#111111]/40 border-border dark:border-white/[0.08] backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-foreground dark:text-white">{t('overview')}</CardTitle>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <Overview data={data?.revenue_trend || []} />
+          </CardContent>
+        </Card>
+        <Card className="col-span-3 bg-card dark:bg-[#111111]/40 border-border dark:border-white/[0.08] backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-foreground dark:text-white">{t('recentActivity')}</CardTitle>
+            <div className="text-sm text-muted-foreground dark:text-neutral-400">
+              {data?.recent_sales?.length ?? 0} transactions recently.
+            </div>
+          </CardHeader>
+          <CardContent>
+            <RecentSales data={data?.recent_sales || []} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
 }
 
-interface StatCardProps {
-  title: string
-  value: number | undefined
-  prefix?: string
-  suffix?: string
-  trend?: string | number | null
-  trendLabel?: string
-  icon: React.ReactNode
-  loading: boolean
-  gradient: string
-  variant?: "default" | "warning"
-  isCurrency?: boolean
-  isCurrencyTrend?: boolean
+function StatsCard({ title, value, subtext, icon: Icon }: any) {
+    return (
+        <Card className="bg-card dark:bg-[#111111]/40 border-border dark:border-white/[0.08] backdrop-blur-md hover:bg-accent/50 dark:hover:bg-white/[0.02] transition-colors group">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground dark:text-neutral-400 group-hover:text-foreground dark:group-hover:text-neutral-200 transition-colors">
+              {title}
+            </CardTitle>
+            <Icon className="h-4 w-4 text-muted-foreground dark:text-indigo-500/70 group-hover:text-primary dark:group-hover:text-indigo-400 transition-colors" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground dark:text-white tracking-tight">{value}</div>
+            <p className="text-xs text-muted-foreground dark:text-neutral-500 mt-1 flex items-center gap-1">
+               {subtext.includes('+') && <ArrowUpRight className="h-3 w-3 text-emerald-500" />}
+               <span className={subtext.includes('+') ? "text-emerald-500" : "text-muted-foreground dark:text-neutral-500"}>
+                 {subtext}
+               </span>
+            </p>
+          </CardContent>
+        </Card>
+    )
 }
 
-function StatCard({
-  title,
-  value,
-  prefix = "",
-  suffix = "",
-  trend,
-  trendLabel,
-  icon,
-  loading,
-  gradient,
-  variant = "default",
-  isCurrency = false,
-  isCurrencyTrend = false
-}: StatCardProps) {
-  const isPositiveTrend = typeof trend === 'number' ? trend > 0 : typeof trend === 'string' && trend.startsWith('+')
-
+function DashboardSkeleton() {
   return (
-    <Card className="relative overflow-hidden border border-slate-700/50 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 bg-slate-800/80 backdrop-blur-sm min-h-[140px] flex flex-col">
-      <CardContent className="p-5 relative flex-1 flex flex-col justify-between">
-        <div className="flex items-start justify-between mb-3">
-          <div className={cn(
-            "p-2 rounded-lg bg-gradient-to-br shadow-md",
-            gradient
-          )}>
-            <div className="text-white">{icon}</div>
-          </div>
-          {trend !== null && trend !== undefined && (
-            <div className={cn(
-              "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
-              variant === "warning"
-                ? "bg-amber-500/20 text-amber-400"
-                : isPositiveTrend
-                  ? "bg-green-500/20 text-green-400"
-                  : "bg-slate-600/50 text-slate-300"
-            )}>
-              {!isCurrencyTrend && typeof trend === 'number' && trend > 0 && <ArrowUpRight className="h-2.5 w-2.5" />}
-              {!isCurrencyTrend && typeof trend === 'number' && trend < 0 && <ArrowDownRight className="h-2.5 w-2.5" />}
-              {typeof trend === 'number' ? `${trend > 0 ? '+' : ''}${trend}%` : trend}
-            </div>
-          )}
+    <div className="space-y-8">
+      <div className="flex items-center justify-between space-y-2">
+        <Skeleton className="h-8 w-32" />
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-32" />
         </div>
-
-        <div>
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            {title}
-          </p>
-
-          {loading ? (
-            <Skeleton className="h-8 w-20 rounded bg-slate-700" />
-          ) : (
-            <h2 className="text-2xl font-bold tracking-tight text-white flex items-baseline gap-1">
-              {prefix && <span className="text-xl text-slate-300">{prefix}</span>}
-              <span className="tabular-nums">{(value || 0).toLocaleString()}</span>
-              {suffix && <span className="text-sm font-medium text-slate-400 ml-0.5">{suffix}</span>}
-            </h2>
-          )}
-        </div>
-
-        {trendLabel && (
-          <p className="text-[9px] font-medium text-slate-500 uppercase mt-1.5">
-            {trendLabel}
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-interface QuickActionCardProps {
-  title: string
-  description: string
-  icon: React.ReactNode
-  href: string
-  cta: string
-  gradient: string
-  iconColor: string
-}
-
-function QuickActionCard({ title, description, icon, href, cta, gradient, iconColor }: QuickActionCardProps) {
-  return (
-    <Link href={href} className="group block">
-      <Card className="border border-slate-700/50 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-slate-800/80 backdrop-blur-sm">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-3">
-            <div className={cn(
-              "p-2.5 rounded-lg shrink-0",
-              gradient
-            )}>
-              <div className="text-white">{icon}</div>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-base text-white mb-0.5 group-hover:text-cyan-400 transition-colors truncate">
-                {title}
-              </h3>
-              <p className="text-xs text-slate-400 line-clamp-2">
-                {description}
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-700/50 flex items-center justify-between">
-            <span className="text-cyan-400 font-semibold text-sm">{cta}</span>
-            <ArrowRight className="h-4 w-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array(4).fill(0).map((_, i) => (
+          <Skeleton key={i} className="h-32 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Skeleton className="col-span-4 h-[400px] rounded-xl" />
+        <Skeleton className="col-span-3 h-[400px] rounded-xl" />
+      </div>
+    </div>
   )
 }

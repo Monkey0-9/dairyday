@@ -1,7 +1,6 @@
 
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import joinedload
@@ -433,17 +432,76 @@ async def export_consumption(
         total = 0.0
         for d in range(1, last_day + 1):
             current_date = datetime.date(year, month_num, d)
-            qty = consumption_map.get(user.id, {}).get(current_date, 0.0)
+            qty = float(consumption_map.get(user.id, {}).get(current_date, 0.0))
             row.append(qty)
             total += qty
         row.append(total)
         writer.writerow(row)
 
     output.seek(0)
+    content = output.getvalue()
 
-    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
-    response.headers["Content-Disposition"] = f"attachment; filename=consumption_{month}.csv"
-    return response
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=consumption_{month}.csv"}
+    )
+
+
+
+from app.services.pdf_service import PdfService
+
+@router.get("/export-pdf")
+async def export_consumption_pdf(
+    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_admin),
+) -> Any:
+    year, month_num = map(int, month.split("-"))
+    start_date = datetime.date(year, month_num, 1)
+    _, last_day = monthrange(year, month_num)
+    end_date = datetime.date(year, month_num, last_day)
+
+    # Get Users
+    users_result = await db.execute(
+        select(User).where(User.role == "USER", User.is_active).order_by(User.name)
+    )
+    users = users_result.scalars().all()
+
+    # Get Consumption
+    consumption_result = await db.execute(
+        select(Consumption).where(
+            and_(
+                Consumption.date >= start_date,
+                Consumption.date <= end_date
+            )
+        )
+    )
+    consumptions = consumption_result.scalars().all()
+
+    # Map Consumption
+    consumption_map = {}
+    for c in consumptions:
+        if c.user_id not in consumption_map:
+            consumption_map[c.user_id] = {}
+        # Store as ISO format string for easier JSON/Dict handling
+        consumption_map[c.user_id][c.date.isoformat()] = c.quantity
+
+    # Prepare Data for PDF Service
+    users_data = []
+    for user in users:
+        users_data.append({
+            "name": user.name or "Unknown",
+            "daily_liters": consumption_map.get(user.id, {})
+        })
+
+    pdf_buffer = PdfService.generate_consumption_report(month, users_data)
+
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=consumption_report_{month}.pdf"}
+    )
 
 
 @router.post("/lock", response_model=StatusResponse)
@@ -478,3 +536,4 @@ async def lock_consumption_period(
     
     await db.commit()
     return {"status": "success", "message": f"Locked {len(consumptions)} records for {month}"}
+

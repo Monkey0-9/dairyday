@@ -28,6 +28,42 @@ async def read_user_me(
     return current_user
 
 
+@router.patch("/me", response_model=UserSchema)
+async def update_user_me(
+    *,
+    db: AsyncSession = Depends(get_db),
+    user_in: UserUpdate,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """Update own user profile."""
+    # Prevent users from changing their role or is_active status or price
+    if user_in.role is not None or user_in.is_active is not None or user_in.price_per_liter is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You cannot update restricted fields (role, active status, price)"
+        )
+
+    obj_data = jsonable_encoder(current_user)
+    if isinstance(user_in, dict):
+        update_data = user_in
+    else:
+        update_data = user_in.model_dump(exclude_unset=True)
+
+    if "password" in update_data and update_data["password"]:
+        hashed_password = security.get_password_hash(update_data["password"])
+        del update_data["password"]
+        update_data["hashed_password"] = hashed_password
+
+    for field in obj_data:
+        if field in update_data:
+            setattr(current_user, field, update_data[field])
+
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
 @router.get("/", response_model=List[UserSchema])
 async def read_users(
     db: AsyncSession = Depends(get_db),
@@ -75,6 +111,7 @@ async def read_users(
                     "month_liters"
                 )
             )
+            .where(User.is_active == True)
             .outerjoin(
                 Consumption,
                 and_(
@@ -219,9 +256,7 @@ async def delete_user(
             detail="The user with this id does not exist in the system",
         )
 
-    # Soft delete
-    user.is_active = False
-    db.add(user)
+    # Hard delete as requested
+    await db.delete(user)
     await db.commit()
-    await db.refresh(user)
     return user

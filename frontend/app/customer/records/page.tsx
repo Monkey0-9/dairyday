@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import CountUp from "react-countup"
 
 import { consumptionApi, authApi } from "@/lib/api"
+import { useTranslation } from "@/context/language-context"
 
 interface ConsumptionDay {
   date: string
@@ -21,6 +22,7 @@ interface ConsumptionDay {
 }
 
 export default function MilkRecordsPage() {
+  const { t } = useTranslation()
   const [selectedMonth, setSelectedMonth] = useState(new Date())
   const [userId, setUserId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -90,25 +92,24 @@ export default function MilkRecordsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Milk Records</h1>
-          <p className="text-xs text-neutral-500 mt-0.5">Detailed delivery history</p>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">{t('recordsHeader')}</h1>
+          <p className="text-xs text-neutral-500 mt-0.5">{t('recordsSub')}</p>
         </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={handleExport}
-          className="h-9 px-4 rounded-xl flex items-center gap-2 text-xs font-bold text-neutral-400 border border-white/[0.08] hover:border-indigo-500/30 hover:text-indigo-400 transition-all"
-          style={{ background: "rgba(17,17,17,0.6)" }}
+          className="h-9 px-4 rounded-xl flex items-center gap-2 text-xs font-bold text-neutral-500 border border-border hover:border-indigo-500/30 hover:text-indigo-500 transition-all bg-card/60 dark:bg-card/40 backdrop-blur-md"
         >
           <Download className="h-3.5 w-3.5" />
-          Export
+          {t('export')}
         </motion.button>
       </div>
 
       {/* Month selector */}
       <div className="flex items-center justify-center gap-3">
         <button onClick={handlePrev}
-          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.06] transition-all active:scale-90"
+          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-foreground hover:bg-foreground/5 transition-all active:scale-90"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -118,16 +119,16 @@ export default function MilkRecordsPage() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="px-5 py-2 rounded-full border border-white/[0.08] bg-white/[0.03] min-w-[180px] text-center"
+            className="px-5 py-2 rounded-full border border-border bg-card/40 min-w-[180px] text-center"
           >
-            <span className="text-sm font-semibold text-white tracking-wide">
+            <span className="text-sm font-semibold text-foreground tracking-wide">
               {format(selectedMonth, "MMMM yyyy")}
             </span>
           </motion.div>
         </AnimatePresence>
         <button onClick={handleNext}
           disabled={isSameMonth(selectedMonth, new Date())}
-          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-20 active:scale-90"
+          className="h-9 w-9 rounded-full flex items-center justify-center text-neutral-500 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-20 active:scale-90"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -135,48 +136,47 @@ export default function MilkRecordsPage() {
 
       {/* Records list */}
       <div
-        className="rounded-2xl overflow-hidden border border-white/[0.06]"
-        style={{ background: "#111111" }}
+        className="rounded-2xl overflow-hidden border border-border bg-card/60 dark:bg-card/40 backdrop-blur-xl"
       >
         {/* Header */}
-        <div className="grid grid-cols-[1fr_auto] px-5 py-3 border-b border-white/[0.06]" style={{ background: "#0d0d0d" }}>
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em]">Date</span>
-          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em]">Liters</span>
+        <div className="grid grid-cols-[1fr_auto] px-5 py-3 border-b border-border bg-foreground/[0.03]">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em]">{t('date')}</span>
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.15em]">{t('litersLabel')}</span>
         </div>
 
         <div className="max-h-[420px] overflow-y-auto">
           {isLoading ? (
             Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto] px-5 py-4 border-b border-white/[0.03]">
-                <div className="h-4 w-28 bg-white/[0.04] rounded animate-pulse" />
-                <div className="h-4 w-12 bg-white/[0.04] rounded animate-pulse" />
+              <div key={i} className="grid grid-cols-[1fr_auto] px-5 py-4 border-b border-border/50">
+                <div className="h-4 w-28 bg-foreground/5 rounded animate-pulse" />
+                <div className="h-4 w-12 bg-foreground/5 rounded animate-pulse" />
               </div>
             ))
           ) : sortedRecords.length > 0 ? (
             <motion.div variants={container} initial="hidden" animate="show">
-              {sortedRecords.map((day: ConsumptionDay, idx: number) => {
+                  {sortedRecords.map((day: ConsumptionDay, idx: number) => {
                 const qty = Number(day.quantity ?? day.liters ?? 0)
                 return (
                   <motion.div
                     key={day.date}
                     variants={item}
                     whileHover={{
-                      backgroundColor: "rgba(255,255,255,0.03)",
+                      backgroundColor: "rgba(99,102,241,0.05)",
                       x: 4,
                     }}
-                    className={`grid grid-cols-[1fr_auto] items-center px-5 py-4 border-b border-white/[0.03] cursor-default transition-colors ${
-                      idx % 2 === 1 ? "bg-white/[0.01]" : ""
+                    className={`grid grid-cols-[1fr_auto] items-center px-5 py-4 border-b border-border/50 cursor-default transition-colors ${
+                      idx % 2 === 1 ? "bg-foreground/[0.01]" : ""
                     }`}
                   >
                     <div>
-                      <p className="text-sm font-semibold text-indigo-300 tabular-nums">
+                      <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums">
                         {format(new Date(day.date), "dd MMM, EEEE")}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Droplets className={`h-3 w-3 ${qty > 0 ? "text-emerald-500" : "text-neutral-700"}`} />
+                      <Droplets className={`h-3 w-3 ${qty > 0 ? "text-emerald-500" : "text-neutral-400 dark:text-neutral-700"}`} />
                       <span className={`text-sm font-black tabular-nums ${
-                        qty > 0 ? "text-white" : "text-neutral-600"
+                        qty > 0 ? "text-foreground" : "text-neutral-400 dark:text-neutral-600"
                       }`}>
                         {qty > 0 ? `${qty.toFixed(1)} L` : "—"}
                       </span>
@@ -187,7 +187,7 @@ export default function MilkRecordsPage() {
             </motion.div>
           ) : (
             <div className="px-5 py-16 text-center text-neutral-600 text-sm">
-              No records found for this month.
+              {t('noRecords')}
             </div>
           )}
         </div>
@@ -195,13 +195,12 @@ export default function MilkRecordsPage() {
         {/* Total row */}
         {sortedRecords.length > 0 && (
           <div
-            className="grid grid-cols-[1fr_auto] items-center px-5 py-4 border-t border-white/[0.08]"
-            style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(17,17,17,1) 100%)" }}
+            className="grid grid-cols-[1fr_auto] items-center px-5 py-4 border-t border-border bg-gradient-to-r from-indigo-500/5 to-transparent"
           >
-            <span className="text-sm font-black text-white uppercase tracking-wider">
-              Total
+            <span className="text-sm font-black text-foreground uppercase tracking-wider">
+              {t('total')}
             </span>
-            <span className="text-base font-black text-indigo-400 tabular-nums">
+            <span className="text-base font-black text-indigo-500 tabular-nums">
               {mounted ? (
                 <><CountUp end={totalLiters} decimals={1} duration={0.8} /> L</>
               ) : (

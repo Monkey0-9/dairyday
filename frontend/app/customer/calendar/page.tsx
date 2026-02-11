@@ -101,7 +101,7 @@ export default function MilkCalendarPage() {
       {/* Month header */}
       <div className="flex items-center justify-between">
         <button onClick={handlePrev}
-          className="h-10 w-10 rounded-full flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.06] transition-all active:scale-90"
+          className="h-10 w-10 rounded-full flex items-center justify-center text-neutral-500 hover:text-foreground hover:bg-foreground/5 transition-all active:scale-90"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -113,7 +113,7 @@ export default function MilkCalendarPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="text-lg font-bold text-white tracking-wide"
+            className="text-lg font-bold text-foreground tracking-wide"
           >
             {format(selectedMonth, "MMMM yyyy")}
           </motion.h2>
@@ -121,7 +121,7 @@ export default function MilkCalendarPage() {
 
         <button onClick={handleNext}
           disabled={isSameMonth(selectedMonth, new Date())}
-          className="h-10 w-10 rounded-full flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-20 active:scale-90"
+          className="h-10 w-10 rounded-full flex items-center justify-center text-neutral-500 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-20 active:scale-90"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
@@ -154,8 +154,7 @@ export default function MilkCalendarPage() {
 
       {/* Calendar Grid */}
       <div
-        className="rounded-2xl p-4 border border-white/[0.06]"
-        style={{ background: "rgba(17,17,17,0.6)", backdropFilter: "blur(12px)" }}
+        className="rounded-2xl p-4 border border-border bg-card/60 dark:bg-card/40 backdrop-blur-xl"
       >
         {/* Weekday labels */}
         <div className="grid grid-cols-7 gap-2 mb-3">
@@ -231,23 +230,16 @@ export default function MilkCalendarPage() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 4, scale: 0.9 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute -top-14 left-1/2 -translate-x-1/2 z-40 px-3 py-2 rounded-xl whitespace-nowrap pointer-events-none"
-                      style={{
-                        background: "#1a1a1a",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-                      }}
+                      className="absolute -top-14 left-1/2 -translate-x-1/2 z-40 px-3 py-2 rounded-xl whitespace-nowrap pointer-events-none bg-popover border border-border shadow-xl backdrop-blur-md"
                     >
-                      <p className="text-[10px] text-neutral-400 font-medium">
+                      <p className="text-[10px] text-neutral-500 font-medium">
                         {format(day, "EEEE, dd MMM")}
                       </p>
-                      <p className={`text-sm font-black ${liters > 0 ? "text-emerald-400" : "text-neutral-600"}`}>
+                      <p className={`text-sm font-black ${liters > 0 ? "text-emerald-500" : "text-neutral-500"}`}>
                         {liters > 0 ? `${liters.toFixed(1)} Liters` : "No delivery"}
                       </p>
                       {/* Arrow */}
-                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 rotate-45"
-                        style={{ background: "#1a1a1a", borderRight: "1px solid rgba(255,255,255,0.1)", borderBottom: "1px solid rgba(255,255,255,0.1)" }}
-                      />
+                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 rotate-45 bg-popover border-r border-b border-border" />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -260,7 +252,7 @@ export default function MilkCalendarPage() {
       {/* Legend */}
       <div className="flex items-center justify-center gap-5">
         {[
-          { label: "None", bg: "rgba(255,255,255,0.03)", border: "rgba(244,63,94,0.1)" },
+          { label: "None", bg: "rgba(128,128,128,0.1)", border: "rgba(244,63,94,0.1)" },
           { label: "Low", bg: "rgba(16,185,129,0.15)", border: "transparent" },
           { label: "Medium", bg: "rgba(16,185,129,0.35)", border: "transparent" },
           { label: "High", bg: "rgba(16,185,129,0.6)", border: "transparent" },
@@ -275,17 +267,16 @@ export default function MilkCalendarPage() {
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Active Days", value: activeDays, color: "text-indigo-400" },
-          { label: "Total Liters", value: totalLiters.toFixed(1), color: "text-emerald-400" },
-          { label: "Avg / Day", value: activeDays > 0 ? (totalLiters / activeDays).toFixed(1) : "0.0", color: "text-amber-400" },
+          { label: "Active Days", value: activeDays, color: "text-indigo-500" },
+          { label: "Total Liters", value: totalLiters.toFixed(1), color: "text-emerald-500" },
+          { label: "Avg / Day", value: activeDays > 0 ? (totalLiters / activeDays).toFixed(1) : "0.0", color: "text-amber-500" },
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-xl p-3 text-center border border-white/[0.05]"
-            style={{ background: "#111111" }}
+            className="rounded-xl p-3 text-center border border-border bg-card/60 dark:bg-card/40"
           >
             <p className={`text-lg font-black tabular-nums ${s.color}`}>{s.value}</p>
-            <p className="text-[9px] font-semibold text-neutral-600 uppercase tracking-wider mt-0.5">{s.label}</p>
+            <p className="text-[9px] font-semibold text-neutral-500 uppercase tracking-wider mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>

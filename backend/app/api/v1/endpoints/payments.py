@@ -490,3 +490,73 @@ async def mark_bill_as_paid(
         "bill_id": str(bill.id),
         "status": "PAID"
     }
+
+
+@router.post("/submit-reference/{bill_id}")
+async def submit_payment_reference(
+    bill_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Submit a manual payment reference (UTR) for verification.
+    This is for Direct UPI or Bank Transfer.
+    """
+    try:
+        body = await request.json()
+        utr = body.get("utr")
+        if not utr:
+            raise HTTPException(status_code=400, detail="UTR Reference is required")
+
+        # 1. Fetch Bill
+        result = await db.execute(select(Bill).where(Bill.id == bill_id))
+        bill = result.scalars().first()
+
+        if not bill:
+            raise HTTPException(status_code=404, detail="Bill not found")
+
+        # Check ownership
+        if current_user.role != "ADMIN" and bill.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        if bill.status == "PAID":
+            raise HTTPException(status_code=400, detail="Bill is already marked as PAID")
+
+        # 2. Update Bill Status to PENDING
+        # We mark it as 'PENDING' so admin can verify.
+        # However, for 'fully working' demo feel, user might want it to unlock.
+        # Let's keep it PENDING to be realistic ("work as real gateway" implies verification phase).
+        bill.status = "PENDING"
+        bill.updated_at = func.now()
+
+        # 3. Create Manual Payment Record
+        payment = Payment(
+            bill_id=bill.id,
+            provider="UPI_MANUAL",
+            provider_payment_id=utr,
+            amount=bill.total_amount,
+            status="PENDING_VERIFICATION",
+            paid_at=func.now() # User claims paid now
+        )
+
+        db.add(bill)
+        db.add(payment)
+        await db.commit()
+
+        logger.info(
+            "User %s submitted manual UPI ref %s for bill %s",
+            current_user.email, utr, bill_id
+        )
+
+        return {
+            "status": "success",
+            "message": "Payment submitted for verification",
+            "bill_status": "PENDING"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error submitting reference: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

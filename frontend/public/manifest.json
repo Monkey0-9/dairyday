@@ -1,6 +1,7 @@
 {
-  "name": "DairyOS",
-  "short_name": "DairyOS",
+  "name": "DairyDay",
+  "short_name": "DairyDay",
+
   "description": "Premium Dairy Management System",
   "start_url": "/",
   "display": "standalone",

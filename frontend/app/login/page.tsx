@@ -45,10 +45,13 @@ export default function LoginPage() {
       authApi.setUserData(user?.id, user?.role)
       toast.success("Login successful")
 
+      console.log("Login successful, role:", user?.role)
+      
+      // Force hard navigation to ensure cookies are sent properly to middleware
       if (user?.role?.toLowerCase() === "admin") {
-        router.push("/admin/daily-entry")
+        window.location.href = "/admin/daily-entry"
       } else {
-        router.push("/customer/dashboard")
+        window.location.href = "/customer/dashboard"
       }
     } catch (error: any) {
       toast.error(error.response?.data?.detail || "Invalid credentials")
@@ -111,7 +114,8 @@ export default function LoginPage() {
             >
               <Milk className="h-7 w-7 text-white" />
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">DairyOS</h1>
+            <h1 className="text-2xl font-black text-white tracking-tight">DairyDay</h1>
+
             <p className="text-xs text-neutral-500 mt-1 font-medium">Sign in to your account</p>
           </motion.div>
 
