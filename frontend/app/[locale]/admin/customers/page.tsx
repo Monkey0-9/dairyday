@@ -326,9 +326,14 @@ export default function CustomersPage() {
                             <DropdownMenuItem
                               className={cn("rounded-xl p-3 gap-3 focus:bg-white/5 cursor-pointer", customer.is_active ? "text-rose-400" : "text-emerald-400")}
                               onClick={() => {
-                                if (confirm(t('confirmAction', { action: t(customer.is_active ? 'actionDeactivate' : 'actionReactivate'), name: customer.name || '' }))) {
+                                const actionKey = customer.is_active ? 'actionDeactivate' : 'actionReactivate';
+                                const statusKey = customer.is_active ? 'statusDeactivated' : 'statusReactivated';
+                                if (confirm(t('confirmAction', { action: t(actionKey), name: customer.name || '' }))) {
                                   usersApi.update(customer.id, { is_active: !customer.is_active })
-                                    .then(() => { toast.success(t('actionSuccess', { action: t(customer.is_active ? 'statusDeactivated' : 'statusReactivated') })); refetch(); })
+                                    .then(() => {
+                                      toast.success(t('actionSuccess', { action: t(statusKey) }));
+                                      refetch();
+                                    })
                                     .catch(err => toast.error(formatApiError(err)))
                                 }
                               }}
@@ -510,7 +515,7 @@ function EditCustomerDialog({ customer, open, onOpenChange, onSuccess }: { custo
             </div>
             <div>
               <DialogTitle className="text-lg font-black italic font-heading tracking-tight uppercase leading-none">{t('editCustomer')}</DialogTitle>
-              <DialogDescription className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1">{t('updateDescription', { name: customer?.name || '' })}</DialogDescription>
+              <DialogDescription className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1">{t('updateDescription', { name: customer.name || 'User' })}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
