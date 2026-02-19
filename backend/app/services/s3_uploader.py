@@ -127,7 +127,7 @@ def upload_file_to_s3(
         logger.info(f"File saved locally to {file_path}")
         
         # Return a local absolute URL for dev
-        return f"http://localhost:8000/uploads/{bucket_name}/{object_name}"
+        return f"{settings.BASE_URL}/uploads/{bucket_name}/{object_name}"
 
 
 def generate_presigned_url(
@@ -167,8 +167,8 @@ def generate_presigned_url(
         # Fallback for local files: just return the local path if it exists
         local_path = Path("uploads") / bucket_name / object_name
         if local_path.exists():
-            # For local dev, we assume backend is on port 8000
-            return f"http://localhost:8000/uploads/{bucket_name}/{object_name}"
+            # Use configured BASE_URL
+            return f"{settings.BASE_URL}/uploads/{bucket_name}/{object_name}"
         raise
 
 

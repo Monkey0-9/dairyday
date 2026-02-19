@@ -19,7 +19,12 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: BACKEND_CORS_ORIGINS
-        value: '["https://dairyday-frontend.onrender.com"]' # Update with final frontend URL
+        value: 'https://dairyday-frontend.onrender.com' # Comma-separated or JSON list
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: dairyday-backend
+          property: host
 
   # Frontend Service
   - type: web

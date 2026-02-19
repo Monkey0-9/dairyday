@@ -11,6 +11,9 @@ class Settings(BaseSettings):
         "http://localhost:3000", "http://localhost:3001", "http://localhost:3002",
         "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002"
     ]
+    
+    # Base URL for public access (used for absolute links)
+    BASE_URL: str = "http://localhost:8000"
 
     # Database configuration
     POSTGRES_SERVER: str = "postgres"
@@ -112,6 +115,15 @@ class Settings(BaseSettings):
         if v < 1 or v > 365:
             raise ValueError("LOCK_DAYS must be between 1 and 365")
         return v
+
+    @field_validator('BACKEND_CORS_ORIGINS', mode='before')
+    @classmethod
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
 
 
 @lru_cache()
