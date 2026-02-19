@@ -24,11 +24,23 @@ class Settings(BaseSettings):
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Generate async database URI."""
         if self.DATABASE_URL:
-            if self.DATABASE_URL.startswith("postgresql://"):
-                return self.DATABASE_URL.replace(
-                    "postgresql://", "postgresql+asyncpg://"
-                )
-            return self.DATABASE_URL
+            # Handle both postgres:// and postgresql:// and inject asyncpg
+            uri = self.DATABASE_URL
+            if uri.startswith("postgres://"):
+                uri = uri.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif uri.startswith("postgresql://"):
+                uri = uri.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
+            # Strip sslmode from the URI as asyncpg doesn't support it in the query string
+            if "sslmode=" in uri:
+                from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+                u = urlparse(uri)
+                q = parse_qs(u.query)
+                q.pop('sslmode', None)
+                uri = urlunparse(u._replace(query=urlencode(q, doseq=True)))
+            
+            return uri
+            
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"

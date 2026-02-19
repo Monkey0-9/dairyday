@@ -10,7 +10,11 @@ engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI, 
     future=True, 
     echo=True,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.SQLALCHEMY_DATABASE_URI else {}
+    connect_args=(
+        {"check_same_thread": False} if "sqlite" in settings.SQLALCHEMY_DATABASE_URI 
+        else {"ssl": "require"} if "postgresql" in settings.SQLALCHEMY_DATABASE_URI 
+        else {}
+    )
 )
 
 async_session = sessionmaker(
