@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dairyday_postgres_prod
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD} # Should be in .env
+      - POSTGRES_DB=${POSTGRES_DB:-dairyday_db}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    networks:
+      - dairyday_prod
+
+  redis:
+    image: redis:7-alpine
+    container_name: dairyday_redis_prod
+    restart: always
+    networks:
+      - dairyday_prod
+
+  minio:
+    image: minio/minio:latest
+    container_name: dairyday_minio_prod
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data_prod:/data
+    networks:
+      - dairyday_prod
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dairyday_backend_prod
+    restart: always
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    networks:
+      - dairyday_prod
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dairyday_worker_prod
+    restart: always
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info -Q pdf
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    networks:
+      - dairyday_prod
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: dairyday_frontend_prod
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    depends_on:
+      - backend
+    networks:
+      - dairyday_prod
+
+  nginx:
+    image: nginx:alpine
+    container_name: dairyday_nginx_prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - dairyday_prod
+
+networks:
+  dairyday_prod:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  minio_data_prod:
