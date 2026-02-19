@@ -1,32 +1,44 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from pydantic import Field, field_validator
-import secrets
+import logging
 from functools import lru_cache
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Dairy Management System"
     API_V1_STR: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000", "http://localhost:3001", "http://localhost:3002",
+        "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002"
+    ]
 
     # Database configuration
     POSTGRES_SERVER: str = "postgres"
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "dairy_db"
-    DATABASE_URL: Optional[str] = None
+    # Default to SQLite for local development if not set
+    DATABASE_URL: Optional[str] = "sqlite+aiosqlite:///./dairy.db"
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Generate async database URI."""
         if self.DATABASE_URL:
             if self.DATABASE_URL.startswith("postgresql://"):
-                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+                return self.DATABASE_URL.replace(
+                    "postgresql://", "postgresql+asyncpg://"
+                )
             return self.DATABASE_URL
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
+        )
 
     # Security settings
-    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32), description="Secret key for JWT")
+    SECRET_KEY: str = Field(
+        default="development_secret_key_change_me",
+        description="Secret key for JWT"
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
@@ -34,8 +46,14 @@ class Settings(BaseSettings):
     LOCK_DAYS: int = 7  # Number of days after which consumption entries become immutable
 
     # JWT settings
-    JWT_AUDIENCE: str = Field(default="dairy-os", env="JWT_AUDIENCE")
-    JWT_ISSUER: str = Field(default="dairy-os", env="JWT_ISSUER")
+    JWT_AUDIENCE: str = Field(default="dairy-day", env="JWT_AUDIENCE")
+    JWT_ISSUER: str = Field(default="dairy-day", env="JWT_ISSUER")
+
+    # Logto settings
+    LOGTO_ISSUER: str = "https://wg5ds8.logto.app/oidc"
+    LOGTO_JWKS_URI: str = "https://wg5ds8.logto.app/oidc/jwks"
+    LOGTO_AUDIENCE: str = "http://localhost:8000"
+    LOGTO_ALGORITHM: str = "ES384"
 
     # Rate limiting
     RATE_LIMIT: str = "100/minute"
@@ -55,6 +73,14 @@ class Settings(BaseSettings):
     RAZORPAY_KEY_ID: Optional[str] = None
     RAZORPAY_KEY_SECRET: Optional[str] = None
     RAZORPAY_WEBHOOK_SECRET: Optional[str] = None
+
+    # SMTP Settings
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAILS_FROM_EMAIL: Optional[str] = None
+    EMAILS_FROM_NAME: Optional[str] = "DairyDay"
 
     # Sentry for error tracking
     SENTRY_DSN: Optional[str] = None
@@ -79,7 +105,28 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    s = Settings()
+    import os
+    from pathlib import Path
+
+    # Check if secure
+    is_secure = False
+    if os.environ.get('SECRET_KEY'):
+        is_secure = True
+    else:
+        env_file = Path(s.model_config.get('env_file', '.env'))
+        if env_file.exists():
+            content = env_file.read_text(encoding='utf-8')
+            if 'SECRET_KEY' in content:
+                is_secure = True
+                
+    if not is_secure:
+        logging.warning(
+            "⚠️  SECRET_KEY not set via environment variable or .env file. "
+            "A random key has been generated. Sessions will NOT survive restarts. "
+            "Set SECRET_KEY in .env for production."
+        )
+    return s
 
 
 settings = get_settings()

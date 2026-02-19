@@ -1,6 +1,13 @@
 from app.db.base_class import Base  # noqa
 from app.models.user import User  # noqa
 from app.models.consumption import Consumption  # noqa
+from app.models.consumption_audit import ConsumptionAudit  # noqa
+from app.models.consumption_archive import ConsumptionArchive  # noqa
 from app.models.bill import Bill  # noqa
+from app.models.bill_line_items import BillLineItem  # noqa
 from app.models.payment import Payment  # noqa
 from app.models.webhook_event import WebhookEvent  # noqa
+from app.models.idempotency_key import IdempotencyKey  # noqa
+from app.models.audit_log import AuditLog  # noqa
+from app.models.support import SupportTicket  # noqa
+from app.models.registration import RegistrationRequest # noqa

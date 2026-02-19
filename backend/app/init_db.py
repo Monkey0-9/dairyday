@@ -1,4 +1,5 @@
 import asyncio
+import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from app.db.base import Base
 from app.models.user import User
@@ -16,20 +17,23 @@ def get_local_engine():
 
 
 async def init_models(engine=None):
-    """Initialize database models."""
+    """
+    Initialize database models.
+    Elite Standard: Strict PostgreSQL enforcement. Zero fallback.
+    """
     if engine is None:
-        # Try PostgreSQL first, fallback to SQLite
         try:
             from app.db.session import engine as pg_engine
             async with pg_engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             return pg_engine
-        except Exception:
-            # Use SQLite for local development
-            local_engine = get_local_engine()
-            async with local_engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            return local_engine
+        except Exception as e:
+            msg = (
+                "CRITICAL: Database initialization failed. "
+                f"PostgreSQL required. Error: {str(e)}"
+            )
+            print(msg)
+            raise RuntimeError(msg)
     else:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -47,7 +51,9 @@ async def create_initial_data(engine=None):
 
     async with AsyncSession(engine) as session:
         # 1. Create Admin
-        result = await session.execute(select(User).where(User.email == "admin@dairy.com"))
+        result = await session.execute(
+            select(User).where(User.email == "admin@dairy.com")
+        )
         admin = result.scalars().first()
 
         if not admin:
@@ -55,7 +61,7 @@ async def create_initial_data(engine=None):
             admin = User(
                 name="Admin User",
                 email="admin@dairy.com",
-                hashed_password=get_password_hash("admin123"),
+                hashed_password=get_password_hash(os.getenv("ADMIN_PASSWORD", "admin123")),
                 role="ADMIN",
                 is_active=True,
                 price_per_liter=0.0
@@ -67,17 +73,19 @@ async def create_initial_data(engine=None):
         users = []
         for i in range(1, 11):
             email = f"user{i}@dairy.com"
-            res = await session.execute(select(User).where(User.email == email))
+            res = await session.execute(
+                select(User).where(User.email == email)
+            )
             user = res.scalars().first()
             if not user:
                 print(f"Creating user {email}")
                 user = User(
                     name=f"Customer {i}",
                     email=email,
-                    hashed_password=get_password_hash("password123"),
+                    hashed_password=get_password_hash(os.getenv("TEST_USER_PASSWORD", "password123")),
                     role="USER",
                     is_active=True,
-                    price_per_liter=60.0 + (i * 2) # Vary price slightly
+                    price_per_liter=60.0 + (i * 2)  # Vary price slightly
                 )
                 session.add(user)
                 await session.flush()
@@ -87,7 +95,10 @@ async def create_initial_data(engine=None):
         today = datetime.date.today()
         for user in users:
             # Check if user already has consumption data to avoid duplicates
-            check = await session.execute(select(Consumption).where(Consumption.user_id == user.id).limit(1))
+            check = await session.execute(
+                select(Consumption).where(Consumption.user_id == user.id)
+                .limit(1)
+            )
             if check.scalars().first():
                 continue
 
@@ -126,4 +137,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

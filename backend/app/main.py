@@ -3,7 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import secrets
+import os
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -39,9 +41,21 @@ if settings.SENTRY_DSN:
     )
     logging.info("Sentry initialized")
 
-# Initialize rate limiter
+
+def get_rate_limit_key(request: Request) -> str:
+    """
+    Generate rate limit key.
+    Elite Standard: IP-based for anon, UserID-based for authenticated.
+    """
+    user_id = getattr(request.state, "user_id", None)
+    if user_id:
+        return f"ratelimit:user:{user_id}"
+    return get_remote_address(request)
+
+
+# Initialize rate limiter with optimized key function
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=get_rate_limit_key,
     default_limits=[settings.RATE_LIMIT]
 )
 
@@ -50,7 +64,7 @@ limiter = Limiter(
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    logging.info("Starting up DairyOS...")
+    logging.info("Starting up DairyDay...")
 
     # Initialize database (try PostgreSQL first, fallback to SQLite)
     engine = await init_models()
@@ -64,12 +78,12 @@ async def lifespan(app: FastAPI):
         environment="development"
     )
 
-    logging.info("DairyOS started successfully")
+    logging.info("DairyDay started successfully")
 
     yield
 
     # Shutdown
-    logging.info("Shutting down DairyOS...")
+    logging.info("Shutting down DairyDay...")
 
 
 # Create FastAPI app
@@ -99,14 +113,20 @@ app.add_middleware(RequestLoggingMiddleware)
 async def add_security_headers_and_csrf(request: Request, call_next):
     # 1. CSRF Protection for non-safe methods when using cookies
     # Double-submit cookie pattern
-    if request.method not in ("GET", "HEAD", "OPTIONS", "TRACE") and not request.url.path.endswith("/auth/login"):
+    if (
+        request.method not in ("GET", "HEAD", "OPTIONS", "TRACE")
+        and not request.url.path.endswith("/auth/login")
+    ):
         # Check if requested with cookie
-        if request.cookies.get("access_token") or request.cookies.get("refresh_token"):
+        if (
+            request.cookies.get("access_token")
+            or request.cookies.get("refresh_token")
+        ):
             csrf_token_cookie = request.cookies.get("csrf_token")
             csrf_token_header = request.headers.get("X-CSRF-Token")
 
             if not csrf_token_header or csrf_token_header != csrf_token_cookie:
-                # We skip CSRF for now if it's a mobile/bearer request (no cookies)
+                # Skip CSRF for mobile/bearer request (no cookies)
                 # But if cookies are present, we enforce it.
                 if request.cookies.get("access_token"):
                     return JSONResponse(
@@ -131,13 +151,15 @@ async def add_security_headers_and_csrf(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    hsts = "max-age=31536000; includeSubDomains"
+    response.headers["Strict-Transport-Security"] = hsts
+    connect_sources = "'self' " + " ".join(settings.BACKEND_CORS_ORIGINS)
     csp = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data:; "
-        "connect-src 'self' http://localhost:8000"
+        f"connect-src {connect_sources}"
     )
     response.headers["Content-Security-Policy"] = csp
     return response
@@ -154,10 +176,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
-    logging.error(f"Database error: {exc}")
+    logging.error(f"Database error: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": "A database error occurred."},
+        content={
+            "detail": "A database error occurred. Please try again later."
+        },
     )
 
 
@@ -172,9 +196,10 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # CORS middleware
 if settings.BACKEND_CORS_ORIGINS:
+    origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -188,6 +213,12 @@ app.add_middleware(MetricsMiddleware)
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Mount local uploads for static serving
+uploads_dir = os.path.join(os.getcwd(), "uploads")
+if not os.path.exists(uploads_dir):
+    os.makedirs(uploads_dir)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
 
 # Root endpoint
 @app.get("/")
@@ -197,6 +228,23 @@ def root():
         "version": "1.0.0",
         "docs": "/docs",
     }
+
+
+# Temporary admin creation endpoint
+@app.get("/create-admin")
+async def create_admin_endpoint():
+    """Manual trigger to ensure admin user exists."""
+    try:
+        from app.init_db import init_models, create_initial_data
+        engine = await init_models()
+        await create_initial_data(engine)
+        return {"status": "success", "message": "Admin checking/creation sequence completed."}
+    except Exception as e:
+        logging.error(f"Manual admin creation failed: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
 
 # Health check endpoint
@@ -231,9 +279,9 @@ async def readiness_check():
     # Check Redis (optional, don't fail if unavailable)
     try:
         from app.core.redis import get_redis
-        redis = get_redis()
+        redis = await get_redis()
         if redis is not None:
-            redis.ping()
+            await redis.ping()
             checks["redis"] = True
         else:
             checks["redis"] = True  # Redis not required for basic operation

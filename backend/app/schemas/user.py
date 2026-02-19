@@ -43,8 +43,28 @@ class UserBase(BaseModel):
         default=None,
         description="Total liters consumed in current month"
     )
-
-
+    address: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="User's physical address"
+    )
+    daily_target_qty: Decimal = Field(
+        default=Decimal("1.0"),
+        ge=0,
+        description="Standard daily milk delivery quantity"
+    )
+    language: str = Field(
+        default="en",
+        description="Preferred language (en, kn, te, ta, hi)"
+    )
+    theme: str = Field(
+        default="dark",
+        description="UI theme (dark, light)"
+    )
+    font_size: str = Field(
+        default="medium",
+        description="UI font size (small, medium, large)"
+    )
 
 class UserCreate(UserBase):
     """Schema for creating a new user."""
@@ -97,6 +117,24 @@ class UserUpdate(BaseModel):
         min_length=8,
         max_length=128
     )
+    address: Optional[str] = None
+    daily_target_qty: Optional[Decimal] = Field(None, ge=0)
+    language: Optional[str] = None
+    theme: Optional[str] = None
+    font_size: Optional[str] = None
+
+class UserUpdateMe(BaseModel):
+    """Schema for users updating their own profile."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, pattern=r'^\+?[1-9]\d{1,14}$')
+    address: Optional[str] = None
+    daily_target_qty: Optional[Decimal] = Field(None, ge=0)
+    language: Optional[str] = None
+    theme: Optional[str] = None
+    font_size: Optional[str] = None
 
 
 class PasswordChange(BaseModel):
@@ -148,11 +186,12 @@ class UserInDB(UserInDBBase):
 
 class ForgotPassword(BaseModel):
     """Schema for forgot password request."""
-    email: EmailStr
+    identifier: str = Field(..., description="Email or phone number")
 
 
 class ResetPassword(BaseModel):
-    """Schema for resetting password with a token."""
-    token: str
+    """Schema for resetting password with OTP."""
+    identifier: str = Field(..., description="Email or phone number")
+    otp_code: str = Field(..., min_length=6, max_length=6)
     new_password: str = Field(..., min_length=8)
 

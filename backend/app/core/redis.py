@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-from redis import Redis
+from redis.asyncio import Redis
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -8,8 +8,8 @@ _client: Optional[Redis] = None
 _checked: bool = False
 
 
-def get_redis() -> Optional[Redis]:
-    """Get Redis client, returning None if Redis is not available."""
+async def get_redis() -> Optional[Redis]:
+    """Get async Redis client, returning None if Redis is not available."""
     global _client, _checked
     if _checked:
         return _client
@@ -23,7 +23,7 @@ def get_redis() -> Optional[Redis]:
             socket_connect_timeout=0.5,
         )
         # Test connection
-        _client.ping()
+        await _client.ping()
         logger.info("Redis connection established")
     except Exception as e:
         logger.warning(f"Redis not available: {e}")

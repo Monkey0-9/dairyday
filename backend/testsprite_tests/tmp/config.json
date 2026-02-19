@@ -1,7 +1,23 @@
 {
-  "status": "init",
-  "scope": "codebase",
+  "status": "commited",
   "type": "backend",
-  "localEndpoint": "http://localhost:8000/",
-  "serverPort": 64528
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:8000/C:\\dairy",
+  "backendAuthType": "basic token",
+  "backendUsername": "admin@dairy.com",
+  "backendPassword": "admin123",
+  "executionArgs": {
+    "projectName": "backend",
+    "projectPath": "c:\\dairy\\backend",
+    "testIds": [
+      "TC001",
+      "TC006"
+    ],
+    "additionalInstruction": "Focus on TC001 and TC006. Verify the 401 error and user listing.",
+    "envs": {
+      "API_KEY": "sk-user-R0VHfGx3zWhEEuFlpV7r6VvvyaCgrIdFfr6l5g7CZlt39xVNl-Lx2DcRQEsXFjalKXZJqB3VqeyeSPnt6a7VFYURJ_ZHSpK73LG2el0_2NWiMkiK2QY8gJGZjbuQZmgSfg8"
+    }
+  },
+  "serverPort": 64381,
+  "proxy": "http://51eb1abe-0d55-4645-9a5f-93f287825962:r9N8Vmx7pSaCwDrsVnH8DBSfEXlIZtBH@tun.testsprite.com:8080"
 }

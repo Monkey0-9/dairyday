@@ -1,4 +1,4 @@
-"""Celery tasks for DairyOS background jobs."""
+"""Celery tasks for DairyDay background jobs."""
 
 import io
 import logging
@@ -14,6 +14,7 @@ from app.workers.celery_app import celery_app
 from app.db.session import async_session
 from app.services.pdf_generator import generate_invoice_pdf
 from app.services.s3_uploader import upload_file_to_s3, generate_presigned_url, upload_json_to_s3
+from app.services.billing_service import BillingService
 from app.models.bill import Bill
 from app.models.user import User
 from app.models.consumption import Consumption
@@ -66,13 +67,16 @@ def generate_and_upload_pdf(self, bill_id: str) -> Dict[str, Any]:
                 return {"ok": False, "reason": "user_not_found"}
 
             # Fetch consumption for the month
-            start_date, end_date = calculate_month_range(bill.month)
+            service = BillingService(session)
+            start_date, end_date = service.calculate_month_range(bill.month)
             consumption_result = await session.execute(
                 select(Consumption)
                 .where(
-                    Consumption.user_id == bill.user_id,
-                    Consumption.date >= start_date,
-                    Consumption.date <= end_date
+                    and_(
+                        Consumption.user_id == bill.user_id,
+                        Consumption.date >= start_date,
+                        Consumption.date <= end_date
+                    )
                 )
                 .order_by(Consumption.date)
             )

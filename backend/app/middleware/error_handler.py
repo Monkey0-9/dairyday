@@ -21,6 +21,7 @@ class GlobalErrorHandlerMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=e.status_code,
                 content={
+                    "detail": e.detail,  # Support standard detail field
                     "error": {
                         "code": "HTTP_EXCEPTION",
                         "message": e.detail,
@@ -47,7 +48,7 @@ class GlobalErrorHandlerMiddleware(BaseHTTPMiddleware):
                 content={
                     "error": {
                         "code": "INTERNAL_SERVER_ERROR",
-                        "message": "An unexpected error occurred.",
+                        "message": "An internal server error occurred.",
                         "request_id": getattr(request.state, "request_id", None)
                     }
                 }

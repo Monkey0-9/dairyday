@@ -1,4 +1,4 @@
-"""Central Money utilities for DairyOS.
+"""Central Money utilities for DairyDay.
 
 Provides consistent monetary handling with:
 - Decimal-based calculations

@@ -1,5 +1,5 @@
 """
-Custom Prometheus metrics for DairyOS backend.
+Custom Prometheus metrics for DairyDay backend.
 """
 
 from prometheus_client import Counter, Histogram, Gauge, Info
@@ -67,7 +67,7 @@ DB_CONNECTIONS = Gauge(
 )
 
 # System info
-SYSTEM_INFO = Info("dairy_os", "DairyOS system information")
+SYSTEM_INFO = Info("dairy_day", "DairyDay system information")
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):

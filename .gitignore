@@ -31,3 +31,18 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+nul
+
+# Logs & debug files
+*.log
+*.txt
+!README.md
+!DEPLOY_GUIDE.md
+!requirements.txt
+
+# Uploads
+backend/uploads/
+
+# Test artifacts
+backend/testsprite_tests/
+frontend/testsprite_tests/

@@ -14,7 +14,7 @@ from app.core import security
 from app.db.session import get_db
 from app.models.user import User
 from app.models.consumption import Consumption
-from app.schemas.user import User as UserSchema, UserCreate, UserUpdate
+from app.schemas.user import User as UserSchema, UserCreate, UserUpdate, UserUpdateMe
 from app.core.redis import get_redis
 
 router = APIRouter()
@@ -26,6 +26,37 @@ async def read_user_me(
 ) -> Any:
     """Get current user."""
     return current_user
+
+@router.patch("/me", response_model=UserSchema)
+async def update_user_me(
+    *,
+    db: AsyncSession = Depends(get_db),
+    user_in: UserUpdateMe,
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """Update current user profile."""
+    # Ensure email uniqueness if changing email
+    if user_in.email and user_in.email != current_user.email:
+        result = await db.execute(select(User).where(User.email == user_in.email))
+        existing_user = result.scalars().first()
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="A user with this email already exists.",
+            )
+
+    obj_data = jsonable_encoder(current_user)
+    update_data = user_in.model_dump(exclude_unset=True)
+
+    for field in obj_data:
+        if field in update_data:
+            setattr(current_user, field, update_data[field])
+
+    db.add(current_user)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
 
 
 @router.get("/", response_model=List[UserSchema])
@@ -42,7 +73,7 @@ async def read_users(
         logger.info(msg)
 
         # Try Cache
-        redis = get_redis()
+        redis = await get_redis()
         cache_key = f"users_list:{month}:{skip}:{limit}"
         if redis:
             cached = await redis.get(cache_key)
@@ -219,9 +250,7 @@ async def delete_user(
             detail="The user with this id does not exist in the system",
         )
 
-    # Soft delete
-    user.is_active = False
-    db.add(user)
+    # Hard delete (Deactivation is handled via PATCH update)
+    await db.delete(user)
     await db.commit()
-    await db.refresh(user)
     return user

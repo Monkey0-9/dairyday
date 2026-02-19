@@ -32,7 +32,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Add CSRF token for non-GET requests (required when cookies are sent)
     if (config.method && !['get', 'head', 'options'].includes(config.method.toLowerCase())) {
       const csrfToken = getCookie('csrf_token');
@@ -40,7 +40,7 @@ api.interceptors.request.use(
         config.headers['X-CSRF-Token'] = csrfToken;
       }
     }
-    
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -107,13 +107,21 @@ export const authApi = {
 
   getUserId: () => localStorage.getItem(USER_ID_KEY),
   getUserRole: () => localStorage.getItem(USER_ROLE_KEY),
+
+  forgotPassword: (identifier: string) =>
+    api.post('/auth/forgot-password', { identifier }),
+
+  resetPassword: (data: Record<string, string>) =>
+    api.post('/auth/reset-password', data),
 };
 
 // Users API
 export const usersApi = {
   list: (month?: string) => api.get(month ? `/users/?month=${month}` : '/users/'),
-  create: (user: any) => api.post('/users/', user),
-  update: (userId: string, user: any) => api.patch(`/users/${userId}`, user),
+  getMe: () => api.get('/users/me'),
+  create: (user: Record<string, unknown>) => api.post('/users/', user),
+  update: (userId: string, user: Record<string, unknown>) => api.patch(`/users/${userId}`, user),
+  updateMe: (user: Record<string, unknown>) => api.patch('/users/me', user),
   delete: (userId: string) => api.delete(`/users/${userId}`),
 };
 
@@ -121,8 +129,9 @@ export const usersApi = {
 export const consumptionApi = {
   getGrid: (month: string) => api.get(`/consumption/grid?month=${month}`),
   getMine: (month: string) => api.get(`/consumption/mine?month=${month}`),
-  upsert: (data: any) => api.patch('/consumption/', data),
-  export: (month: string) => api.get(`/consumption/export?month=${month}`, { responseType: 'blob' }),
+  updateMine: (data: Record<string, unknown>) => api.patch('/consumption/mine', data),
+  upsert: (data: Record<string, unknown>) => api.patch('/consumption/', data),
+  export: (month: string) => api.get(`/consumption/export?month=${month}&format=pdf`, { responseType: 'blob' }),
   upload: (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -130,12 +139,14 @@ export const consumptionApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  verify: (consumptionId: string, approved: boolean) => api.post(`/consumption/${consumptionId}/verify?approved=${approved}`),
+  getRequests: () => api.get('/consumption/requests'),
 };
 
 // Admin API
 export const adminApi = {
   getDailyEntry: (date: string) => api.get(`/admin/daily-entry?selected_date=${date}`),
-  saveDailyEntry: (date: string, entries: any[]) =>
+  saveDailyEntry: (date: string, entries: Array<Record<string, unknown>>) =>
     api.post(`/admin/daily-entry?selected_date=${date}`, entries),
   getPaymentsDashboard: (month: string, status?: string) => {
     const params = status ? `?month=${month}&status=${status}` : `?month=${month}`;
@@ -150,7 +161,7 @@ export const billsApi = {
   generate: (userId: string, month: string) => api.post(`/bills/generate/${userId}/${month}`),
   generateAll: (month: string) => api.post(`/bills/generate-all?month=${month}`),
   get: (userId: string, month: string) => api.get(`/bills/${userId}/${month}`),
-  list: (month: string) => api.get(`/bills/?month=${month}`),
+  list: (month?: string) => api.get(month ? `/bills/?month=${month}` : '/bills/'),
   getPdfStatus: (billId: string) => api.get(`/bills/${billId}/pdf-status`),
 };
 
@@ -160,7 +171,7 @@ export const paymentsApi = {
     const response = await api.post(`/payments/create-order/${billId}`);
     return response.data;
   },
-  
+
   markPaid: async (billId: string, paymentMethod?: string, notes?: string) => {
     const response = await api.post(`/payments/mark-paid/${billId}`, {
       payment_method: paymentMethod || 'CASH',
@@ -176,4 +187,23 @@ export const analyticsApi = {
   getRevenueTrend: (months: number = 12) => api.get(`/analytics/revenue-trend?months=${months}`),
   getCustomerInsights: () => api.get('/analytics/customers'),
   getForecast: () => api.get('/analytics/forecast'),
+};
+
+// Support API
+export const supportApi = {
+  create: (data: Record<string, unknown>) => api.post('/support/', data),
+  getMyTickets: () => api.get('/support/'),
+  getAllTickets: (status?: string) => api.get(status ? `/support/admin?status=${status}` : '/support/admin'),
+};
+
+// Registration API
+export const registrationApi = {
+  signup: (data: Record<string, unknown>) => api.post('/registration/signup', data),
+  getRequests: () => api.get('/registration/requests'),
+  approve: (regId: string) => api.post(`/registration/requests/${regId}/approve`),
+  reject: (regId: string) => api.post(`/registration/requests/${regId}/reject`),
+  verifyOtp: (data: { email: string; otp_code: string }) =>
+    api.post('/registration/verify-otp', data).then(res => res.data),
+  resendOtp: (email: string) =>
+    api.post('/registration/resend-otp', { email }).then(res => res.data),
 };

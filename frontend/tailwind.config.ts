@@ -19,106 +19,125 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Design System Palette (neutral, modern enterprise)
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        surface: "hsl(var(--surface))",
-        muted: "hsl(var(--muted))",
-        "muted-foreground": "hsl(var(--muted-foreground))",
+        // (DairyDay) Elite: Industrial Elegance Palette
+        background: "#020205",
+        foreground: "#f8fafc",
         
-        // Primary (teal-ish - #0EA5A8)
+        // Deep Obsidian Layers
+        obsidian: {
+          900: "#020205",
+          800: "#050508",
+          700: "#0A0A0F",
+          600: "#12121A",
+          500: "#1A1A24",
+        },
+
+        // Precision Accents
         primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
+          DEFAULT: "#0EA5A8",
+          glow: "rgba(14, 165, 168, 0.4)",
+          foreground: "#FFFFFF",
         },
         
-        // Accent (blue for CTAs - #2563EB)
         accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
+          DEFAULT: "#6366f1", // Indigo
+          glow: "rgba(99, 102, 241, 0.3)",
         },
         
-        // Status colors - fixed values for reliability
-        success: "#16A34A",
-        warning: "#F59E0B",
-        danger: "#EF4444",
+        // Semantic refined for dark mode
+        success: "#10b981",
+        warning: "#f59e0b",
+        danger: "#ef4444",
         
-        // UI colors
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+        border: "rgba(255, 255, 255, 0.06)",
+        input: "rgba(255, 255, 255, 0.03)",
+        ring: "#0EA5A8",
+        
+        card: {
+          DEFAULT: "rgba(10, 10, 15, 0.5)",
+          foreground: "#f8fafc",
         },
+        
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
         },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        glass: {
+          DEFAULT: "rgba(255, 255, 255, 0.02)",
+          border: "rgba(255, 255, 255, 0.05)",
+        }
       },
       borderRadius: {
-        sm: "6px",
-        md: "12px",
-        lg: "18px",
-        xl: "24px",
+        sm: "10px",
+        md: "18px",
+        lg: "28px",
+        xl: "34px",
+        "2xl": "52px",
+        bento: "3.5rem",
       },
       spacing: {
-        1: "4px",
-        2: "8px",
-        3: "12px",
-        4: "16px",
-        5: "20px",
-        6: "24px",
-        8: "32px",
-        10: "40px",
-        12: "48px",
+        "fluid-1": "clamp(1rem, 2vw, 1.5rem)",
+        "fluid-2": "clamp(2rem, 4vw, 3rem)",
+        "fluid-3": "clamp(3rem, 6vw, 4.5rem)",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
-      },
-      fontSize: {
-        "2xl": ["1.5rem", { lineHeight: "2rem" }],
-        "3xl": ["1.875rem", { lineHeight: "2.25rem" }],
-        "4xl": ["2.25rem", { lineHeight: "2.5rem" }],
-        "5xl": ["3rem", { lineHeight: "1" }],
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        heading: ["var(--font-outfit)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
       },
       boxShadow: {
-        "elev-1": "0 1px 2px rgba(2, 6, 23, 0.6)",
-        "elev-2": "0 6px 18px rgba(2, 6, 23, 0.7)",
-        "elev-3": "0 12px 24px rgba(2, 6, 23, 0.8)",
+        "glow-primary": "0 0 40px -10px rgba(14, 165, 168, 0.5)",
+        "glow-accent": "0 0 40px -12px rgba(99, 102, 241, 0.4)",
+        "glass-elev": "0 20px 40px -15px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.05)",
+      },
+      backgroundImage: {
+        "noise": "url('/noise.png')",
+        "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       animation: {
-        "fade-in": "fadeIn 0.3s ease-out",
-        "slide-up": "slideUp 0.3s ease-out",
-        "slide-down": "slideDown 0.3s ease-out",
-        "spin-slow": "spin 2s linear infinite",
-        "pulse-slow": "pulse 3s ease-in-out infinite",
+        "float": "float 6s ease-in-out infinite",
+        "shimmer-sweep": "shimmerSweep 2.5s ease-in-out infinite",
+        "liquid-entrance": "liquidEntrance 1.2s cubic-bezier(0.16, 1, 0.3, 1)",
+        "scanline": "scanline 8s linear infinite",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
       },
       keyframes: {
-        fadeIn: {
-          "0%": { opacity: "0" },
-          "100%": { opacity: "1" },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-15px)" },
         },
-        slideUp: {
-          "0%": { opacity: "0", transform: "translateY(10px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
+        shimmerSweep: {
+          "0%": { transform: "translateX(-150%)" },
+          "100%": { transform: "translateX(150%)" },
         },
-        slideDown: {
-          "0%": { opacity: "0", transform: "translateY(-10px)" },
-          "100%": { opacity: "1", transform: "translateY(0)" },
+        liquidEntrance: {
+          "0%": { opacity: "0", transform: "scale(0.92) translateY(40px)", filter: "blur(10px)" },
+          "100%": { opacity: "1", transform: "scale(1) translateY(0)", filter: "blur(0)" },
+        },
+        scanline: {
+          "0%": { backgroundPosition: "0% 0%" },
+          "100%": { backgroundPosition: "0% 100%" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(14, 165, 168, 0.4)" },
+          "50%": { boxShadow: "0 0 20px 5px rgba(14, 165, 168, 0.2)" },
         },
       },
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   plugins: [require("tailwindcss-animate")],
 }
 

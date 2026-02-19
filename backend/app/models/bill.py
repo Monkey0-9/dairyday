@@ -5,12 +5,13 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+from app.db.guid import GUID
 
 class Bill(Base):
     __tablename__ = "bills"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
+    user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     month = Column(String, nullable=False) # ISO month: YYYY-MM
     total_liters = Column(Numeric(12, 3), nullable=False, default=0.0)
     total_amount = Column(Numeric(12, 2), nullable=False, default=0.0)

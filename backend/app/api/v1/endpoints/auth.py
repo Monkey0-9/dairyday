@@ -1,4 +1,4 @@
-"""Authentication endpoints for DairyOS.
+"""Authentication endpoints for DairyDay.
 
 Handles:
 - Login with rate limiting and secure cookies
@@ -8,23 +8,24 @@ Handles:
 - 2FA support (optional for admins)
 """
 import datetime
-from typing import Any
+import logging
+import secrets
 import uuid
+from typing import Any
+
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
-    status,
-    Response,
     Query,
-    Request
+    Request,
+    Response,
+    status
 )
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from jose import JWTError
-import logging
-import secrets
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core import security
@@ -32,7 +33,7 @@ from app.core.config import settings
 from app.core.redis import get_redis
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.user import PasswordChange, ForgotPassword, ResetPassword
+from app.schemas.user import ForgotPassword, PasswordChange, ResetPassword
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,6 @@ router = APIRouter()
 LOGIN_ATTEMPTS_PREFIX = "auth:login_attempts:"
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION_SECONDS = 900  # 15 minutes
-
 
 
 async def get_login_attempts_key(email: str) -> str:
@@ -60,13 +60,13 @@ async def record_failed_attempt(redis, email: str) -> int:
         await pipe.incr(key)
         await pipe.expire(key, LOCKOUT_DURATION_SECONDS)
         await pipe.execute()
-    
+
     val = await redis.get(key)
     return int(val or 0)
 
 
 async def check_account_locked(redis, email: str) -> bool:
-    """Check if account is temporarily locked due to too many failed attempts."""
+    """Check if account is locked due to failed attempts."""
     key = await get_login_attempts_key(email)
     val = await redis.get(key)
     attempts = int(val or 0)
@@ -103,9 +103,8 @@ async def login_access_token(
     """
     email = form_data.username.lower()
 
-    # 1. Check for account lockout
     try:
-        redis = get_redis()
+        redis = await get_redis()
         if redis and await check_account_locked(redis, email):
             logger.warning(
                 "Login blocked for locked account: %s",
@@ -119,14 +118,24 @@ async def login_access_token(
     except Exception as redis_err:
         if isinstance(redis_err, HTTPException):
             raise
-        logger.warning("Redis unavailable or error, skipping rate limit: %s", redis_err)
+        logger.warning(
+            "Redis unavailable, skipping rate limit: %s",
+            redis_err
+        )
         redis = None
 
-    # 2. Verify credentials
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.email == email,
+                User.phone == email
+            )
+        )
+    )
     user = result.scalars().first()
 
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
+    if not user:
+
         failed_attempts = 0
         if redis:
             failed_attempts = await record_failed_attempt(redis, email)
@@ -136,7 +145,23 @@ async def login_access_token(
             email, failed_attempts
         )
 
-        # Provide generic error message
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not security.verify_password(form_data.password, user.hashed_password):
+
+        failed_attempts = 0
+        if redis:
+            failed_attempts = await record_failed_attempt(redis, email)
+
+        logger.warning(
+            "Failed login attempt for: %s (attempts: %d)",
+            email, failed_attempts
+        )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -155,10 +180,11 @@ async def login_access_token(
         await clear_login_attempts(redis, email)
 
     # 4. Create tokens
-    access_token_expires = datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = datetime.timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
 
     # Generate unique JTIs for tracking/revocation
-    import uuid
     access_jti = str(uuid.uuid4())
     refresh_jti = str(uuid.uuid4())
 
@@ -191,7 +217,8 @@ async def login_access_token(
             "secure": is_production(),
             "samesite": "strict",
             "max_age": settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
-            "path": f"{settings.API_V1_STR}/auth/refresh", # Only sent to refresh endpoint
+            # Only sent to refresh endpoint
+            "path": f"{settings.API_V1_STR}/auth/refresh",
         }
 
         response.set_cookie(**cookie_settings)
@@ -239,7 +266,7 @@ async def refresh_access_token(
     refresh_token = request.cookies.get("refresh_token")
 
     if not refresh_token:
-        # Fallback to query param if needed (less secure but kept for compatibility)
+        # Fallback to query param (less secure but kept for compatibility)
         refresh_token = request.query_params.get("refresh_token")
 
     if not refresh_token:
@@ -269,7 +296,9 @@ async def refresh_access_token(
 
         # Get user
         user_id_str = payload.get("sub")
-        result = await db.execute(select(User).where(User.id == uuid.UUID(user_id_str)))
+        result = await db.execute(
+            select(User).where(User.id == uuid.UUID(user_id_str))
+        )
         user = result.scalars().first()
 
         if not user or not user.is_active:
@@ -286,11 +315,15 @@ async def refresh_access_token(
         access_jti = str(uuid.uuid4())
         refresh_jti = str(uuid.uuid4())
 
-        access_token_expires = datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token_expires = datetime.timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
         new_access_token = security.create_access_token(
             user.id, expires_delta=access_token_expires, jti=access_jti
         )
-        new_refresh_token = security.create_refresh_token(user.id, jti=refresh_jti)
+        new_refresh_token = security.create_refresh_token(
+            user.id, jti=refresh_jti
+        )
 
         # Update cookies
         response.set_cookie(
@@ -368,7 +401,10 @@ async def logout(
 
     # Clear cookies
     response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path=f"{settings.API_V1_STR}/auth/refresh")
+    response.delete_cookie(
+        key="refresh_token",
+        path=f"{settings.API_V1_STR}/auth/refresh"
+    )
     response.delete_cookie(key="user_role", path="/")
 
     logger.info("User logged out: %s", current_user.email)
@@ -384,7 +420,10 @@ async def change_password(
     """
     Change password for authenticated user.
     """
-    if not security.verify_password(password_change.old_password, current_user.hashed_password):
+    if not security.verify_password(
+        password_change.old_password,
+        current_user.hashed_password
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect old password",
@@ -455,7 +494,7 @@ async def setup_2fa(
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(
         name=current_user.email,
-        issuer_name="DairyOS"
+        issuer_name="DairyDay"
     )
 
     logger.info(
@@ -466,7 +505,10 @@ async def setup_2fa(
     return {
         "secret": secret,
         "provisioning_uri": provisioning_uri,
-        "message": "Scan the QR code with your authenticator app, then verify with /2fa/verify"
+        "message": (
+            "Scan the QR code with your authenticator app, "
+            "then verify with /2fa/verify"
+        )
     }
 
 
@@ -535,47 +577,45 @@ async def disable_2fa(
 
 @router.post("/forgot-password")
 async def forgot_password(
-    request: Request,
     forgot_pwd: ForgotPassword,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """
-    Initiate password recovery flow.
-    - Rate limited to prevent email enumeration/spam
-    - Sends a recovery token (mocked for now)
+    Initiate password recovery flow using OTP.
+    - Identification by email or phone
+    - Generates a 6-digit OTP valid for 10m
     """
-    # Rate limiting check
-    email = forgot_pwd.email.lower()
-    redis = get_redis()
-    
-    # Track attempts per email to prevent spam
-    key = f"auth:forgot_pwd:{email}"
-    attempts = int(await redis.get(key) or 0)
-    if attempts >= 3:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many requests. Please try again later."
+    identifier = forgot_pwd.identifier.lower()
+
+    # Find user by email or phone
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.email == identifier,
+                User.phone == identifier
+            )
         )
-    
-    await redis.incr(key)
-    await redis.expire(key, 3600)  # 1 hour cooldown
-    
-    # Check if user exists
-    result = await db.execute(select(User).where(User.email == email))
+    )
     user = result.scalars().first()
-    
+
     if user:
-        # Generate token
-        token = secrets.token_urlsafe(32)
-        # Store in Redis with 15m expiry
-        token_key = f"auth:reset_token:{token}"
-        await redis.set(token_key, str(user.id), ex=900)
-        
-        logger.info("Password recovery token generated for: %s", email)
-        # In real scenario: NotificationService.send_reset_password_email(email, token)
-    
-    # Always return same message to prevent account enumeration
-    return {"message": "If an account exists with this email, you will receive a recovery link shortly."}
+        otp_code = f"{secrets.randbelow(900000) + 100000}"
+        otp_expires_at = (
+            datetime.datetime.now(datetime.timezone.utc) +
+            datetime.timedelta(minutes=10)
+        )
+
+        user.otp_code = otp_code
+        user.otp_expires_at = otp_expires_at
+        db.add(user)
+        await db.commit()
+
+        # Mock sending OTP
+        print(f"\n[AUTH] OTP for {identifier}: {otp_code} (Expires in 10m)\n")
+
+    return {
+        "message": "If an account exists, you will receive an OTP shortly."
+    }
 
 
 @router.post("/reset-password")
@@ -584,38 +624,68 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """
-    Reset password using a token.
+    Reset password using an OTP.
     """
-    redis = get_redis()
-    token_key = f"auth:reset_token:{reset_pwd.token}"
-    user_id_str = await redis.get(token_key)
-    
-    if not user_id_str:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired recovery token"
+    identifier = reset_pwd.identifier.lower()
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.email == identifier,
+                User.phone == identifier
+            )
         )
-    
-    # Fetch user
-    import uuid
-    user_id = uuid.UUID(user_id_str)
-    result = await db.execute(select(User).where(User.id == user_id))
+    )
     user = result.scalars().first()
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
-    # Hash and save new password
-    user.hashed_password = security.get_password_hash(reset_pwd.new_password)
+
+    if not user.otp_code or user.otp_code != reset_pwd.otp_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code"
+        )
+
+    # Handle possible string or naive datetime from SQLite
+    otp_expires_at = user.otp_expires_at
+    if isinstance(otp_expires_at, str):
+        try:
+            from dateutil.parser import parse
+            otp_expires_at = parse(otp_expires_at)
+        except Exception:
+            logger.error("Failed to parse otp_expires_at string: %s",
+                         otp_expires_at)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Date parsing error"
+            )
+
+    # Ensure otp_expires_at is timezone-aware
+    if otp_expires_at and otp_expires_at.tzinfo is None:
+        otp_expires_at = otp_expires_at.replace(
+            tzinfo=datetime.timezone.utc
+        )
+
+    if not otp_expires_at or otp_expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Verification code has expired"
+        )
+
+    # Success: Reset password and clear OTP
+    user.hashed_password = security.get_password_hash(
+        reset_pwd.new_password
+    )
+    user.otp_code = None
+    user.otp_expires_at = None
     db.add(user)
-    
-    # Revoke tokens (optional but recommended: clear user sessions if any)
-    await redis.delete(token_key)
     await db.commit()
-    
-    logger.info("Password reset successfully for user: %s", user.email)
-    return {"message": "Password reset successfully. You can now login with your new password."}
+
+    logger.info("Password reset successfully for user: %s", identifier)
+    return {"message": "Password reset successfully"}
 

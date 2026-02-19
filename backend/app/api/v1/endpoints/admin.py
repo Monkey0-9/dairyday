@@ -1,43 +1,61 @@
 import csv
-import io
 import logging
 from calendar import monthrange
 from datetime import date, datetime, timedelta
-from typing import Any, List
+from typing import Any, List, Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy import and_, func, select
+
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 
 from app.api import deps
 from app.core.config import settings
-from app.db.session import get_db
+from app.db.session import get_db, SessionLocal
 from app.models.consumption import Consumption
 from app.models.consumption_audit import ConsumptionAudit
 from app.models.user import User
 from app.schemas.common import StatusResponse
-
+from app.services.billing_service import BillingService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
 
 def get_lock_date() -> date:
     """Calculate the lock date based on LOCK_DAYS setting."""
     return date.today() - timedelta(days=settings.LOCK_DAYS)
 
 
+async def recalculate_all_bills_task(month: str):
+    """
+    Background task to recalculate bills for ALL users for a specific month.
+    """
+    logger.info(f"Starting background (DairyDay) bill recalculation for {month}")
+    async with SessionLocal() as db:
+        try:
+            service = BillingService(db)
+            await service.generate_batch_bills(month, skip_paid=True)
+            await db.commit()
+            msg = f"Background bill calculation completed for {month}"
+            logger.info(msg)
+        except Exception as e:
+            msg = f"Background bill calculation failed for {month}: {e}"
+            logger.error(msg)
+
+
 @router.get("/daily-entry")
 async def get_daily_entry(
-    selected_date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    selected_date: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
 ) -> Any:
     """
     Get all active users with their consumption for a specific date.
     Used by admin daily entry page.
     """
+    logger.info(f"Fetching daily entry for {selected_date}")
     entry_date = date.fromisoformat(selected_date)
     lock_date = get_lock_date()
 
@@ -46,6 +64,7 @@ async def get_daily_entry(
         select(User).where(User.role == "USER", User.is_active)
     )
     users = users_result.scalars().all()
+    logger.info(f"Found {len(users)} active users")
 
     # Get consumption for the date
     consumption_result = await db.execute(
@@ -53,6 +72,7 @@ async def get_daily_entry(
             and_(
                 Consumption.date == entry_date,
                 Consumption.user_id.in_([u.id for u in users])
+                if users else False
             )
         )
     )
@@ -68,7 +88,8 @@ async def get_daily_entry(
             "id": str(user.id),
             "name": user.name,
             "email": user.email,
-            "liters": float(consumption_map.get(user.id, 0)),
+            "phone": user.phone,
+            "liters": float(consumption_map.get(user.id, user.daily_target_qty)),
             "is_locked": entry_date < lock_date
         })
 
@@ -78,10 +99,11 @@ async def get_daily_entry(
 @router.post("/daily-entry")
 async def save_daily_entry(
     *,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     entries: List[dict],
-    selected_date: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
-    current_user: User = Depends(deps.get_current_active_admin),
+    selected_date: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Bulk upsert consumption for all users for a specific date.
@@ -118,8 +140,8 @@ async def save_daily_entry(
     updated_count = 0
     created_count = 0
     
-    # Track unique user IDs for bill recalculation
-    unique_ids_to_recalc = set()
+    # We will trigger recalc for the month of the entry_date
+    month_str = entry_date.strftime("%Y-%m")
 
     for entry in entries:
         user_id_str = entry.get("user_id")
@@ -155,7 +177,6 @@ async def save_daily_entry(
                     old_quantity=old_quantity,
                     new_quantity=quantity,
                 ))
-                unique_ids_to_recalc.add(user_id)
             updated_count += 1
         else:
             if quantity > 0:  # Only create if there's consumption
@@ -165,7 +186,7 @@ async def save_daily_entry(
                     quantity=quantity
                 )
                 db.add(new_consumption)
-                
+
                 # Update existing_map so dupes in input don't create dupes in DB
                 existing_map[user_id] = new_consumption
 
@@ -177,46 +198,17 @@ async def save_daily_entry(
                     old_quantity=None,
                     new_quantity=quantity,
                 ))
-                unique_ids_to_recalc.add(user_id)
             created_count += 1
 
     await db.commit()
 
-    # Parallel recalculate bills for affected users using asyncio.gather
-    # Only recalculate if something actually changed
-    if unique_ids_to_recalc:
-        import asyncio
-        from app.db.session import SessionLocal
-
-        month_str = entry_date.strftime("%Y-%m")
-
-        # Limit concurrency to avoid extensive connection pool usage
-        semaphore = asyncio.Semaphore(10)
-
-        async def safe_recalc(uid):
-            async with semaphore:
-                async with SessionLocal() as new_session:
-                    try:
-                        # Use generate_bill_for_user for better locking and PDF queuing
-                        from app.services.billing import generate_bill_for_user
-                        await generate_bill_for_user(
-                            new_session, uid, month_str, enqueue_pdf=False
-                        )
-                        await new_session.commit()
-                    except Exception as e:
-                        logger.error(
-                            f"Auto-recalculate failed for {uid}: {str(e)}"
-                        )
-
-        # Run concurrently
-        await asyncio.gather(
-            *[safe_recalc(uid) for uid in unique_ids_to_recalc]
-        )
+    # Trigger background task to recalculate ALL bills for this month
+    background_tasks.add_task(recalculate_all_bills_task, month_str)
 
     # Invalidate Cache
     try:
         from app.core.redis import get_redis
-        redis = get_redis()
+        redis = await get_redis()
         if redis:
             await redis.delete(f"grid:{month_str}")
     except Exception:
@@ -224,7 +216,7 @@ async def save_daily_entry(
 
     msg = (
         f"Updated {updated_count}, created {created_count}. "
-        f"{len(unique_ids_to_recalc)} bills updated."
+        f"Background bill update triggered for {month_str}."
     )
     return {
         "status": "success",
@@ -233,10 +225,11 @@ async def save_daily_entry(
     }
 
 
+
 @router.get("/audit-logs", response_model=List[dict])
 async def get_audit_logs(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
 ) -> Any:
     """
     Retrieve all audit logs for admin review.
@@ -266,15 +259,14 @@ async def get_audit_logs(
 
 @router.get("/audit-logs/export")
 async def export_audit_logs(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
 ) -> Any:
     """
     Export all audit logs as CSV.
     """
     from app.models.audit_log import AuditLog
     from sqlalchemy import desc
-    import csv
     import io
     from fastapi.responses import StreamingResponse
 
@@ -315,10 +307,10 @@ async def export_audit_logs(
 
 @router.get("/payments")
 async def get_payments_dashboard(
-    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
-    status: str = Query(None, pattern="^(PAID|UNPAID)$"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    month: Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
+    status: Annotated[str | None, Query(pattern="^(PAID|UNPAID)$")] = None,
 ) -> Any:
     """
     Admin payments dashboard with filters and aggregations.
@@ -390,8 +382,8 @@ async def get_payments_dashboard(
 @router.post("/payments/remind/{bill_id}")
 async def send_payment_reminder(
     bill_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
 ) -> Any:
     """
     Send payment reminder to user for an unpaid bill.
@@ -428,8 +420,8 @@ async def send_payment_reminder(
 @router.post("/payments/remind-bulk/{month}")
 async def send_bulk_payment_reminders(
     month: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
 ) -> Any:
     """
     Send payment reminders to ALL users with unpaid bills for a specific month.
@@ -469,10 +461,10 @@ async def send_bulk_payment_reminders(
 
 @router.post("/lock", response_model=StatusResponse)
 async def lock_consumption_period(
-    month: str = Query(..., pattern=r"^\d{4}-\d{2}$"),
+    month: Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
     user_id: UUID | None = None,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_active_admin),
 ) -> Any:
     """Explicitly lock consumption for a month."""
     year, month_num = map(int, month.split("-"))

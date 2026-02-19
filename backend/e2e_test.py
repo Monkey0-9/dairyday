@@ -31,36 +31,47 @@ async def e2e_test():
         print("=" * 80)
         
         # Use Customer 2 for testing
-        user_id = UUID('40bfd029-905e-48f4-b48b-52088547af59')
+        # user_id = UUID('40bfd029-905e-48f4-b48b-52088547af59')
+        email = "user2@dairy.com"
+        user_result = await db.execute(select(User).where(User.email == email))
+        user = user_result.scalars().first()
+        
+        if not user:
+            print(f"User {email} not found! Picking first available user...")
+            user_result = await db.execute(select(User).limit(1))
+            user = user_result.scalars().first()
+            
+        if not user:
+            print("No users found in DB. Aborting test.")
+            return
+
+        user_id = user.id
+        print(f"\n[1] TARGET USER: {user.name} ({user.email}) (Rate: Rs.{user.price_per_liter}/L)")
+
         month_str = "2026-02"
-        # Use a unique future date to avoid UNIQUE constraint violation
-        test_date = date(2026, 2, 28)  # Feb 28
         test_qty = Decimal("2.500")
         
-        # Fetch user
-        user_result = await db.execute(select(User).where(User.id == user_id))
-        user = user_result.scalars().first()
-        print(f"\n[1] TARGET USER: {user.name} (Rate: Rs.{user.price_per_liter}/L)")
-        
-        # Check if entry already exists for this date
-        existing_entry = await db.execute(
-            select(Consumption).where(and_(
-                Consumption.user_id == user_id,
-                Consumption.date == test_date
-            ))
-        )
-        if existing_entry.scalars().first():
-            print(f"\n    Entry for {test_date} already exists. Using Feb 27 instead.")
-            test_date = date(2026, 2, 27)
-            existing_entry2 = await db.execute(
+        # Find a free date starting from Feb 28 backwards
+        search_date = date(2026, 2, 28)
+        found_date = None
+        for _ in range(10):  # Try 10 days back
+            existing = await db.execute(
                 select(Consumption).where(and_(
                     Consumption.user_id == user_id,
-                    Consumption.date == test_date
+                    Consumption.date == search_date
                 ))
             )
-            if existing_entry2.scalars().first():
-                print(f"    Entry for {test_date} also exists. Using Feb 26.")
-                test_date = date(2026, 2, 26)
+            if not existing.scalars().first():
+                found_date = search_date
+                break
+            print(f"    Date {search_date} taken, trying previous day...")
+            search_date = search_date.replace(day=search_date.day - 1)
+        
+        if not found_date:
+            print("Could not find a free date in Feb 2026 for testing!")
+            return
+            
+        test_date = found_date
         
         # Get current consumption total
         start_of_month = date(2026, 2, 1)
@@ -83,7 +94,16 @@ async def e2e_test():
         
         print(f"\n[2] CURRENT STATE:")
         print(f"    Consumption Total: {old_consumption:.3f} L")
-        print(f"    Bill Total:        {old_bill_liters:.3f} L (Rs.{old_bill_amount:.2f})")
+        status_str = f"[{bill.status}] {'LOCKED' if bill.is_locked else 'OPEN'}" if bill else "NO BILL"
+        print(f"    Bill Total:        {old_bill_liters:.3f} L (Rs.{old_bill_amount:.2f}) {status_str}")
+        
+        if bill and bill.is_locked:
+            print(f"    [WARN] Bill is LOCKED. Unlocking for test...")
+            bill.is_locked = False
+            db.add(bill)
+            await db.commit()
+            await db.refresh(bill)
+            print(f"    Bill unlocked.")
         
         # Add new consumption entry
         print(f"\n[3] ADDING NEW ENTRY: {test_qty}L on {test_date}")

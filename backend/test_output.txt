@@ -1,91 +1,39 @@
-﻿============================= test session starts =============================
-platform win32 -- Python 3.11.9, pytest-9.0.2, pluggy-1.6.0 -- C:\dairy\backend\venv\Scripts\python.exe
-cachedir: .pytest_cache
-rootdir: C:\dairy\backend
-configfile: pytest.ini
-plugins: anyio-4.12.1, asyncio-1.3.0, cov-7.0.0
-asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
-collecting ... collected 1 item
+============================================================
+FULL E2E TEST: Billing and Payments
+============================================================
 
-tests/test_auth.py::TestLogoutEndpoint::test_logout_success {"timestamp": "2026-02-09T12:07:23.078283+00:00Z", "level": "INFO", "logger": "app.request", "message": "Request started", "module": "request_logging", "function": "dispatch", "line": 72, "request_id": "req_9a83778e4d0c", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0", "event": "request_start", "method": "POST", "path": "/api/v1/auth/login", "query_string": null, "client_ip": "127.0.0.1", "user_agent": "python-httpx/0.28.1"}
-{"timestamp": "2026-02-09T12:07:23.093358+00:00Z", "level": "INFO", "logger": "app.core.redis", "message": "Redis connection established", "module": "redis", "function": "get_redis", "line": 15, "request_id": "req_9a83778e4d0c", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0"}
-{"timestamp": "2026-02-09T12:07:27.168672+00:00Z", "level": "WARNING", "logger": "app.api.v1.endpoints.auth", "message": "Redis unavailable or error, skipping rate limit: Error 22 connecting to localhost:6379. The remote computer refused the network connection.", "module": "auth", "function": "login_access_token", "line": 123, "request_id": "req_9a83778e4d0c", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0"}
-{"timestamp": "2026-02-09T12:07:27.219920+00:00Z", "level": "INFO", "logger": "app.api.v1.endpoints.auth", "message": "User logged in: test@example.com (role: USER, jti: dbf93a04-0b42-4415-b633-57b68a172e61)", "module": "auth", "function": "login_access_token", "line": 174, "request_id": "req_9a83778e4d0c", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0"}
-{"timestamp": "2026-02-09T12:07:27.220954+00:00Z", "level": "INFO", "logger": "app.request", "message": "Request completed", "module": "request_logging", "function": "dispatch", "line": 102, "request_id": "req_9a83778e4d0c", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0", "event": "request_complete", "method": "POST", "path": "/api/v1/auth/login", "status_code": 200, "duration_ms": 4143.18}
-{"timestamp": "2026-02-09T12:07:27.223036+00:00Z", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://test/api/v1/auth/login \"HTTP/1.1 200 OK\"", "module": "_client", "function": "_send_single_request", "line": 1740, "request_id": "req_d2bfb3d113f0", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0"}
-{"timestamp": "2026-02-09T12:07:27.225083+00:00Z", "level": "INFO", "logger": "app.request", "message": "Request started", "module": "request_logging", "function": "dispatch", "line": 72, "request_id": "req_850d31e24758", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0", "event": "request_start", "method": "POST", "path": "/api/v1/auth/logout", "query_string": null, "client_ip": "127.0.0.1", "user_agent": "python-httpx/0.28.1"}
-DEBUG: Request Scope Headers: {b'host': b'test', b'content-length': b'0', b'accept': b'*/*', b'accept-encoding': b'gzip, deflate', b'connection': b'keep-alive', b'user-agent': b'python-httpx/0.28.1', b'cookie': b'csrf_token=w6aTXw3xZZfrHzfO6c2RpGWDBTSg87A_xeOMU-zYApk'}
-DEBUG: Request Cookies: {'csrf_token': 'w6aTXw3xZZfrHzfO6c2RpGWDBTSg87A_xeOMU-zYApk'}
-{"timestamp": "2026-02-09T12:07:27.227755+00:00Z", "level": "WARNING", "logger": "app.request", "message": "Request completed with client error", "module": "request_logging", "function": "dispatch", "line": 100, "request_id": "req_850d31e24758", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0", "event": "request_complete", "method": "POST", "path": "/api/v1/auth/logout", "status_code": 401, "duration_ms": 2.67}
-{"timestamp": "2026-02-09T12:07:27.229283+00:00Z", "level": "INFO", "logger": "httpx", "message": "HTTP Request: POST http://test/api/v1/auth/logout \"HTTP/1.1 401 Unauthorized\"", "module": "_client", "function": "_send_single_request", "line": 1740, "request_id": "req_063c879a0e2d", "user_id": null, "task_id": null, "service": "dairy-os", "version": "1.0.0"}
-FAILED
+[Phase 0] Database
+  [PASS] DB Connection: PostgreSQL OK
 
-================================== FAILURES ===================================
-___________________ TestLogoutEndpoint.test_logout_success ____________________
+[Phase 1] Authentication
+  [FAIL] Login: 
 
-self = <test_auth.TestLogoutEndpoint object at 0x000002433DDFA450>
-client = <httpx.AsyncClient object at 0x000002433DF57490>
-test_user = <app.models.user.User object at 0x000002433DDFAE10>
+[Phase 1b] Test Data
+  [PASS] Test user: Verified User  (user1@dairy.com)
+  [PASS] Consumption data: 14 records
 
-    @pytest.mark.asyncio
-    async def test_logout_success(self, client, test_user):
-        """Test successful logout clears session."""
-        # Login first
-        await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-    
-        # Logout
-        response = await client.post("/api/v1/auth/logout")
-    
->       assert response.status_code == 200
-E       assert 401 == 200
-E        +  where 401 = <Response [401 Unauthorized]>.status_code
+[Phase 5] Direct Service Tests
+  [PASS] BillingService.recalculate: Amt=1596.50
+  [PASS] BillService.get_bill_with_pdf: OK
+  [PASS] PaymentService.verify_sig: Result=False
 
-tests\test_auth.py:240: AssertionError
------------------------------- Captured log call ------------------------------
-INFO     app.request:request_logging.py:72 Request started
-INFO     app.core.redis:redis.py:15 Redis connection established
-WARNING  app.api.v1.endpoints.auth:auth.py:123 Redis unavailable or error, skipping rate limit: Error 22 connecting to localhost:6379. The remote computer refused the network connection.
-INFO     app.api.v1.endpoints.auth:auth.py:174 User logged in: test@example.com (role: USER, jti: dbf93a04-0b42-4415-b633-57b68a172e61)
-INFO     app.request:request_logging.py:102 Request completed
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/auth/login "HTTP/1.1 200 OK"
-INFO     app.request:request_logging.py:72 Request started
-WARNING  app.request:request_logging.py:100 Request completed with client error
-INFO     httpx:_client.py:1740 HTTP Request: POST http://test/api/v1/auth/logout "HTTP/1.1 401 Unauthorized"
-============================== warnings summary ===============================
-app\core\config.py:37
-  C:\dairy\backend\app\core\config.py:37: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
-    JWT_AUDIENCE: str = Field(default="dairy-os", env="JWT_AUDIENCE")
+[Phase 6] Repository Tests
+  [PASS] BillRepo.get_by_user_month: Found=True
+  [PASS] BillRepo.get_all_for_month: Count=12
+  [PASS] BillRepo.get_pending: Count=0
+  [PASS] PaymentRepo.get_webhook_event: None (correct)
+  [PASS] ConsumptionRepo.stats: Liters=34.250
+  [PASS] UserRepo.get_active_users: Count=12
 
-app\core\config.py:38
-  C:\dairy\backend\app\core\config.py:38: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
-    JWT_ISSUER: str = Field(default="dairy-os", env="JWT_ISSUER")
+============================================================
+FINAL RESULTS
+============================================================
+  Total:  13
+  Passed: 12
+  Failed: 1
 
-app\main.py:260
-  C:\dairy\backend\app\main.py:260: DeprecationWarning: 
-          on_event is deprecated, use lifespan event handlers instead.
-  
-          Read more about it in the
-          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-          
-    @app.on_event("startup")
+  FAILURES:
+    FAIL: Login -> 
 
-venv\Lib\site-packages\fastapi\applications.py:4576
-  C:\dairy\backend\venv\Lib\site-packages\fastapi\applications.py:4576: DeprecationWarning: 
-          on_event is deprecated, use lifespan event handlers instead.
-  
-          Read more about it in the
-          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-          
-    return self.router.on_event(event_type)
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-=========================== short test summary info ===========================
-FAILED tests/test_auth.py::TestLogoutEndpoint::test_logout_success - assert 401 == 200
- +  where 401 = <Response [401 Unauthorized]>.status_code
-======================== 1 failed, 4 warnings in 4.90s ========================
+  Score: 12/13 (92%)
+============================================================

@@ -39,6 +39,7 @@ async def get_current_user(
 ) -> User:
     """
     Get the current authenticated user from the JWT token.
+    Supports both internal tokens and Logto tokens.
     """
     try:
         # Support reading from secure cookie
@@ -54,8 +55,49 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # Decode and validate the token using the improved security helper
+        # 1. Try Logto validation first if it looks like a Logto token or as a fallback
+        # In a real scenario, you might check the issuer header or have a separate path
+        logto_payload = await security.verify_logto_token(token)
+        
+        if logto_payload:
+            # Logto authenticated
+            logto_sub = logto_payload.get("sub")
+            if not logto_sub:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Logto token missing sub claim",
+                )
+            
+            # Lookup user by logto_id
+            result = await db.execute(select(User).where(User.logto_id == logto_sub))
+            user = result.scalars().first()
+            
+            # Fallback: check by email if provided by Logto
+            if not user and logto_payload.get("email"):
+                result = await db.execute(select(User).where(User.email == logto_payload.get("email")))
+                user = result.scalars().first()
+                if user:
+                    # Link account
+                    user.logto_id = logto_sub
+                    db.add(user)
+                    await db.commit()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found for Logto identity")
+            
+            if not user.is_active:
+                raise HTTPException(status_code=400, detail="Inactive user")
+            
+            return user
+
+        # 2. Fallback to existing local JWT validation
         payload = security.decode_token(token)
+        if payload is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         # Check if token is blacklisted
         jti = payload.get("jti")
@@ -81,19 +123,34 @@ async def get_current_user(
                 detail="Could not validate credentials",
             )
 
+        # Validate local sub as UUID
+        try:
+            user_id = UUID(token_data)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid user ID format in token",
+            )
+
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+
     except JWTError as e:
         print(f"DEBUG: JWT Validation Error: {str(e)}")
-        print(f"DEBUG: Token: {token[:20]}...")
-        import logging
-        logging.error(f"JWT Validation Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token validation failed: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    result = await db.execute(select(User).where(User.id == UUID(token_data)))
-    user = result.scalars().first()
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        import logging
+        logging.error(f"Authentication Error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication process failed"
+        )
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

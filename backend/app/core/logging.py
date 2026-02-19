@@ -1,4 +1,4 @@
-"""Structured logging configuration for DairyOS.
+"""Structured logging configuration for DairyDay.
 
 Provides JSON-formatted logs with correlation IDs for:
 - Request tracing across services
@@ -75,7 +75,7 @@ def setup_logging(
     json_format: bool = True,
     include_sentry: bool = True
 ) -> None:
-    """Configure structured logging for DairyOS.
+    """Configure structured logging for DairyDay.
 
     Args:
         level: Minimum log level (default: INFO)

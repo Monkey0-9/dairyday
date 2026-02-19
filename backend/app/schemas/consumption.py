@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Optional
 from uuid import UUID
 import datetime
 from decimal import Decimal
@@ -18,6 +19,25 @@ class ConsumptionBase(BaseModel):
         le=1000,
         description="Quantity of milk in liters"
     )
+    extra_qty: Decimal = Field(
+        default=Decimal("0.0"),
+        ge=0,
+        le=1000,
+        description="Extra quantity of milk in liters (pre-order)"
+    )
+    status: str = Field(
+        default="PENDING",
+        description="Status of delivery (PENDING, DELIVERED, CANCELLED, SKIPPED)"
+    )
+    note: Optional[str] = Field(
+        None,
+        description="Optional note for the delivery"
+    )
+    # Confirmation Workflow fields
+    requested_quantity: Optional[Decimal] = Field(None, ge=0)
+    requested_extra_qty: Optional[Decimal] = Field(None, ge=0)
+    request_status: Optional[str] = Field(None) # PENDING, APPROVED, REJECTED
+    request_note: Optional[str] = Field(None)
 
 
 class ConsumptionCreate(BaseModel):
@@ -38,6 +58,13 @@ class ConsumptionCreate(BaseModel):
         le=1000,
         description="Quantity of milk in liters"
     )
+    extra_qty: Optional[Decimal] = Field(default=Decimal("0.0"), ge=0, le=1000)
+    status: Optional[str] = Field(default="PENDING")
+    note: Optional[str] = Field(None)
+    requested_quantity: Optional[Decimal] = None
+    requested_extra_qty: Optional[Decimal] = None
+    request_status: Optional[str] = None
+    request_note: Optional[str] = None
 
     @field_validator('quantity')
     @classmethod
@@ -52,12 +79,28 @@ class ConsumptionUpdate(BaseModel):
     """Schema for updating a consumption record."""
     model_config = ConfigDict(populate_by_name=True)
 
-    quantity: Decimal = Field(
-        ...,
+    quantity: Optional[Decimal] = Field(
+        None,
         ge=0,
         le=1000,
         description="Updated quantity of milk in liters"
     )
+    extra_qty: Optional[Decimal] = Field(None, ge=0)
+    status: Optional[str] = None
+    note: Optional[str] = None
+    requested_quantity: Optional[Decimal] = None
+    requested_extra_qty: Optional[Decimal] = None
+    request_status: Optional[str] = None
+    request_note: Optional[str] = None
+
+
+class MyConsumptionRequest(BaseModel):
+    """Schema for users to update their own consumption."""
+    date: datetime.date
+    quantity: Decimal = Field(..., ge=0, le=1000)
+    extra_qty: Decimal = Field(default=Decimal("0.0"), ge=0, le=1000)
+    status: Optional[str] = "PENDING"
+    note: Optional[str] = None
 
 
 class ConsumptionInDBBase(ConsumptionBase):

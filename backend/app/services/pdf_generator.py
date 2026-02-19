@@ -36,7 +36,7 @@ def generate_invoice_pdf(user: User, bill: Bill, consumptions: List[Consumption]
     elements = []
 
     # Header Row
-    elements.append(Paragraph("DairyOS Invoice", title_style))
+    elements.append(Paragraph("DairyDay Invoice", title_style))
     elements.append(Spacer(1, 10))
     elements.append(Paragraph(f"Period: {bill.month}", label_style))
     elements.append(Spacer(1, 24))
@@ -102,7 +102,123 @@ def generate_invoice_pdf(user: User, bill: Bill, consumptions: List[Consumption]
     footer_style.textColor = colors.grey
 
     elements.append(Paragraph("This is a computer generated invoice. No signature required.", footer_style))
-    elements.append(Paragraph("Powered by DairyOS Enterprise v1.0", footer_style))
+    elements.append(Paragraph("Powered by DairyDay Enterprise v1.0", footer_style))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+def generate_consumption_report_pdf(user_name: str, month: str, data: List[dict], is_admin: bool = False) -> BytesIO:
+    """
+    Generate a PDF report for milk consumption.
+    If is_admin is True, the data contains multiple users.
+    If is_admin is False, the data is for a single user (the one named user_name).
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40
+    )
+    styles = getSampleStyleSheet()
+
+    # Custom Styles
+    title_style = styles['Title']
+    title_style.textColor = colors.HexColor("#1e293b")
+    title_style.fontSize = 18
+    title_style.alignment = 1 # Center
+
+    subtitle_style = styles['Normal']
+    subtitle_style.fontSize = 10
+    subtitle_style.textColor = colors.HexColor("#64748b")
+    subtitle_style.alignment = 1
+
+    label_style = styles['Normal']
+    label_style.fontSize = 8
+    label_style.textColor = colors.HexColor("#475569")
+    label_style.fontName = 'Helvetica-Bold'
+
+    elements = []
+
+    # Title
+    elements.append(Paragraph("Milk Consumption Report", title_style))
+    elements.append(Paragraph(f"Period: {month}", subtitle_style))
+    if not is_admin:
+        elements.append(Paragraph(f"Customer: {user_name}", subtitle_style))
+    elements.append(Spacer(1, 24))
+
+    # Prepare Table
+    if is_admin:
+        # Admin view: Multi-user summary
+        table_data = [[
+            Paragraph('CUSTOMER', label_style),
+            Paragraph('EMAIL', label_style),
+            Paragraph('MONTHLY TOTAL (L)', label_style)
+        ]]
+        
+        grand_total = 0.0
+        for item in data:
+            total = float(item.get("Total", 0.0))
+            grand_total += total
+            table_data.append([
+                item.get("User Name", "Unknown"),
+                item.get("Email", "N/A"),
+                f"{total:.1f} L"
+            ])
+        
+        table_data.append(['', Paragraph('GRAND TOTAL', label_style), Paragraph(f"{grand_total:.1f} L", label_style)])
+        col_widths = [200, 200, 100]
+    else:
+        # User view: Daily records
+        table_data = [[
+            Paragraph('DATE/DAY', label_style),
+            Paragraph('DESCRIPTION', label_style),
+            Paragraph('QUANTITY (L)', label_style)
+        ]]
+        
+        # Data passed to this function for user is actually the single row dict
+        user_row = data[0] if isinstance(data, list) else data
+        total = float(user_row.get("Total", 0.0))
+        
+        # We need to reconstruct daily entries. The dict keys are "1", "2", etc.
+        # But wait, the export_consumption function already prepares the dict correctly.
+        # Let's see what keys are there.
+        for key, val in user_row.items():
+            if key.isdigit():
+                if float(val) > 0:
+                    table_data.append([
+                        f"Day {key}",
+                        "Fresh Milk Delivery",
+                        f"{float(val):.1f} L"
+                    ])
+        
+        table_data.append(['', Paragraph('TOTAL CONSUMPTION', label_style), Paragraph(f"{total:.1f} L", label_style)])
+        col_widths = [150, 200, 150]
+
+    # Table Style
+    table = Table(table_data, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor("#cbd5e1")),
+        ('LINEBELOW', (0, -1), (-1, -1), 0, colors.white), # Remove bottom line for total
+        ('LINEABOVE', (1, -1), (-1, -1), 1, colors.HexColor("#1e293b")),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -2), 0.1, colors.HexColor("#f1f5f9")),
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 40))
+
+    # Footer
+    footer_style = styles['Normal']
+    footer_style.fontSize = 7
+    footer_style.alignment = 1
+    footer_style.textColor = colors.grey
+
+    elements.append(Paragraph(f"Generated on: {date_type.today().strftime('%B %d, %Y')}", footer_style))
+    elements.append(Paragraph("DairyDay Enterprise - Pure Milk, Pure Trust.", footer_style))
 
     doc.build(elements)
     buffer.seek(0)

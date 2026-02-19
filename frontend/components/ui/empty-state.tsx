@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { LucideProps, Table, FileText, Users, AlertCircle, Loader2 } from "lucide-react"
+import { LucideProps, Table, FileText, Users, AlertCircle } from "lucide-react"
 import { ForwardRefExoticComponent, RefAttributes } from "react"
 
 type IconComponent = ForwardRefExoticComponent<Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>>
