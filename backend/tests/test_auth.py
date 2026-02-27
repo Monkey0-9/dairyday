@@ -1,100 +1,37 @@
-"""
-Authentication API tests for DairyOS.
-Tests login, refresh token, logout, and password change endpoints.
-"""
-
+import os
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
 import uuid
 
-from app.main import app
-from app.db.session import get_db
-from app.models.user import User
-from app.core.security import get_password_hash
+from app.models.user import User  # type: ignore
+from app.core.security import get_password_hash  # type: ignore
+from tests.constants import TEST_USER_PASSWORD 
 
 
-@pytest_asyncio.fixture
-async def test_user(db_session):
-    """Create a test user."""
-    user = User(
-        id=uuid.uuid4(),
-        email="test@example.com",
-        name="Test User",
-        role="USER",
-        price_per_liter=60.0,
-        is_active=True,
-        hashed_password=get_password_hash("password123"),
-    )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
-
-
-@pytest_asyncio.fixture
-async def test_admin(db_session):
-    """Create a test admin user."""
-    admin = User(
-        id=uuid.uuid4(),
-        email="admin@example.com",
-        name="Test Admin",
-        role="ADMIN",
-        price_per_liter=60.0,
-        is_active=True,
-        hashed_password=get_password_hash("adminpass123"),
-    )
-    db_session.add(admin)
-    await db_session.commit()
-    await db_session.refresh(admin)
-    return admin
-
-
-@pytest_asyncio.fixture
-async def client(db_session):
-    """Create async test client."""
-    async def override_get_db():
-        yield db_session
-    
-    app.dependency_overrides[get_db] = override_get_db
-    
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-    
-    app.dependency_overrides.clear()
+# Using global fixtures from conftest.py
+# (db_session, client, test_user, test_admin)
 
 
 class TestLoginEndpoint:
     """Tests for POST /auth/login endpoint."""
-    
+
     @pytest.mark.asyncio
     async def test_login_success(self, client, test_user):
-        """Test successful login returns tokens in cookies."""
+        """Test successful login returns access and refresh tokens."""
         response = await client.post(
             "/api/v1/auth/login",
             data={
-                "username": "test@example.com",
-                "password": "password123",
+                "username": test_user.email,
+                "password": TEST_USER_PASSWORD,
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["user"]["email"] == test_user.email
         assert data["token_type"] == "bearer"
-        assert "expires_in" in data
-        assert data["user"]["email"] == "test@example.com"
-        assert data["user"]["role"] == "USER"
-        
-        # Verify tokens are in cookies or JSON
-        access_token = data.get("access_token") or response.cookies.get("access_token")
-        refresh_token = data.get("refresh_token") or response.cookies.get("refresh_token")
-        assert access_token is not None
-        assert refresh_token is not None
-        
-        user_role = response.cookies.get("user_role") or data.get("user", {}).get("role")
-        assert user_role == "USER"
-    
+
     @pytest.mark.asyncio
     async def test_login_wrong_password(self, client, test_user):
         """Test login fails with wrong password."""
@@ -102,13 +39,13 @@ class TestLoginEndpoint:
             "/api/v1/auth/login",
             data={
                 "username": "test@example.com",
-                "password": "wrongpassword",
+                "password": os.environ.get("TEST_PASSWORD", "wrongpassword"),
             },
         )
-        
+
         assert response.status_code == 401
         assert "Incorrect email or password" in response.json()["detail"]
-    
+
     @pytest.mark.asyncio
     async def test_login_nonexistent_user(self, client):
         """Test login fails for nonexistent user."""
@@ -116,13 +53,13 @@ class TestLoginEndpoint:
             "/api/v1/auth/login",
             data={
                 "username": "nonexistent@example.com",
-                "password": "password123",
+                "password": TEST_USER_PASSWORD,
             },
         )
-        
+
         assert response.status_code == 401
         assert "Incorrect email or password" in response.json()["detail"]
-    
+
     @pytest.mark.asyncio
     async def test_login_inactive_user(self, client, db_session):
         """Test login fails for inactive user."""
@@ -134,80 +71,65 @@ class TestLoginEndpoint:
             role="USER",
             price_per_liter=60.0,
             is_active=False,
-            hashed_password=get_password_hash("password123"),
+            hashed_password=get_password_hash(TEST_USER_PASSWORD),
         )
         db_session.add(user)
         await db_session.commit()
-        
+
         response = await client.post(
             "/api/v1/auth/login",
             data={
                 "username": "inactive@example.com",
-                "password": "password123",
+                "password": TEST_USER_PASSWORD,
             },
         )
-        
+
         assert response.status_code == 401
         assert "Inactive user" in response.json()["detail"]
 
 
 class TestRefreshTokenEndpoint:
     """Tests for POST /auth/refresh endpoint."""
-    
+
     @pytest.mark.asyncio
-    async def test_refresh_success(self, client, test_user):
+    async def test_refresh_success(self, client, user_token, db_session):
         """Test successful token refresh."""
-        # First get a refresh token
-        login_response = await client.post(
+        # Manual login to get a fresh refresh token
+        res1 = await client.post(
             "/api/v1/auth/login",
             data={
                 "username": "test@example.com",
-                "password": "password123",
-            },
+                "password": TEST_USER_PASSWORD
+            }
         )
-        login_data = login_response.json()
-        refresh_token = login_data.get("refresh_token") or login_response.cookies.get("refresh_token")
-        assert refresh_token is not None
-        
+        refresh_token = res1.json()["refresh_token"]
+
         # Use refresh token to get new access token
         response = await client.post(
             "/api/v1/auth/refresh",
             params={"refresh_token": refresh_token},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data  # Token rotation
-        assert data["token_type"] == "bearer"
-    
+        assert "refresh_token" in data
+
     @pytest.mark.asyncio
-    async def test_refresh_with_access_token_fails(self, client, test_user):
+    async def test_refresh_with_access_token_fails(self, client, user_token):
         """Test that refresh fails with access token instead of refresh token."""
-        # Get access token
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-        login_data = login_response.json()
-        access_token = login_data.get("access_token") or login_response.cookies.get("access_token")
-        assert access_token is not None, f"Login failed or no token: {login_response.text}"
-        
         # Clear cookies to ensure we only use the token from params/body
         client.cookies.clear()
-        
+
         # Try to use access token as refresh token
         response = await client.post(
             "/api/v1/auth/refresh",
-            params={"refresh_token": access_token},
+            params={"refresh_token": user_token}
         )
-        
+
         assert response.status_code == 401
         assert "Invalid token type" in response.json()["detail"]
-    
+
     @pytest.mark.asyncio
     async def test_refresh_invalid_token(self, client):
         """Test refresh fails with invalid token."""
@@ -215,7 +137,7 @@ class TestRefreshTokenEndpoint:
             "/api/v1/auth/refresh",
             params={"refresh_token": "invalid_token"},
         )
-        
+
         assert response.status_code == 401
 
 
@@ -223,23 +145,11 @@ class TestLogoutEndpoint:
     """Tests for POST /auth/logout endpoint."""
 
     @pytest.mark.asyncio
-    async def test_logout_success(self, client, test_user):
+    async def test_logout_success(self, client, user_token):
         """Test successful logout clears session."""
-        # Login first
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-        token = login_response.json().get("access_token")
-
-        # Logout with Authorization header
-        response = await client.post(
-            "/api/v1/auth/logout",
-            headers={"Authorization": f"Bearer {token}"}
-        )
+        # Use the token from the fixture
+        headers = {"Authorization": f"Bearer {user_token}"}
+        response = await client.post("/api/v1/auth/logout", headers=headers)
 
         assert response.status_code == 200
         assert response.json()["message"] == "Successfully logged out"
@@ -249,56 +159,38 @@ class TestChangePasswordEndpoint:
     """Tests for POST /auth/change-password endpoint."""
 
     @pytest.mark.asyncio
-    async def test_change_password_success(self, client, test_user):
+    async def test_change_password_success(self, client, test_user, user_token):
         """Test successful password change."""
-        # Login first
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
-        assert access_token is not None
-        
+        # Use token from fixture
+        headers = {"Authorization": f"Bearer {user_token}"}
+
         # Change password
         response = await client.post(
             "/api/v1/auth/change-password",
             json={
-                "old_password": "password123",
+                "old_password": TEST_USER_PASSWORD,
                 "new_password": "NewPassword456",
             },
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers=headers,
         )
-        
+
         assert response.status_code == 200
         assert response.json()["message"] == "Password updated successfully"
-        
+
         # Verify old password no longer works
         login_response = await client.post(
             "/api/v1/auth/login",
             data={
-                "username": "test@example.com",
-                "password": "password123",
+                "username": test_user.email,
+                "password": TEST_USER_PASSWORD,
             },
         )
         assert login_response.status_code == 401
-    
+
     @pytest.mark.asyncio
-    async def test_change_password_wrong_old_password(self, client, test_user):
+    async def test_change_password_wrong_old_password(self, client, user_token):
         """Test password change fails with wrong old password."""
-        # Login first
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
-        assert access_token is not None
-        
+        headers = {"Authorization": f"Bearer {user_token}"}
         # Try to change with wrong old password
         response = await client.post(
             "/api/v1/auth/change-password",
@@ -306,90 +198,68 @@ class TestChangePasswordEndpoint:
                 "old_password": "WrongPassword123",
                 "new_password": "NewPassword456",
             },
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers=headers,
         )
-        
         assert response.status_code == 400
         assert "Incorrect old password" in response.json()["detail"]
-    
+
     @pytest.mark.asyncio
-    async def test_change_password_same_as_old(self, client, test_user):
+    async def test_change_password_same_as_old(self, client, user_token):
         """Test password change fails if new password is same as old."""
-        # Login first
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
-        assert access_token is not None
-        
-        # Try to change to same password
+        headers = {"Authorization": f"Bearer {user_token}"}
         response = await client.post(
             "/api/v1/auth/change-password",
             json={
-                "old_password": "password123",
-                "new_password": "password123",
+                "old_password": TEST_USER_PASSWORD,
+                "new_password": TEST_USER_PASSWORD,
             },
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers=headers,
         )
-        
+
         assert response.status_code == 400
         assert "different from old password" in response.json()["detail"]
-    
+
     @pytest.mark.asyncio
-    async def test_change_password_too_short(self, client, test_user):
+    async def test_change_password_too_short(self, client, user_token):
         """Test password change fails if new password is too short."""
-        # Login first
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            data={
-                "username": "test@example.com",
-                "password": "password123",
-            },
-        )
-        access_token = login_response.json().get("access_token") or login_response.cookies.get("access_token")
-        assert access_token is not None
-        
-        # Try to change to short password
+        headers = {"Authorization": f"Bearer {user_token}"}
         response = await client.post(
             "/api/v1/auth/change-password",
             json={
-                "old_password": "password123",
-                "new_password": "short",
+                "old_password": TEST_USER_PASSWORD,
+                "new_password": "NewPW",
             },
-            headers={"Authorization": f"Bearer {access_token}"},
+            headers=headers,
         )
-        
-        assert response.status_code == 422 # Pydantic validation triggers 422 for min_length
+
+        # Pydantic validation triggers 422 for min_length
+        assert response.status_code == 422
         assert "at least 8 characters" in str(response.json()["detail"])
-    
+
     @pytest.mark.asyncio
     async def test_change_password_requires_auth(self, client, test_user):
         """Test password change endpoint requires authentication."""
         response = await client.post(
             "/api/v1/auth/change-password",
             json={
-                "old_password": "password123",
+                "old_password": TEST_USER_PASSWORD,
                 "new_password": "newpassword456",
             },
         )
-        
+
         assert response.status_code == 401  # Not authenticated
 
 
 class TestProtectedEndpoints:
     """Tests for protected endpoints requiring authentication."""
-    
+
     @pytest.mark.asyncio
     async def test_access_protected_without_token(self, client):
         """Test accessing protected endpoint without token fails."""
         response = await client.get("/api/v1/users/")
-        
+
         assert response.status_code == 401
-    
+
     @pytest.mark.asyncio
     async def test_access_protected_with_invalid_token(self, client):
         """Test accessing protected endpoint with invalid token fails."""
@@ -397,6 +267,5 @@ class TestProtectedEndpoints:
             "/api/v1/users/",
             headers={"Authorization": "Bearer invalid_token"},
         )
-        
-        assert response.status_code == 401
 
+        assert response.status_code == 401

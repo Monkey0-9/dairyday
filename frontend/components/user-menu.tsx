@@ -7,7 +7,9 @@ import {
     LogOut,
     User,
     Settings,
-    ChevronDown
+    ChevronDown,
+    HelpCircle,
+    KeyRound
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -26,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { authApi, usersApi } from "@/lib/api"
 import { ThemeToggle } from "./theme-toggle"
+import { ChangePasswordModal } from "./change-password-modal"
 
 export function UserMenu() {
     const t = useTranslations("Common")
@@ -92,6 +95,18 @@ export function UserMenu() {
                             <span className="text-xs font-black italic uppercase tracking-tight text-foreground/60 group-hover:text-foreground">{t('settings')}</span>
                         </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="flex items-center gap-3 p-3 rounded-xl hover:bg-foreground/5 focus:bg-foreground/5 cursor-pointer group transition-all duration-300">
+                        <Link href="/customer/support" className="flex items-center gap-3 w-full">
+                            <HelpCircle size={16} className="text-foreground/40 group-hover:text-primary" />
+                            <span className="text-xs font-black italic uppercase tracking-tight text-foreground/60 group-hover:text-foreground">{t('support')}</span>
+                        </Link>
+                    </DropdownMenuItem>
+                    <ChangePasswordModal>
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center gap-3 p-3 rounded-xl hover:bg-foreground/5 focus:bg-foreground/5 cursor-pointer group transition-all duration-300">
+                            <KeyRound size={16} className="text-foreground/40 group-hover:text-primary" />
+                            <span className="text-xs font-black italic uppercase tracking-tight text-foreground/60 group-hover:text-foreground">Change Password</span>
+                        </DropdownMenuItem>
+                    </ChangePasswordModal>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator className="bg-border/10" />
                 <div className="p-3">

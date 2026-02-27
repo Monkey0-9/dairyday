@@ -10,8 +10,6 @@ import {
     isToday,
     subMonths,
     addMonths,
-    subDays,
-    isBefore
 } from "date-fns"
 import {
     Download,
@@ -26,8 +24,10 @@ import { motion } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { EmptyGridState } from "@/components/ui/empty-state"
+import { GridSkeleton } from "@/components/skeletons"
+import { PremiumErrorState } from "@/components/ui/state-displays"
 import { consumptionApi, usersApi } from "@/lib/api"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils"
 interface ConsumptionRecord {
     user_id: string
     name: string
+    email?: string
     phone: string
     daily_liters: Record<string, number>
     audits?: Record<number, unknown>
@@ -61,15 +62,15 @@ interface ConsumptionRecord {
 
 export default function ConsumptionGridPage() {
     const t = useTranslations("Admin.consumption")
+    const tCommon = useTranslations("Common")
     const queryClient = useQueryClient()
     const [selectedMonth, setSelectedMonth] = useState(new Date())
     const [searchQuery, setSearchQuery] = useState("")
 
     const monthStr = format(selectedMonth, "yyyy-MM")
-    const today = new Date()
 
     // --- QUERY ---
-    const { data: gridData = [], isLoading } = useQuery({
+    const { data: gridData = [], isLoading, isError, refetch } = useQuery({
         queryKey: ["consumption", monthStr],
         queryFn: () => consumptionApi.getGrid(monthStr).then(res => res.data),
         staleTime: 30_000,
@@ -77,14 +78,49 @@ export default function ConsumptionGridPage() {
 
     // --- MUTATIONS ---
     const updateMutation = useMutation({
-        mutationFn: (data: Record<string, unknown>) => consumptionApi.upsert(data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["consumption", monthStr] })
-            toast.success("Record updated")
+        mutationFn: (data: { user_id: string; date: string; quantity: number; extra_qty?: number; status?: string; note?: string }) => consumptionApi.upsert(data),
+        onMutate: async (newData) => {
+            // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+            await queryClient.cancelQueries({ queryKey: ["consumption", monthStr] })
+
+            // Snapshot the previous value
+            const previousGridData = queryClient.getQueryData<ConsumptionRecord[]>(["consumption", monthStr])
+
+            // Optimistically update to the new value
+            queryClient.setQueryData<ConsumptionRecord[]>(["consumption", monthStr], (old) => {
+                if (!old) return []
+                return old.map(record => {
+                    if (record.user_id === newData.user_id) {
+                        return {
+                            ...record,
+                            daily_liters: {
+                                ...record.daily_liters,
+                                [newData.date]: newData.quantity
+                            }
+                        }
+                    }
+                    return record
+                })
+            })
+
+            // Return a context object with the snapshotted value
+            return { previousGridData }
         },
-        onError: (err) => {
-            toast.error("Failed to update record")
+        onError: (err: Error & { response?: { data?: { detail?: string } } }, _newData, context) => {
+            queryClient.setQueryData(["consumption", monthStr], context?.previousGridData)
+            const msg = err.response?.data?.detail || "Failed to update record"
+            toast.error(msg)
             console.error(err)
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["consumption", monthStr] })
+            queryClient.invalidateQueries({ queryKey: ["daily-entry"] })
+            queryClient.invalidateQueries({ queryKey: ["admin-bills"] })
+            queryClient.invalidateQueries({ queryKey: ["my-bill"] })
+            queryClient.invalidateQueries({ queryKey: ["my-bills"] })
+        },
+        onSuccess: () => {
+            toast.success(t('syncComplete'))
         }
     })
 
@@ -152,9 +188,6 @@ export default function ConsumptionGridPage() {
     }
 
     // --- RENDER HELPERS ---
-    const isDateLocked = (date: Date) => {
-        return isBefore(date, subDays(today, 7))
-    }
 
     return (
         <div className="min-h-screen bg-[#000000] text-slate-200 font-sans selection:bg-indigo-500/30 pb-20">
@@ -190,11 +223,11 @@ export default function ConsumptionGridPage() {
                                 {format(selectedMonth, "MMM yyyy")}
                             </span>
                             <div className="flex gap-0.5">
-                                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white">
-                                    <ChevronLeft className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white" aria-label={tCommon('accessibility.previous')}>
+                                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white">
-                                    <ChevronRight className="h-3.5 w-3.5" />
+                                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white" aria-label={tCommon('accessibility.next')}>
+                                    <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                                 </Button>
                             </div>
                         </div>
@@ -218,6 +251,7 @@ export default function ConsumptionGridPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9 h-9 bg-white/5 border-white/5 focus:border-indigo-500/50 rounded-xl text-[13px] text-white placeholder:text-white/20 transition-all font-medium"
+                            aria-label={tCommon('accessibility.search')}
                         />
                     </div>
                 </div>
@@ -251,20 +285,15 @@ export default function ConsumptionGridPage() {
                             </thead>
                             <tbody>
                                 {isLoading ? (
-                                    // SKELETON LOADING
-                                    Array.from({ length: 5 }).map((_, i) => (
-                                        <tr key={i} className="border-b border-white/5">
-                                            <td className="p-4 sticky left-0 bg-black/20"><Skeleton className="h-10 w-32 bg-white/5" /></td>
-                                            {daysInMonth.map(d => (
-                                                <td key={d.toString()} className="p-2"><Skeleton className="h-8 w-8 mx-auto bg-white/5 rounded-lg" /></td>
-                                            ))}
-                                            <td className="p-4"><Skeleton className="h-8 w-8 bg-white/5 rounded-full" /></td>
-                                        </tr>
-                                    ))
+                                    <tr>
+                                        <td colSpan={daysInMonth.length + 2} className="p-0">
+                                            <GridSkeleton />
+                                        </td>
+                                    </tr>
                                 ) : filteredData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={daysInMonth.length + 2} className="p-12 text-center text-white/30 italic">
-                                            {t('noCustomersFound')}
+                                        <td colSpan={daysInMonth.length + 2} className="h-[400px] text-center border-none p-0">
+                                            <EmptyGridState />
                                         </td>
                                     </tr>
                                 ) : (
@@ -279,6 +308,7 @@ export default function ConsumptionGridPage() {
                                             <td className="sticky left-0 z-10 bg-[#0a0a0e] p-2 lg:p-3 border-r border-white/5 group-hover/row:bg-[#0f0f13] transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.5)]">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-white text-[13px] truncate max-w-[140px] uppercase italic tracking-tight">{row.name}</span>
+                                                    <span className="text-white/70 text-[11px] font-mono tracking-wide mt-0.5">{row.email || row.user_id}</span>
                                                     <span className="text-indigo-400/60 text-[9px] font-mono tracking-wider">{row.phone}</span>
                                                 </div>
                                             </td>
@@ -287,7 +317,7 @@ export default function ConsumptionGridPage() {
                                             {daysInMonth.map(day => {
                                                 const dateStr = format(day, "yyyy-MM-dd")
                                                 const qty = row.daily_liters[dateStr] || 0
-                                                const locked = isDateLocked(day)
+                                                const locked = false
 
                                                 return (
                                                     <td key={dateStr} className={cn(
@@ -404,6 +434,13 @@ export default function ConsumptionGridPage() {
                         <div className="w-3 h-3 rounded-full border border-white/20 bg-transparent" />
                         <span>{t('empty')}</span>
                     </div>
+                    {/* Conditional return for error state */}
+                    {isError && (
+                        <PremiumErrorState
+                            message={t('fetchError')}
+                            onRetry={() => refetch()}
+                        />
+                    )}
                     <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center w-3 h-3">
                             <Lock className="w-3 h-3 text-white/30" />

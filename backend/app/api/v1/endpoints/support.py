@@ -11,6 +11,7 @@ from app.schemas import support as schemas
 
 router = APIRouter()
 
+
 @router.post("/", response_model=schemas.SupportTicket)
 async def create_support_ticket(
     ticket_in: schemas.SupportTicketCreate,
@@ -27,12 +28,13 @@ async def create_support_ticket(
         subject=ticket_in.subject,
         message=ticket_in.message,
         user_id=current_user.id if current_user else None,
-        status="OPEN"
+        status="OPEN",
     )
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
     return ticket
+
 
 @router.get("/", response_model=List[schemas.SupportTicket])
 async def get_my_tickets(
@@ -44,12 +46,17 @@ async def get_my_tickets(
     """
     Get tickets submitted by the current user.
     """
-    query = select(SupportTicket).where(
-        SupportTicket.user_id == current_user.id
-    ).order_by(desc(SupportTicket.created_at)).offset(skip).limit(limit)
-    
+    query = (
+        select(SupportTicket)
+        .where(SupportTicket.user_id == current_user.id)
+        .order_by(desc(SupportTicket.created_at))
+        .offset(skip)
+        .limit(limit)
+    )
+
     result = await db.execute(query)
     return result.scalars().all()
+
 
 @router.get("/admin", response_model=List[schemas.SupportTicket])
 async def get_all_tickets_admin(
@@ -63,11 +70,11 @@ async def get_all_tickets_admin(
     Admin: Get all support tickets.
     """
     query = select(SupportTicket).order_by(desc(SupportTicket.created_at))
-    
+
     if status:
         query = query.where(SupportTicket.status == status)
-        
+
     query = query.offset(skip).limit(limit)
-    
+
     result = await db.execute(query)
     return result.scalars().all()

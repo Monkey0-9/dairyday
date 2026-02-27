@@ -1,4 +1,4 @@
-""" Consumption endpoints for DairyOS.
+"""Consumption endpoints for DairyOS.
 
 Elite Standard: Clean router architecture.
 Delegates business logic to ConsumptionService and ConsumptionRepository.
@@ -14,30 +14,32 @@ import logging
 from uuid import UUID
 
 from fastapi import (
-    APIRouter, Depends, HTTPException, Query, UploadFile, File,
-    Request as FastAPIRequest, BackgroundTasks
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    UploadFile,
+    File,
+    Request as FastAPIRequest,
+    BackgroundTasks,
 )
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.api import deps
 from app.db.session import get_db
 from app.core.redis import get_redis
-from app.core.config import settings
 from app.models.user import User
 from app.models.consumption import Consumption
 from app.schemas.consumption import (
     ConsumptionCreate,
     Consumption as ConsumptionSchema,
-    MyConsumptionRequest
+    MyConsumptionRequest,
 )
 from app.services.consumption_service import ConsumptionService
 from app.repositories.consumption_repository import ConsumptionRepository
 from app.repositories.user_repository import UserRepository
-from app.services.lock_service import LockService
-from app.schemas.common import StatusResponse
-from app.services.audit_service import AuditService
+from app.core.cache import cache_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -46,9 +48,11 @@ router = APIRouter()
 async def recalculate_user_bill_task(user_id: UUID, month: str):
     """Background task to recalculate bill for a specific user."""
     from app.db.session import SessionLocal
+
     async with SessionLocal() as db:
         try:
             from app.services.billing_service import BillingService
+
             service = BillingService(db)
             await service.generate_bill_for_user(user_id, month, enqueue_pdf=False)
             await db.commit()
@@ -65,7 +69,7 @@ async def get_consumption_grid(
     """Fetch the consumption grid for a specific month (cached)."""
     redis = await get_redis()
     cache_key = f"grid:{month}"
-    
+
     if redis:
         try:
             cached = await redis.get(cache_key)
@@ -82,27 +86,28 @@ async def get_consumption_grid(
             await redis.set(cache_key, json.dumps(grid_data), ex=300)
         except Exception as e:
             logger.warning(f"Cache storage failed: {e}")
-            
+
     return grid_data
 
 
 @router.get("/mine", response_model=List[ConsumptionSchema])
+@cache_response(expire=60)
 async def get_my_consumption(
+    request: FastAPIRequest,
     month: Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")],
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(deps.get_current_user)],
 ) -> Any:
     """Get consumption records for the current user."""
     from calendar import monthrange
+
     year, month_num = map(int, month.split("-"))
     start_date = datetime.date(year, month_num, 1)
     _, last_day = monthrange(year, month_num)
     end_date = datetime.date(year, month_num, last_day)
 
     repo = ConsumptionRepository(db)
-    return await repo.get_for_user_in_range(
-        current_user.id, start_date, end_date
-    )
+    return await repo.get_for_user_in_range(current_user.id, start_date, end_date)
 
 
 @router.patch("/mine")
@@ -114,25 +119,23 @@ async def update_my_consumption(
     """Allow users to request quantity changes for Today and Tomorrow."""
     today = datetime.date.today()
     tomorrow = today + datetime.timedelta(days=1)
-    
+
     if consumption_in.date not in [today, tomorrow]:
         raise HTTPException(
             status_code=403,
-            detail="Customers can strictly only modify Today and Tomorrow."
+            detail="Customers can strictly only modify Today and Tomorrow.",
         )
 
     repo = ConsumptionRepository(db)
-    existing = await repo.get_by_user_and_date(
-        current_user.id, consumption_in.date
-    )
+    existing = await repo.get_by_user_and_date(current_user.id, consumption_in.date)
 
     if existing:
         if existing.locked:
             raise HTTPException(status_code=403, detail="Entry is locked")
-        
+
         existing.requested_quantity = consumption_in.quantity
         existing.requested_extra_qty = consumption_in.extra_qty
-        existing.request_status = 'PENDING'
+        existing.request_status = "PENDING"
         existing.request_note = consumption_in.note
         db.add(existing)
     else:
@@ -142,13 +145,26 @@ async def update_my_consumption(
             quantity=current_user.daily_target_qty,
             requested_quantity=consumption_in.quantity,
             requested_extra_qty=consumption_in.extra_qty,
-            request_status='PENDING',
+            request_status="PENDING",
             request_note=consumption_in.note,
-            status='PENDING'
+            status="PENDING",
         )
         db.add(new_c)
 
     await db.commit()
+
+    # Invalidate cache for this user
+    redis = await get_redis()
+    if redis:
+        try:
+            # Reconstruct the cache key
+            month_str = consumption_in.date.strftime("%Y-%m")
+            path = "/api/v1/consumption/mine"
+            key = f"api_cache:{current_user.id}:{path}?month={month_str}"
+            await redis.delete(key)
+        except Exception:
+            pass
+
     return {"status": "success", "message": "Request submitted."}
 
 
@@ -171,9 +187,10 @@ async def upsert_consumption(
             extra_qty=float(consumption_in.extra_qty),
             status=consumption_in.status,
             note=consumption_in.note,
-            admin_id=current_user.id
+            admin_id=current_user.id,
         )
     except ValueError as e:
+        logger.error(f"Upsert failed: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
     # Invalidate cache and trigger bill update
@@ -181,7 +198,7 @@ async def upsert_consumption(
     redis = await get_redis()
     if redis:
         await redis.delete(f"grid:{month_str}")
-    
+
     background_tasks.add_task(
         recalculate_user_bill_task, consumption_in.user_id, month_str
     )
@@ -194,6 +211,7 @@ async def upload_consumption(
     file: Annotated[UploadFile, File(...)],
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(deps.get_current_active_admin)],
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """Process bulk consumption upload (CSV/XLSX)."""
     # Logic is complex, keeping it for now but using Repo and Service patterns
@@ -201,7 +219,7 @@ async def upload_consumption(
     contents = await file.read()
     filename = file.filename.lower()
     rows = []
-    
+
     try:
         if filename.endswith(".csv"):
             decoded = contents.decode("utf-8")
@@ -211,7 +229,11 @@ async def upload_consumption(
         elif filename.endswith(".xlsx"):
             workbook = openpyxl.load_workbook(io.BytesIO(contents), data_only=True)
             sheet = workbook.active
-            rows = [r for r in sheet.iter_rows(min_row=2, values_only=True) if r and len(r) >= 3]
+            rows = [
+                r
+                for r in sheet.iter_rows(min_row=2, values_only=True)
+                if r and len(r) >= 3
+            ]
         else:
             raise HTTPException(status_code=400, detail="Use CSV or XLSX.")
     except Exception as e:
@@ -223,7 +245,7 @@ async def upload_consumption(
     user_repo = UserRepository(db)
     all_users = await user_repo.get_active_users()
     users_map = {u.email.lower(): u for u in all_users if u.email}
-    
+
     processed_count = 0
     errors = []
     affected_months = set()
@@ -242,24 +264,91 @@ async def upload_consumption(
                 continue
 
             if isinstance(date_val, (datetime.date, datetime.datetime)):
-                c_date = date_val.date() if isinstance(date_val, datetime.datetime) else date_val
+                c_date = (
+                    date_val.date()
+                    if isinstance(date_val, datetime.datetime)
+                    else date_val
+                )
             else:
-                c_date = datetime.datetime.strptime(str(date_val).strip(), "%Y-%m-%d").date()
+                c_date = datetime.datetime.strptime(
+                    str(date_val).strip(), "%Y-%m-%d"
+                ).date()
 
             await service.upsert_admin(
-                user_id=user.id, date_val=c_date,
-                quantity=float(qty_val), extra_qty=0,
-                status="DELIVERED", note="Bulk Upload",
-                admin_id=current_user.id
+                user_id=user.id,
+                date_val=c_date,
+                quantity=float(qty_val),
+                extra_qty=0,
+                status="DELIVERED",
+                note="Bulk Upload",
+                admin_id=current_user.id,
             )
             affected_months.add(c_date.strftime("%Y-%m"))
             processed_count += 1
         except Exception as e:
             errors.append(f"Row {line}: {str(e)}")
 
-    redis = await get_redis()
-    if redis:
-        for m in affected_months:
-            await redis.delete(f"grid:{m}")
+    from app.api.v1.endpoints.admin import recalculate_all_bills_task
+
+    for m in affected_months:
+        background_tasks.add_task(recalculate_all_bills_task, m)
 
     return {"processed_count": processed_count, "errors": errors[:50]}
+
+
+@router.get("/export")
+async def export_consumption(
+    month: Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_user)],
+) -> Any:
+    """Export consumption report as PDF."""
+    from app.services.pdf_generator import generate_consumption_report_pdf
+
+    service = ConsumptionService(db)
+    grid_data = await service.get_grid_data(month)
+
+    # Export format variables
+    is_admin = current_user.role in ["ADMIN", "SUPERADMIN", "BILLING_ADMIN"]
+
+    report_data = []
+    if is_admin:
+        # Prepare list of { "User Name": ..., "Email": ..., "Total": ... }
+        for row in grid_data:
+            total = sum(row.get("daily_liters", {}).values())
+            report_data.append(
+                {
+                    "User Name": row["name"],
+                    "Email": row.get("email", "N/A"),
+                    "Total": total,
+                }
+            )
+    else:
+        # Prepare single row { "1": qty, "2": qty, ..., "Total": total }
+        user_row = next(
+            (r for r in grid_data if r["user_id"] == str(current_user.id)), None
+        )
+        if user_row:
+            prepared_row = {}
+            total = 0.0
+            for date_str, qty in user_row.get("daily_liters", {}).items():
+                day_num = date_str.split("-")[-1].lstrip("0")
+                prepared_row[day_num] = qty
+                total += qty
+            prepared_row["Total"] = total
+            report_data = [prepared_row]
+        else:
+            # Empty report if no data found for user
+            report_data = [{"Total": 0.0}]
+
+    pdf_buffer = generate_consumption_report_pdf(
+        current_user.name, month, report_data, is_admin=is_admin
+    )
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (f"attachment; filename=consumption_{month}.pdf")
+        },
+    )

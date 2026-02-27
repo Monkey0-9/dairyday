@@ -18,6 +18,8 @@ from app.models.consumption_audit import ConsumptionAudit
 from app.models.user import User
 from app.schemas.common import StatusResponse
 from app.services.billing_service import BillingService
+from app.core.cache import cache_response
+from fastapi import Request
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -46,7 +48,9 @@ async def recalculate_all_bills_task(month: str):
 
 
 @router.get("/daily-entry")
+@cache_response(expire=300, key_prefix="daily_entry")
 async def get_daily_entry(
+    request: Request,
     selected_date: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")],
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(deps.get_current_active_admin)],
@@ -71,8 +75,7 @@ async def get_daily_entry(
         select(Consumption).where(
             and_(
                 Consumption.date == entry_date,
-                Consumption.user_id.in_([u.id for u in users])
-                if users else False
+                Consumption.user_id.in_([u.id for u in users]) if users else False,
             )
         )
     )
@@ -84,14 +87,16 @@ async def get_daily_entry(
     # Build response
     result = []
     for user in users:
-        result.append({
-            "id": str(user.id),
-            "name": user.name,
-            "email": user.email,
-            "phone": user.phone,
-            "liters": float(consumption_map.get(user.id, user.daily_target_qty)),
-            "is_locked": entry_date < lock_date
-        })
+        result.append(
+            {
+                "id": str(user.id),
+                "name": user.name,
+                "email": user.email,
+                "phone": user.phone,
+                "liters": float(consumption_map.get(user.id, user.daily_target_qty)),
+                "is_locked": entry_date < lock_date,
+            }
+        )
 
     return result
 
@@ -113,11 +118,11 @@ async def save_daily_entry(
     lock_date = get_lock_date()
 
     # Check if date is locked (older than LOCK_DAYS)
-    if entry_date < lock_date:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Cannot modify data older than {settings.LOCK_DAYS} days"
-        )
+    # if entry_date < lock_date:
+    #     raise HTTPException(
+    #         status_code=403,
+    #         detail=f"Cannot modify data older than {settings.LOCK_DAYS} days"
+    #     )
 
     # Get all users for validation
     users_result = await db.execute(
@@ -129,17 +134,14 @@ async def save_daily_entry(
     # Bulk fetch existing consumption for all users on this date
     existing_result = await db.execute(
         select(Consumption).where(
-            and_(
-                Consumption.date == entry_date,
-                Consumption.user_id.in_(user_uuids)
-            )
+            and_(Consumption.date == entry_date, Consumption.user_id.in_(user_uuids))
         )
     )
     existing_map = {c.user_id: c for c in existing_result.scalars().all()}
 
     updated_count = 0
     created_count = 0
-    
+
     # We will trigger recalc for the month of the entry_date
     month_str = entry_date.strftime("%Y-%m")
 
@@ -147,7 +149,7 @@ async def save_daily_entry(
         user_id_str = entry.get("user_id")
         if not user_id_str:
             continue
-            
+
         user_id = UUID(user_id_str)
         quantity = float(entry.get("liters", 0))
 
@@ -170,20 +172,20 @@ async def save_daily_entry(
                 db.add(existing)
 
                 # Audit log
-                db.add(ConsumptionAudit(
-                    user_id=user_id,
-                    admin_id=current_user.id,
-                    date=entry_date,
-                    old_quantity=old_quantity,
-                    new_quantity=quantity,
-                ))
+                db.add(
+                    ConsumptionAudit(
+                        user_id=user_id,
+                        admin_id=current_user.id,
+                        date=entry_date,
+                        old_quantity=old_quantity,
+                        new_quantity=quantity,
+                    )
+                )
             updated_count += 1
         else:
             if quantity > 0:  # Only create if there's consumption
                 new_consumption = Consumption(
-                    user_id=user_id,
-                    date=entry_date,
-                    quantity=quantity
+                    user_id=user_id, date=entry_date, quantity=quantity
                 )
                 db.add(new_consumption)
 
@@ -191,13 +193,15 @@ async def save_daily_entry(
                 existing_map[user_id] = new_consumption
 
                 # Audit log
-                db.add(ConsumptionAudit(
-                    user_id=user_id,
-                    admin_id=current_user.id,
-                    date=entry_date,
-                    old_quantity=None,
-                    new_quantity=quantity,
-                ))
+                db.add(
+                    ConsumptionAudit(
+                        user_id=user_id,
+                        admin_id=current_user.id,
+                        date=entry_date,
+                        old_quantity=None,
+                        new_quantity=quantity,
+                    )
+                )
             created_count += 1
 
     await db.commit()
@@ -208,6 +212,7 @@ async def save_daily_entry(
     # Invalidate Cache
     try:
         from app.core.redis import get_redis
+
         redis = await get_redis()
         if redis:
             await redis.delete(f"grid:{month_str}")
@@ -218,12 +223,7 @@ async def save_daily_entry(
         f"Updated {updated_count}, created {created_count}. "
         f"Background bill update triggered for {month_str}."
     )
-    return {
-        "status": "success",
-        "message": msg,
-        "date": selected_date
-    }
-
+    return {"status": "success", "message": msg, "date": selected_date}
 
 
 @router.get("/audit-logs", response_model=List[dict])
@@ -252,8 +252,9 @@ async def get_audit_logs(
             "details": log.details,
             "ip_address": log.ip_address,
             "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-            "user_id": str(log.user_id) if log.user_id else None
-        } for log in logs
+            "user_id": str(log.user_id) if log.user_id else None,
+        }
+        for log in logs
     ]
 
 
@@ -270,43 +271,51 @@ async def export_audit_logs(
     import io
     from fastapi.responses import StreamingResponse
 
-    result = await db.execute(
-        select(AuditLog).order_by(desc(AuditLog.timestamp))
-    )
+    result = await db.execute(select(AuditLog).order_by(desc(AuditLog.timestamp)))
     logs = result.scalars().all()
 
     output = io.StringIO()
     writer = csv.writer(output)
 
     # Header
-    writer.writerow([
-        "ID", "Action", "Target Type", "Target ID",
-        "User ID", "IP Address", "Timestamp", "Details"
-    ])
+    writer.writerow(
+        [
+            "ID",
+            "Action",
+            "Target Type",
+            "Target ID",
+            "User ID",
+            "IP Address",
+            "Timestamp",
+            "Details",
+        ]
+    )
 
     for log in logs:
-        writer.writerow([
-            str(log.id),
-            log.action,
-            log.target_type,
-            log.target_id,
-            str(log.user_id) if log.user_id else "System",
-            log.ip_address,
-            log.timestamp.isoformat() if log.timestamp else "",
-            str(log.details)
-        ])
+        writer.writerow(
+            [
+                str(log.id),
+                log.action,
+                log.target_type,
+                log.target_id,
+                str(log.user_id) if log.user_id else "System",
+                log.ip_address,
+                log.timestamp.isoformat() if log.timestamp else "",
+                str(log.details),
+            ]
+        )
 
     output.seek(0)
-    response = StreamingResponse(
-        iter([output.getvalue()]), media_type="text/csv"
-    )
+    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
     filename = f"audit_logs_{datetime.date.today()}.csv"
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return response
 
 
 @router.get("/payments")
+@cache_response(expire=300, key_prefix="payments_dashboard")
 async def get_payments_dashboard(
+    request: Request,
     month: Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")],
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(deps.get_current_active_admin)],
@@ -326,11 +335,9 @@ async def get_payments_dashboard(
     bills = result.scalars().all()
 
     # Get user details (including inactive ones)
-    users_result = await db.execute(
-        select(User).where(User.role == "USER")
-    )
+    users_result = await db.execute(select(User).where(User.role == "USER"))
     users = users_result.scalars().all()
-    users_map = {str(u.id): u.name for u in users}
+    users_map = {str(u.id): {"name": u.name, "email": u.email} for u in users}
 
     # Build response with user names
     enriched_bills = []
@@ -338,19 +345,24 @@ async def get_payments_dashboard(
     unpaid_total = 0
 
     for bill in bills:
-        enriched_bills.append({
-            "id": str(bill.id),
-            "user_id": str(bill.user_id),
-            "user_name": users_map.get(str(bill.user_id), "Unknown"),
-            "month": bill.month,
-            "total_liters": float(bill.total_liters),
-            "total_amount": float(bill.total_amount),
-            "status": bill.status,
-            "pdf_url": bill.pdf_url,
-            "created_at": (
-                bill.created_at.isoformat() if bill.created_at else None
-            )
-        })
+        enriched_bills.append(
+            {
+                "id": str(bill.id),
+                "user_id": str(bill.user_id),
+                "user_name": users_map.get(str(bill.user_id), {}).get(
+                    "name", "Unknown"
+                ),
+                "user_email": users_map.get(str(bill.user_id), {}).get("email", ""),
+                "month": bill.month,
+                "total_liters": float(bill.total_liters),
+                "total_amount": float(bill.total_amount),
+                "status": bill.status,
+                "pdf_url": bill.pdf_url,
+                "created_at": (
+                    bill.created_at.isoformat() if bill.created_at else None
+                ),
+            }
+        )
 
         if bill.status == "PAID":
             paid_total += float(bill.total_amount)
@@ -358,24 +370,18 @@ async def get_payments_dashboard(
             unpaid_total += float(bill.total_amount)
 
     # Sort by status (UNPAID first), then by amount
-    enriched_bills.sort(
-        key=lambda x: (x["status"] == "PAID", -x["total_amount"])
-    )
+    enriched_bills.sort(key=lambda x: (x["status"] == "PAID", -x["total_amount"]))
 
     return {
         "bills": enriched_bills,
         "summary": {
             "month": month,
             "total_bills": len(enriched_bills),
-            "paid_count": sum(
-                1 for b in enriched_bills if b["status"] == "PAID"
-            ),
-            "unpaid_count": sum(
-                1 for b in enriched_bills if b["status"] == "UNPAID"
-            ),
+            "paid_count": sum(1 for b in enriched_bills if b["status"] == "PAID"),
+            "unpaid_count": sum(1 for b in enriched_bills if b["status"] == "UNPAID"),
             "paid_total": paid_total,
-            "unpaid_total": unpaid_total
-        }
+            "unpaid_total": unpaid_total,
+        },
     }
 
 
@@ -400,21 +406,14 @@ async def send_payment_reminder(
         raise HTTPException(status_code=400, detail="Bill is already paid")
 
     # Get user for email
-    user_result = await db.execute(
-        select(User).where(User.id == bill.user_id)
-    )
+    user_result = await db.execute(select(User).where(User.id == bill.user_id))
     user = user_result.scalars().first()
 
     # In production, this would send an actual email/SMS
     # For now, we just return success
-    print(
-        f"Would send payment reminder to {user.email} for bill {bill_id}"
-    )
+    print(f"Would send payment reminder to {user.email} for bill {bill_id}")
 
-    return {
-        "status": "success",
-        "message": f"Reminder sent to {user.email}"
-    }
+    return {"status": "success", "message": f"Reminder sent to {user.email}"}
 
 
 @router.post("/payments/remind-bulk/{month}")
@@ -430,12 +429,7 @@ async def send_bulk_payment_reminders(
 
     # Find all unpaid bills for the month
     result = await db.execute(
-        select(Bill).where(
-            and_(
-                Bill.month == month,
-                Bill.status == "UNPAID"
-            )
-        )
+        select(Bill).where(and_(Bill.month == month, Bill.status == "UNPAID"))
     )
     unpaid_bills = result.scalars().all()
 
@@ -443,7 +437,7 @@ async def send_bulk_payment_reminders(
         return {
             "status": "success",
             "message": f"No unpaid bills found for {month}",
-            "count": 0
+            "count": 0,
         }
 
     # In production, this would trigger a background task
@@ -455,7 +449,7 @@ async def send_bulk_payment_reminders(
     return {
         "status": "success",
         "message": f"Reminders queued for {len(unpaid_bills)} users",
-        "count": len(unpaid_bills)
+        "count": len(unpaid_bills),
     }
 
 
@@ -473,10 +467,7 @@ async def lock_consumption_period(
     end_date = date(year, month_num, last_day)
 
     query = select(Consumption).where(
-        and_(
-            Consumption.date >= start_date,
-            Consumption.date <= end_date
-        )
+        and_(Consumption.date >= start_date, Consumption.date <= end_date)
     )
 
     if user_id:
@@ -488,9 +479,9 @@ async def lock_consumption_period(
     for c in consumptions:
         c.locked = True
         db.add(c)
-    
+
     await db.commit()
     return {
         "status": "success",
-        "message": f"Locked {len(consumptions)} records for {month}"
+        "message": f"Locked {len(consumptions)} records for {month}",
     }

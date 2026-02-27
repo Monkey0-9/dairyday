@@ -9,6 +9,17 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 from httpx import AsyncClient, ASGITransport
+# Set test environment (MUST be before app imports)
+os.environ["SENTRY_ENVIRONMENT"] = "testing"
+os.environ["ENVIRONMENT"] = "testing"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["REDIS_URL"] = "redis://localhost:6379/0"
+os.environ["SECRET_KEY"] = os.environ.get("TEST_SECRET_KEY", "test-secret-key-for-testing-only")
+os.environ["SENTRY_DSN"] = ""  # Disable Sentry in tests
+os.environ["POSTGRES_SERVER"] = "localhost"
+os.environ["JWT_AUDIENCE"] = "dairy-os"
+os.environ["JWT_ISSUER"] = "dairy-os"
+
 from app.db.base import Base
 from app.main import app
 from app.db.session import get_db
@@ -17,18 +28,12 @@ from app.models.consumption import Consumption
 from app.core.security import get_password_hash
 from decimal import Decimal
 import uuid
+from tests.constants import TEST_USER_PASSWORD, TEST_ADMIN_PASSWORD
 
-# Add backend to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Test Constants defined in tests/constants.py
 
-# Set test environment
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-os.environ["REDIS_URL"] = "redis://localhost:6379/0"
-os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
-os.environ["SENTRY_DSN"] = ""  # Disable Sentry in tests
-os.environ["POSTGRES_SERVER"] = "localhost"
-os.environ["JWT_AUDIENCE"] = "dairy-os"
-os.environ["JWT_ISSUER"] = "dairy-os"
+from app.core.limiter import limiter
+limiter.enabled = False
 
 
 # Create async engine for tests
@@ -114,7 +119,7 @@ async def test_user(db_session: AsyncSession) -> User:
         role="USER",
         price_per_liter=Decimal("60.00"),
         is_active=True,
-        hashed_password=get_password_hash("password123"),
+        hashed_password=get_password_hash(TEST_USER_PASSWORD),
     )
     db_session.add(user)
     await db_session.commit()
@@ -132,7 +137,7 @@ async def test_admin(db_session: AsyncSession) -> User:
         role="ADMIN",
         price_per_liter=Decimal("60.00"),
         is_active=True,
-        hashed_password=get_password_hash("adminpass123"),
+        hashed_password=get_password_hash(TEST_ADMIN_PASSWORD),
     )
     db_session.add(admin)
     await db_session.commit()
@@ -141,30 +146,30 @@ async def test_admin(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def admin_token(client: AsyncClient, test_admin: User) -> str:
+async def admin_token(client: AsyncClient, test_admin: User, db_session: AsyncSession) -> str:
     """Get admin access token for tests."""
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": "admin@example.com", "password": "adminpass123"}
+        data={"username": "admin@example.com", "password": TEST_ADMIN_PASSWORD}
     )
     assert response.status_code == 200
     data = response.json()
     token = data.get("access_token") or response.cookies.get("access_token")
-    assert token is not None
+    assert token is not None, f"Login failed to return access token: {data}"
     return token
 
 
 @pytest_asyncio.fixture
-async def user_token(client: AsyncClient, test_user: User) -> str:
+async def user_token(client: AsyncClient, test_user: User, db_session: AsyncSession) -> str:
     """Get user access token for tests."""
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": "test@example.com", "password": "password123"}
+        data={"username": "test@example.com", "password": TEST_USER_PASSWORD}
     )
     assert response.status_code == 200
     data = response.json()
     token = data.get("access_token") or response.cookies.get("access_token")
-    assert token is not None
+    assert token is not None, f"Login failed to return access token: {data}"
     return token
 
 

@@ -23,8 +23,8 @@ export function FontSizeProvider({ children }: { children: React.ReactNode }) {
 
     // Apply actual scaling
     let scale = 100
-    if (fontSize === "small") scale = 85
-    if (fontSize === "large") scale = 120
+    if (fontSize === "small") scale = 75
+    if (fontSize === "large") scale = 135
 
     root.style.fontSize = `${scale}%`
   }, [fontSize])

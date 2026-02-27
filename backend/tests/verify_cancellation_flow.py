@@ -1,9 +1,9 @@
-import requests
+import os
 import sys
-import json
+import requests
 from datetime import datetime, timedelta
 
-BASE_URL = "http://127.0.0.1:8000/api/v1"
+BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8000/api/v1")
 
 def login(email, password):
     response = requests.post(
@@ -19,13 +19,13 @@ def login(email, password):
 def test_cancellation_flow():
     # 1. Login as User
     print("Step 1: Logging in as User...")
-    user_email = "e2e_test@dairy.com"
-    user_password = "password123"  # Standard test password
+    user_email = os.environ.get("TEST_USER_EMAIL", "e2e_test@dairy.com")
+    user_password = os.environ.get("TEST_USER_PASSWORD", "password123")  # Standard test password
     
     # Try to login, if fails, we might need to create the user (optional setup)
     try:
         user_token = login(user_email, user_password)
-    except:
+    except Exception:
         print("User login failed. Ensure test user exists.")
         return
 
@@ -54,7 +54,9 @@ def test_cancellation_flow():
 
     # 3. Login as Admin
     print("Step 3: Logging in as Admin...")
-    admin_token = login("admin@dairy.com", "admin123")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@dairy.com")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    admin_token = login(admin_email, admin_password)
     headers_admin = {"Authorization": f"Bearer {admin_token}"}
 
     # 4. Verify cancellation in Admin view

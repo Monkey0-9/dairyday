@@ -106,7 +106,7 @@ export default function SupportPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">support@dairyday.com</p>
+              <p className="text-muted-foreground">dairydaysdairydays@gmail.com</p>
               <p className="text-sm text-muted-foreground mt-1">Response time: &lt; 2 hours</p>
             </CardContent>
           </Card>
@@ -132,7 +132,7 @@ export default function SupportPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">123 Dairy Tech Park,<br/>Bangalore, India</p>
+              <p className="text-muted-foreground">123 Dairy Tech Park,<br />Bangalore, India</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -140,9 +140,9 @@ export default function SupportPage() {
         {/* Contact Form */}
         <motion.div variants={itemVariants} className="md:col-span-2">
           <Card className="glass border-border/50 shadow-2xl relative overflow-hidden">
-             {/* Background decoration */}
-             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
-             
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
+
             <CardHeader>
               <CardTitle className="text-2xl">Send us a message</CardTitle>
               <CardDescription>
@@ -202,10 +202,10 @@ export default function SupportPage() {
                       <FormItem>
                         <FormLabel>Message</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Tell us more about your inquiry..." 
-                            className="min-h-[150px] bg-background/50 resize-none" 
-                            {...field} 
+                          <Textarea
+                            placeholder="Tell us more about your inquiry..."
+                            className="min-h-[150px] bg-background/50 resize-none"
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -242,29 +242,29 @@ export default function SupportPage() {
         className="space-y-6"
       >
         <div className="text-center">
-            <h2 className="text-3xl font-bold font-heading">Frequently Asked Questions</h2>
-            <p className="text-muted-foreground mt-2">Common questions about billing and delivery</p>
+          <h2 className="text-3xl font-bold font-heading">Frequently Asked Questions</h2>
+          <p className="text-muted-foreground mt-2">Common questions about billing and delivery</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
-            {[
-                { q: "How do I change my subscription plan?", a: "You can view your current plan in your Profile settings. To upgrade, please contact our support team or use the 'Upgrade' button in your profile." },
-                { q: "When is the bill generated?", a: "Bills are generated on the 1st of every month for the previous month's consumption." },
-                { q: "How can I pause my milk delivery?", a: "Go to the Dashboard calendar, click on a future date, and select 'Cancel Delivery' or set quantity to 0." },
-                { q: "Is online payment secure?", a: "Yes, we use Razorpay for secure and encrypted payment processing." }
-            ].map((faq, index) => (
-                <Card key={index} className="hover:border-primary/50 transition-colors cursor-default">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-start gap-2">
-                            <HelpCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                            {faq.q}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">{faq.a}</p>
-                    </CardContent>
-                </Card>
-            ))}
+          {[
+            { q: "How do I change my subscription plan?", a: "You can view your current plan in your Profile settings. To upgrade, please contact our support team or use the 'Upgrade' button in your profile." },
+            { q: "When is the bill generated?", a: "Bills are generated on the 1st of every month for the previous month's consumption." },
+            { q: "How can I pause my milk delivery?", a: "Go to the Dashboard calendar, click on a future date, and select 'Cancel Delivery' or set quantity to 0." },
+            { q: "Is online payment secure?", a: "Yes, we use Razorpay for secure and encrypted payment processing." }
+          ].map((faq, index) => (
+            <Card key={index} className="hover:border-primary/50 transition-colors cursor-default">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-start gap-2">
+                  <HelpCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  {faq.q}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{faq.a}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </motion.div>
     </div>

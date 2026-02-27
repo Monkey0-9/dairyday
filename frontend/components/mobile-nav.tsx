@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { LayoutDashboard, Calendar, FileText, CreditCard } from "lucide-react"
+import { LayoutDashboard, Calendar, FileText, CreditCard, HelpCircle } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
 
@@ -16,6 +16,7 @@ export function MobileNav() {
     { href: "/customer/calendar", label: t("calendar"), icon: Calendar },
     { href: "/customer/records", label: t("records"), icon: FileText },
     { href: "/customer/payment", label: t("pay"), icon: CreditCard },
+    { href: "/customer/support", label: t("support"), icon: HelpCircle },
   ]
 
   return (
@@ -34,7 +35,7 @@ export function MobileNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className="relative flex flex-col items-center justify-center gap-1 p-2 flex-1 group"
+              className="relative flex flex-col items-center justify-center gap-0.5 p-3 flex-1 group min-h-[48px] min-w-[48px]"
             >
               {isActive && (
                 <motion.div
@@ -48,12 +49,12 @@ export function MobileNav() {
                 "relative z-10 p-2 rounded-xl transition-all duration-500",
                 isActive ? "text-primary scale-110 shadow-glow-primary/50" : "text-foreground/40 group-hover:text-foreground"
               )}>
-                <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
               </div>
 
               <span className={cn(
-                "font-micro text-[9px] uppercase tracking-widest transition-all duration-300 relative z-10",
-                isActive ? "text-foreground opacity-100 translate-y-0" : "text-foreground/20 opacity-0 -translate-y-2 group-hover:translate-y-0 group-hover:opacity-40"
+                "font-micro text-[10px] uppercase tracking-wider transition-all duration-300 relative z-10",
+                isActive ? "text-foreground opacity-100" : "text-foreground/30 opacity-60"
               )}>
                 {tab.label}
               </span>

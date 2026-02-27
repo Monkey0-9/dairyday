@@ -11,7 +11,6 @@ import {
     Loader2,
     ShieldCheck,
     User,
-    Mail,
     Phone,
     MapPin,
     Lock,
@@ -43,8 +42,8 @@ export default function SignupPage() {
 
     const signupSchema = z.object({
         name: z.string().min(2, t('valNameRequired')),
-        email: z.string().email(t('valEmailInvalid')),
         phone: z.string().min(10, t('valPhoneRequired')),
+        daily_target_qty: z.preprocess((val) => parseFloat(val as string), z.number().min(0.1, t('valDailyQuantityRequired'))),
         address: z.string().min(5, t('valAddressRequired')),
         password: z.string().min(8, t('valPasswordRequired')),
         confirmPassword: z.string().min(8, t('valPasswordRequired')),
@@ -70,8 +69,8 @@ export default function SignupPage() {
         resolver: zodResolver(signupSchema),
         defaultValues: {
             name: "",
-            email: "",
             phone: "",
+            daily_target_qty: 1.0,
             address: "",
             password: "",
             confirmPassword: "",
@@ -96,7 +95,7 @@ export default function SignupPage() {
         setIsLoading(true)
         try {
             await registrationApi.signup(values)
-            setEmailForVerification(values.email)
+            setEmailForVerification(values.phone) // Using phone for verification tracking
             setStep('verify')
             toast.success(t('verificationCodeSent'))
         } catch (error: unknown) {
@@ -111,7 +110,7 @@ export default function SignupPage() {
         setIsLoading(true)
         try {
             await registrationApi.verifyOtp({
-                email: emailForVerification,
+                email: emailForVerification, // This is actually the phone number now
                 otp_code: values.otp_code
             })
             setIsSuccess(true)
@@ -185,7 +184,7 @@ export default function SignupPage() {
         <div className="min-h-screen w-full flex items-center justify-center relative bg-background overflow-hidden selection:bg-primary/30 py-20">
             <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
                 <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[200px] animate-pulse-glow opacity-30" />
-                <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[200px] animate-pulse-glow opacity-20" style={{ animationDelay: '2s' }} />
+                <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[200px] animate-pulse-glow opacity-20 animation-delay-2000" />
             </div>
 
             <motion.div
@@ -256,23 +255,25 @@ export default function SignupPage() {
                                                 />
                                             </div>
 
-                                            <FormField
-                                                control={form.control}
-                                                name="email"
-                                                render={({ field }) => (
-                                                    <FormItem className="space-y-2">
-                                                        <FormLabel className="font-micro ml-1 flex items-center gap-2"><Mail className="w-3 h-3" /> {t('email').toUpperCase()}</FormLabel>
-                                                        <FormControl>
-                                                            <Input
-                                                                placeholder={t('emailPlaceholder')}
-                                                                className="h-12 bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] rounded-xl transition-all duration-500 pl-4 text-white font-bold text-sm"
-                                                                {...field}
-                                                            />
-                                                        </FormControl>
-                                                        <FormMessage className="font-micro text-destructive" />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="daily_target_qty"
+                                                    render={({ field }) => (
+                                                        <FormItem className="space-y-2">
+                                                            <FormLabel className="font-micro ml-1 flex items-center gap-2">MILK QUANTITY (L)</FormLabel>
+                                                            <FormControl>
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.1"
+                                                                    placeholder="1.0"
+                                                                    className="h-12 bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] rounded-xl transition-all duration-500 pl-4 text-white font-bold text-sm"
+                                                                    {...field}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage className="font-micro text-destructive" />
+                                                        </FormItem>
+                                                    )}
+                                                />
 
                                             <FormField
                                                 control={form.control}
@@ -328,12 +329,21 @@ export default function SignupPage() {
                                                         <FormItem className="space-y-2">
                                                             <FormLabel className="font-micro ml-1 flex items-center gap-2"><Lock className="w-3 h-3" /> {t('confirmPassword').toUpperCase()}</FormLabel>
                                                             <FormControl>
-                                                                <Input
-                                                                    type={showPassword ? "text" : "password"}
-                                                                    placeholder="••••••••"
-                                                                    className="h-12 bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] rounded-xl transition-all duration-500 pl-4 text-white font-bold text-sm"
-                                                                    {...field}
-                                                                />
+                                                                <div className="relative group/input">
+                                                                    <Input
+                                                                        type={showPassword ? "text" : "password"}
+                                                                        placeholder="••••••••"
+                                                                        className="h-12 bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] rounded-xl transition-all duration-500 pl-4 pr-10 text-white font-bold text-sm"
+                                                                        {...field}
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setShowPassword(!showPassword)}
+                                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors p-1"
+                                                                    >
+                                                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                                                    </button>
+                                                                </div>
                                                             </FormControl>
                                                             <FormMessage className="font-micro text-destructive" />
                                                         </FormItem>
@@ -441,20 +451,20 @@ export default function SignupPage() {
             </motion.div>
 
             {/* Cyber Diagnostics Footer */}
-            <div className="absolute bottom-8 left-0 right-0 px-10 flex justify-between items-center pointer-events-none opacity-20">
-                <div className="flex gap-12">
+            <div className="absolute bottom-8 left-0 right-0 px-4 sm:px-10 flex justify-between items-center pointer-events-none opacity-20">
+                <div className="flex gap-4 sm:gap-12">
                     <div className="flex flex-col">
                         <span className="font-micro text-[8px] mb-1">{tAuth('regionLabel')}</span>
-                        <span className="font-heading font-black italic text-lg tracking-tighter">IN-WEST-1</span>
+                        <span className="font-heading font-black italic text-base sm:text-lg tracking-tighter">IN-WEST-1</span>
                     </div>
                     <div className="flex flex-col">
                         <span className="font-micro text-[8px] mb-1">{tAuth('encryptionLabel')}</span>
-                        <span className="font-heading font-black italic text-lg tracking-tighter">ECDSA_384</span>
+                        <span className="font-heading font-black italic text-base sm:text-lg tracking-tighter">ECDSA_384</span>
                     </div>
                 </div>
                 <div className="flex flex-col items-end">
                     <span className="font-micro text-[8px] mb-1">{tAuth('systemUptime')}</span>
-                    <span className="font-heading font-black italic text-lg tracking-tighter">99.999%</span>
+                    <span className="font-heading font-black italic text-base sm:text-lg tracking-tighter">99.999%</span>
                 </div>
             </div>
         </div>

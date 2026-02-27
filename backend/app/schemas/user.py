@@ -8,128 +8,91 @@ import re
 
 class UserBase(BaseModel):
     """Base user schema with common fields."""
+
     model_config = ConfigDict(populate_by_name=True)
 
-    name: str = Field(
-        ...,
-        min_length=2,
-        max_length=255,
-        description="User's full name"
-    )
-    email: Optional[EmailStr] = Field(
-        None,
-        description="User's email address"
-    )
+    name: str = Field(..., min_length=2, max_length=255, description="User's full name")
+    email: Optional[EmailStr] = Field(None, description="User's email address")
     phone: Optional[str] = Field(
-        None,
-        pattern=r'^\+?[1-9]\d{1,14}$',
-        description="Phone number in E.164 format"
+        None, pattern=r"^\+?[1-9]\d{1,14}$", description="Phone number in E.164 format"
     )
-    role: str = Field(
-        default="USER",
-        description="User role (ADMIN or USER)"
-    )
+    role: str = Field(default="USER", description="User role (ADMIN or USER)")
     price_per_liter: Decimal = Field(
-        default=Decimal("0.0"),
-        ge=0,
-        le=1000,
-        description="Price per liter in INR"
+        default=Decimal("0.0"), ge=0, le=1000, description="Price per liter in INR"
     )
     is_active: bool = Field(
-        default=True,
-        description="Whether the user account is active"
+        default=True, description="Whether the user account is active"
     )
     total_liters: Optional[Decimal] = Field(
-        default=None,
-        description="Total liters consumed in current month"
+        default=None, description="Total liters consumed in current month"
     )
     address: Optional[str] = Field(
-        None,
-        max_length=500,
-        description="User's physical address"
+        None, max_length=500, description="User's physical address"
     )
     daily_target_qty: Decimal = Field(
         default=Decimal("1.0"),
         ge=0,
-        description="Standard daily milk delivery quantity"
+        description="Standard daily milk delivery quantity",
     )
     language: str = Field(
-        default="en",
-        description="Preferred language (en, kn, te, ta, hi)"
+        default="en", description="Preferred language (en, kn, te, ta, hi)"
     )
-    theme: str = Field(
-        default="dark",
-        description="UI theme (dark, light)"
-    )
+    theme: str = Field(default="dark", description="UI theme (dark, light)")
     font_size: str = Field(
-        default="medium",
-        description="UI font size (small, medium, large)"
+        default="medium", description="UI font size (small, medium, large)"
     )
+
 
 class UserCreate(UserBase):
     """Schema for creating a new user."""
+
     password: str = Field(
         ...,
         min_length=8,
         max_length=128,
-        description="User password (min 8 characters)"
+        description="User password (min 8 characters)",
     )
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def password_strength(cls, v: str) -> str:
         """Validate password meets minimum security requirements."""
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
-        if not re.search(r'[A-Za-z]', v):
+        if not re.search(r"[A-Za-z]", v):
             raise ValueError("Password must contain at least one letter")
-        if not re.search(r'[0-9]', v):
+        if not re.search(r"[0-9]", v):
             raise ValueError("Password must contain at least one number")
         return v
 
 
 class UserUpdate(BaseModel):
     """Schema for updating user information."""
+
     model_config = ConfigDict(populate_by_name=True)
 
-    name: Optional[str] = Field(
-        None,
-        min_length=2,
-        max_length=255
-    )
+    name: Optional[str] = Field(None, min_length=2, max_length=255)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(
-        None,
-        pattern=r'^\+?[1-9]\d{1,14}$'
-    )
-    role: Optional[str] = Field(
-        None,
-        pattern=r'^(ADMIN|USER)$'
-    )
-    price_per_liter: Optional[Decimal] = Field(
-        None,
-        ge=0,
-        le=1000
-    )
+    phone: Optional[str] = Field(None, pattern=r"^\+?[1-9]\d{1,14}$")
+    role: Optional[str] = Field(None, pattern=r"^(ADMIN|USER)$")
+    price_per_liter: Optional[Decimal] = Field(None, ge=0, le=1000)
     is_active: Optional[bool] = None
-    password: Optional[str] = Field(
-        None,
-        min_length=8,
-        max_length=128
-    )
+    password: Optional[str] = Field(None, min_length=8, max_length=128)
     address: Optional[str] = None
     daily_target_qty: Optional[Decimal] = Field(None, ge=0)
     language: Optional[str] = None
     theme: Optional[str] = None
     font_size: Optional[str] = None
 
+
 class UserUpdateMe(BaseModel):
     """Schema for users updating their own profile."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     name: Optional[str] = Field(None, min_length=2, max_length=255)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, pattern=r'^\+?[1-9]\d{1,14}$')
+    phone: Optional[str] = Field(None, pattern=r"^\+?[1-9]\d{1,14}$")
     address: Optional[str] = None
     daily_target_qty: Optional[Decimal] = Field(None, ge=0)
     language: Optional[str] = None
@@ -139,35 +102,30 @@ class UserUpdateMe(BaseModel):
 
 class PasswordChange(BaseModel):
     """Schema for changing password."""
+
     model_config = ConfigDict(populate_by_name=True)
 
-    old_password: str = Field(
-        ...,
-        min_length=1,
-        description="Current password"
-    )
+    old_password: str = Field(..., min_length=1, description="Current password")
     new_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="New password"
+        ..., min_length=8, max_length=128, description="New password"
     )
 
-    @field_validator('new_password')
+    @field_validator("new_password")
     @classmethod
     def password_strength(cls, v: str) -> str:
         """Validate new password meets minimum security requirements."""
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
-        if not re.search(r'[A-Za-z]', v):
+        if not re.search(r"[A-Za-z]", v):
             raise ValueError("Password must contain at least one letter")
-        if not re.search(r'[0-9]', v):
+        if not re.search(r"[0-9]", v):
             raise ValueError("Password must contain at least one number")
         return v
 
 
 class UserInDBBase(UserBase):
     """Base schema for user in database."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
@@ -176,22 +134,25 @@ class UserInDBBase(UserBase):
 
 class User(UserInDBBase):
     """Public user schema (without sensitive data)."""
+
     pass
 
 
 class UserInDB(UserInDBBase):
     """User schema for internal use (includes hashed password)."""
+
     hashed_password: str
 
 
 class ForgotPassword(BaseModel):
     """Schema for forgot password request."""
+
     identifier: str = Field(..., description="Email or phone number")
 
 
 class ResetPassword(BaseModel):
-    """Schema for resetting password with OTP."""
-    identifier: str = Field(..., description="Email or phone number")
-    otp_code: str = Field(..., min_length=6, max_length=6)
-    new_password: str = Field(..., min_length=8)
+    """Schema for resetting password (admin-approved)."""
 
+    identifier: str = Field(..., description="Email or phone number")
+    new_password: str = Field(..., min_length=8)
+    token: str = Field(..., description="JWT reset token")

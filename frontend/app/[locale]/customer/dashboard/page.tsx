@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { format, isSameMonth } from "date-fns"
+import { useTranslations, useLocale } from "next-intl"
+import { formatCurrency, getDateFnsLocale } from "@/lib/i18n-utils"
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,7 +13,6 @@ import {
   Calendar,
   TrendingUp,
   CheckCircle2,
-
   ArrowRight,
   Wallet,
   Zap,
@@ -19,11 +20,10 @@ import {
   Fingerprint,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import CountUp from "react-countup"
 import Link from "next/link"
 
-import { useTranslations } from "next-intl"
 import { consumptionApi, billsApi, authApi, paymentsApi } from "@/lib/api"
+import { PremiumLoadingState } from "@/components/ui/state-displays"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -31,35 +31,35 @@ import { cn } from "@/lib/utils"
 
 const MetricCard = ({ icon, label, value, subtext, color, delay = 0, className }: { icon: React.ReactNode; label: string; value: React.ReactNode; subtext?: string; color: "primary" | "amber" | "emerald" | "neutral"; delay?: number; className?: string }) => {
   const colors = {
-    primary: "text-primary border-primary/20 bg-primary/5",
-    amber: "text-yellow-600 dark:text-yellow-400 border-yellow-500/20 bg-yellow-500/5",
-    emerald: "text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/5",
-    neutral: "text-foreground/20 border-border/5 bg-foreground/[0.02]",
+    primary: "text-primary border-primary/20 bg-primary/5 shadow-glow-primary/5",
+    amber: "text-amber-500 border-amber-500/20 bg-amber-500/5 shadow-glow-amber/5",
+    emerald: "text-emerald-500 border-emerald-500/20 bg-emerald-500/5 shadow-glow-emerald/5",
+    neutral: "text-foreground/40 border-border/10 bg-foreground/[0.02] shadow-glass-elev",
   }
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.8 }}
+      transition={{ delay, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "p-4 rounded-[1.5rem] glass-card flex flex-col justify-between group hover:border-primary/30 transition-all duration-700 relative overflow-hidden",
+        "p-6 rounded-[2rem] glass-card flex flex-col justify-between group hover:border-primary/40 hover:bg-primary/[0.02] transition-all duration-1000 relative overflow-hidden",
         className
       )}
     >
-      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-foreground/[0.02] to-transparent opacity-50 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
       <div className="flex justify-between items-start relative z-10">
-        <div className={cn("p-2 rounded-lg border transition-all duration-700 group-hover:scale-110 shadow-glass-elev", colors[color as keyof typeof colors])}>
+        <div className={cn("p-3 rounded-xl border transition-all duration-1000 group-hover:scale-110 shadow-glass-elev", colors[color as keyof typeof colors])}>
           {icon}
         </div>
         <div className="text-right">
-          <p className="font-micro tracking-[0.3em] text-foreground/20 uppercase italic text-[8px]">{label}</p>
+          <p className="font-micro tracking-[0.4em] text-foreground/20 uppercase italic text-[8px] group-hover:text-primary transition-colors duration-1000">{label}</p>
         </div>
       </div>
-      <div className="mt-4 relative z-10">
+      <div className="mt-8 relative z-10">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black font-heading tracking-tighter italic text-foreground group-hover:text-primary transition-colors duration-700 leading-none">{value}</span>
+          <span className="text-4xl font-black font-heading tracking-tighter italic text-foreground group-hover:text-primary transition-all duration-1000 leading-none">{value}</span>
         </div>
-        {subtext && <p className="font-micro text-foreground/10 mt-1 uppercase tracking-[0.1em] italic text-[7px]">{subtext}</p>}
+        {subtext && <p className="font-micro text-foreground/10 mt-1.5 uppercase tracking-[0.2em] italic text-[8px] group-hover:text-foreground/30 transition-colors duration-1000">{subtext}</p>}
       </div>
     </motion.div>
   )
@@ -67,10 +67,12 @@ const MetricCard = ({ icon, label, value, subtext, color, delay = 0, className }
 
 export default function CustomerOverview() {
   const t = useTranslations("Dashboard")
-  const commonT = useTranslations("Common")
+  const tCommon = useTranslations("Common")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
+  const [mounted, setMounted] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
 
   const monthStr = useMemo(() =>
     selectedMonth ? format(selectedMonth, "yyyy-MM") : format(new Date(), "yyyy-MM"),
@@ -80,20 +82,21 @@ export default function CustomerOverview() {
   useEffect(() => {
     setUserId(authApi.getUserId())
     setSelectedMonth(new Date())
-    setMounted(false)
-    setTimeout(() => setMounted(true), 100) // Trigger countup
+    setMounted(true)
   }, [])
 
   const { data: consumption } = useQuery({
     queryKey: ["my-consumption", monthStr],
     queryFn: () => consumptionApi.getMine(monthStr).then((r) => r.data),
     enabled: !!userId,
+    staleTime: 60_000,
   })
 
   const { data: bill, isLoading: isBillLoading } = useQuery({
     queryKey: ["my-bill", monthStr],
     queryFn: () => billsApi.get(userId!, monthStr).then((r) => r.data),
     enabled: !!userId,
+    staleTime: 60_000,
   })
 
   const totalLiters = useMemo(
@@ -138,35 +141,42 @@ export default function CustomerOverview() {
       window.location.href = res.data?.payment_url || "/customer/payment"
     } catch { /* interceptor handles error toast */ }
   }
+  if (isBillLoading && !mounted) {
+    return <PremiumLoadingState />
+  }
 
   return (
     <div className="min-h-screen bg-transparent text-foreground selection:bg-primary/40 relative">
-      <div className="container mx-auto px-4 py-6 relative z-10 space-y-8">
+      <div className="container mx-auto px-4 py-6 relative z-10 space-y-12">
         {/* Header Protocol */}
-        <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-8 border-b border-border/10 pb-8">
+        <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-10 border-b border-border/10 pb-10">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="h-1 w-1 rounded-full bg-primary shadow-glow-primary animate-pulse" />
-              <span className="font-micro text-primary tracking-[0.4em] uppercase text-[10px]">VITAL_STREAM_v4.2</span>
+              <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-glow-primary animate-pulse" />
+              <span className="font-micro text-primary tracking-[0.6em] uppercase text-[10px]">{t('protocolVersion')}</span>
             </div>
-            <h1 className="font-big text-foreground italic uppercase">Vital <span className="text-gradient">Overview</span></h1>
+            <h1 className="font-big text-foreground italic uppercase">{t('vitalStream')}_ <span className="text-gradient">{t('vitalOverview')}</span></h1>
           </div>
 
           <div className="flex items-center gap-1.5 p-1.5 bg-foreground/[0.02] border border-border/10 rounded-xl glass-card">
             <button
               onClick={handlePrev}
+              title={t('previousMonth')}
+              aria-label={t('previousMonth')}
               className="p-2 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all active:scale-95"
             >
               <ChevronLeft size={18} />
             </button>
             <div className="px-6 py-1 min-w-[150px] text-center">
               <span className="text-lg font-heading font-black uppercase tracking-tighter text-foreground italic">
-                {selectedMonth ? format(selectedMonth, "MMMM yyyy") : "LOAD_..."}
+                {selectedMonth ? format(selectedMonth, "MMMM yyyy", { locale: dateFnsLocale }) : tCommon('loading')}
               </span>
             </div>
             <button
               onClick={handleNext}
               disabled={!selectedMonth || isSameMonth(selectedMonth, new Date())}
+              title={t('nextMonth')}
+              aria-label={t('nextMonth')}
               className="p-2 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-5 active:scale-95"
             >
               <ChevronRight size={18} />
@@ -189,16 +199,12 @@ export default function CustomerOverview() {
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-4">
               <div className="space-y-1">
                 <p className="font-micro tracking-[0.3em] text-foreground/20 uppercase italic text-[8px]">
-                  Current_Settle_Due
+                  {t('currentSettleDue')}
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-black text-primary font-heading mt-2 italic">₹</span>
                   <h2 className="text-5xl lg:text-7xl font-black font-heading tracking-tight leading-none text-foreground italic">
-                    {mounted ? (
-                      <CountUp end={billAmount} duration={2} separator="," />
-                    ) : (
-                      billAmount.toLocaleString()
-                    )}
+                    {mounted ? formatCurrency(billAmount, locale) : "--"}
                   </h2>
                 </div>
               </div>
@@ -210,22 +216,22 @@ export default function CustomerOverview() {
                       key="p" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                       className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full font-micro tracking-[0.3em] italic text-[8px] shadow-glow-emerald/5"
                     >
-                      <CheckCircle2 size={12} /> STATUS_NOMINAL
+                      <CheckCircle2 size={12} aria-hidden="true" /> {tCommon('status.PAID').toUpperCase()}
                     </motion.div>
                   ) : (
                     <motion.div
                       key="u" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                       className="flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-full font-micro tracking-[0.3em] italic text-[8px] shadow-glow-primary/5 animate-pulse"
                     >
-                      <Activity size={12} /> AWAIT_SETTLE
+                      <Activity size={12} aria-hidden="true" /> {tCommon('status.UNPAID').toUpperCase()}
                     </motion.div>
                   )}
                 </AnimatePresence>
 
                 <div className="text-right">
-                  <p className="font-micro text-foreground/10 uppercase tracking-[0.3em] italic text-[8px]">RECON_ID</p>
+                  <p className="font-micro text-foreground/10 uppercase tracking-[0.3em] italic text-[8px]">{t('reconId')}</p>
                   <p className="text-xl font-black italic text-foreground/40 uppercase tracking-tighter font-heading">
-                    {selectedMonth ? format(selectedMonth, "MMM_yyyy") : "--"}
+                    {selectedMonth ? format(selectedMonth, "MMM_yyyy", { locale: dateFnsLocale }) : "--"}
                   </p>
                 </div>
               </div>
@@ -239,7 +245,7 @@ export default function CustomerOverview() {
                   </div>
                   <div>
                     <p className="font-micro text-foreground/20 uppercase mb-0.5 text-[8px]">{t('volume')}</p>
-                    <p className="text-2xl font-black font-heading italic tracking-tighter">{totalLiters.toFixed(1)} <span className="font-sans text-[8px] italic opacity-20 font-normal">LITERS</span></p>
+                    <p className="text-2xl font-black font-heading italic tracking-tighter">{mounted ? totalLiters.toFixed(1) : "--"} <span className="font-sans text-[8px] italic opacity-20 font-normal">{t('unitLiters')}</span></p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -248,7 +254,7 @@ export default function CustomerOverview() {
                   </div>
                   <div>
                     <p className="font-micro text-foreground/20 uppercase mb-0.5 text-[8px]">{t('continuity')}</p>
-                    <p className="text-2xl font-black font-heading italic tracking-tighter">{streak} <span className="font-sans text-[8px] italic opacity-20 font-normal">NODES</span></p>
+                    <p className="text-2xl font-black font-heading italic tracking-tighter">{streak} <span className="font-sans text-[8px] italic opacity-20 font-normal">{t('nodes')}</span></p>
                   </div>
                 </div>
               </div>
@@ -259,14 +265,14 @@ export default function CustomerOverview() {
                   disabled={!bill || isPaid || isBillLoading}
                   className="h-14 flex-1 rounded-xl bg-foreground text-background hover:bg-primary hover:text-white font-heading font-black tracking-tighter italic text-xl gap-3 transition-all duration-700 disabled:opacity-10 group shadow-2xl"
                 >
-                  {isPaid ? "SETTLEMENT_FINALIZED" : "EXECUTE_SETTLEMENT"}
+                  {isPaid ? t('settlementFinalized') : t('executeSettlement')}
                   {!isPaid && <ArrowRight className="h-6 w-6 group-hover:translate-x-2 transition-all duration-1000" />}
                 </Button>
 
                 {!isPaid && (
                   <div className="hidden md:flex flex-col items-center justify-center h-14 w-16 glass-card border-border/10 rounded-xl italic shadow-glass-elev">
                     <Fingerprint className="text-foreground/20 mb-0.5" size={18} />
-                    <span className="font-micro text-[6px] text-foreground/10 tracking-[0.4em]">AUTH_L3</span>
+                    <span className="font-micro text-[6px] text-foreground/10 tracking-[0.4em]">{t('authLevel')}</span>
                   </div>
                 )}
               </div>
@@ -275,7 +281,14 @@ export default function CustomerOverview() {
 
           {/* Tactical Analytics Rails */}
           <div className="lg:col-span-4 grid grid-cols-1 gap-10">
-            <MetricCard icon={<TrendingUp size={28} />} label="Efficiency Mean" value={`${avgDaily.toFixed(1)} L`} subtext="DAILY_YIELD_AVG" color="emerald" delay={0.1} />
+            <MetricCard
+              icon={<TrendingUp size={28} />}
+              label={t('efficiencyMean')}
+              value={`${avgDaily.toFixed(1)} ${tCommon('unitL')}`}
+              subtext={t('dailyYieldAvg')}
+              color="emerald"
+              delay={0.1}
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -317,10 +330,10 @@ export default function CustomerOverview() {
         {/* Operational Grid Nodes */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { href: "/customer/calendar", icon: <Calendar size={20} />, label: commonT('calendar'), border: "border-primary/20", hover: "hover:bg-primary/5 hover:border-primary/40", text: "text-primary" },
-            { href: "/customer/records", icon: <Wallet size={20} />, label: "Records", border: "border-emerald-500/20", hover: "hover:bg-emerald-500/5 hover:border-emerald-500/40", text: "text-emerald-600 dark:text-emerald-400" },
-            { href: "/customer/profile", icon: <Fingerprint size={20} />, label: "Security", border: "border-border/10", hover: "hover:bg-foreground/5 hover:border-border/30", text: "text-foreground/40" },
-            { href: "/customer/support", icon: <Activity size={20} />, label: "Health", border: "border-border/10", hover: "hover:bg-foreground/5 hover:border-border/30", text: "text-foreground/40" }
+            { href: "/customer/calendar", icon: <Calendar size={20} />, label: tCommon('calendar'), border: "border-primary/20", hover: "hover:bg-primary/5 hover:border-primary/40", text: "text-primary" },
+            { href: "/customer/records", icon: <Wallet size={20} />, label: tCommon('records'), border: "border-emerald-500/20", hover: "hover:bg-emerald-500/5 hover:border-emerald-500/40", text: "text-emerald-600 dark:text-emerald-400" },
+            { href: "/customer/profile", icon: <Fingerprint size={20} />, label: t('security'), border: "border-border/10", hover: "hover:bg-foreground/5 hover:border-border/30", text: "text-foreground/40" },
+            { href: "/customer/support", icon: <Activity size={20} />, label: t('health'), border: "border-border/10", hover: "hover:bg-foreground/5 hover:border-border/30", text: "text-foreground/40" }
           ].map((node, i) => (
             <motion.div
               key={node.label}
@@ -343,16 +356,6 @@ export default function CustomerOverview() {
           ))}
         </div>
       </div>
-
-      {/* Background Ambience */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05] overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[1px] h-full bg-foreground" />
-        <div className="absolute top-0 left-3/4 w-[1px] h-full bg-foreground" />
-        <div className="absolute top-1/4 left-0 w-full h-[1px] bg-foreground" />
-        <div className="absolute top-3/4 left-0 w-full h-[1px] bg-foreground" />
-      </div>
     </div>
   )
 }
-
-

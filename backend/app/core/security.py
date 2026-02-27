@@ -2,59 +2,66 @@ import datetime
 import uuid
 import asyncio
 import httpx
+import json
 import logging
 from typing import Any, Union, Optional
+
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
+from app.core.config import settings
+from app.core.logging import get_logger
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = get_logger(__name__)
+# Algorithm selection via settings
+ALGORITHM = settings.ALGORITHM
+LOGTO_ALGORITHM = settings.LOGTO_ALGORITHM
 
-ALGORITHM = "HS256"
-LOGTO_ALGORITHM = "RS256"
 
-# Token expiry
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
-REFRESH_TOKEN_EXPIRE_DAYS = 30
+# Token expiry via settings
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 TOKEN_BLACKLIST_PREFIX = "token:blacklist:"
+USER_SESSIONS_PREFIX = "sessions:user:"
 
 
 def create_access_token(
     subject: Union[str, Any],
     expires_delta: Optional[datetime.timedelta] = None,
     token_type: str = "access",
-    jti: Optional[str] = None
+    jti: Optional[str] = None,
+    role: Optional[str] = None,
 ) -> str:
     """Create a new access or refresh token."""
+    now = datetime.datetime.now(datetime.timezone.utc)
     if expires_delta:
-        expire = datetime.datetime.utcnow() + expires_delta
+        expire = now + expires_delta
+    elif token_type == "access":
+        expire = now + datetime.timedelta(
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        )
     else:
-        if token_type == "access":
-            expire = datetime.datetime.utcnow() + datetime.timedelta(
-                minutes=ACCESS_TOKEN_EXPIRE_MINUTES
-            )
-        else:
-            expire = datetime.datetime.utcnow() + datetime.timedelta(
-                days=REFRESH_TOKEN_EXPIRE_DAYS
-            )
+        expire = now + datetime.timedelta(
+            days=REFRESH_TOKEN_EXPIRE_DAYS
+        )
 
     to_encode = {
         "exp": expire,
         "sub": str(subject),
         "type": token_type,
-        "jti": jti or str(uuid.uuid4())
+        "jti": jti or str(uuid.uuid4()),
     }
-    from app.core.config import settings
+    if role:
+        to_encode["role"] = role
+
     encoded_jwt = jwt.encode(
-        to_encode,
-        settings.SECRET_KEY,
-        algorithm=ALGORITHM
+        to_encode, settings.SECRET_KEY, algorithm=ALGORITHM
     )
     return encoded_jwt
 
 
-def create_refresh_token(
-    subject: Union[str, Any], jti: Optional[str] = None
-) -> str:
+def create_refresh_token(subject: Union[str, Any], jti: Optional[str] = None) -> str:
     """Create a refresh token for the given subject."""
     return create_access_token(subject, token_type="refresh", jti=jti)
 
@@ -69,12 +76,9 @@ def get_password_hash(password: str) -> str:
 
 def decode_token(token: str) -> dict:
     """Decode and verify a token."""
-    from app.core.config import settings
     try:
         return jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[ALGORITHM]
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
     except JWTError:
         return None
@@ -120,25 +124,22 @@ async def get_jwks(jwks_uri: str) -> Optional[dict]:
 
 async def verify_logto_token(token: str) -> Optional[dict]:
     """Verify a Logto ID Token or Access Token."""
-    from app.core.config import settings
+
     if not settings.LOGTO_JWKS_URI:
         return None
 
     try:
-        header = jwt.get_unverified_header(token)
         jwks = await get_jwks(settings.LOGTO_JWKS_URI)
         if not jwks:
             return None
 
         # Verify against all keys in JWKS
         decoded = jwt.decode(
-            token,
-            jwks,
-            algorithms=[LOGTO_ALGORITHM]
+            token, jwks, algorithms=[settings.LOGTO_ALGORITHM]
         )
         return decoded
     except JWTError as e:
-        logging.warning(f"Logto Token verification failed: {str(e)}")
+        logger.warning("Logto Token verification failed: %s", str(e))
         return None
 
 
@@ -148,6 +149,7 @@ async def blacklist_token(jti: str, expires_delta: datetime.timedelta):
     """
     try:
         from app.core.redis import get_redis
+
         redis = await get_redis()
         if redis is None:
             return False
@@ -182,3 +184,74 @@ def get_token_jti(token: str) -> Optional[str]:
         return decoded.get("jti")
     except Exception:
         return None
+
+async def record_session(user_id: str, jti: str, ip_address: Optional[str] = None, user_agent: Optional[str] = None):
+    """Record an active session for a user in Redis."""
+    try:
+        from app.core.redis import get_redis
+        redis = await get_redis()
+        if redis is None:
+            return False
+            
+        key = f"{USER_SESSIONS_PREFIX}{user_id}"
+        session_data = {
+            "ip_address": ip_address,
+            "user_agent": user_agent,
+            "created_at": datetime.datetime.now(
+                datetime.timezone.utc
+            ).isoformat()
+        }
+        await redis.hset(key, jti, json.dumps(session_data))
+        # Keep active sessions valid for the refresh token lifetime
+        await redis.expire(
+            key, settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60
+        )
+        return True
+    except Exception as e:
+        logging.error(f"Error recording session: {str(e)}")
+        return False
+
+async def get_active_sessions(user_id: str) -> list[dict]:
+    """Retrieve all active sessions for a user."""
+    try:
+        from app.core.redis import get_redis
+        redis = await get_redis()
+        if redis is None:
+            return []
+            
+        key = f"{USER_SESSIONS_PREFIX}{user_id}"
+        sessions_map = await redis.hgetall(key)
+        
+        active_sessions = []
+        for jti, data_str in sessions_map.items():
+            # Quick check if it's already in the blacklist
+            if not await is_blacklisted(jti):
+                try:
+                    data = json.loads(data_str)
+                    data["jti"] = jti
+                    active_sessions.append(data)
+                except Exception:
+                    pass
+            else:
+                # Cleanup revoked but hanging jti
+                await redis.hdel(key, jti)
+        
+        return active_sessions
+    except Exception as e:
+        logger.error("Error retrieving sessions: %s", str(e))
+        return []
+
+async def remove_session(user_id: str, jti: str):
+    """Remove a session from the user's active list."""
+    try:
+        from app.core.redis import get_redis
+        redis = await get_redis()
+        if redis is None:
+            return False
+            
+        key = f"{USER_SESSIONS_PREFIX}{user_id}"
+        await redis.hdel(key, jti)
+        return True
+    except Exception as e:
+        logging.error(f"Error removing session: {str(e)}")
+        return False

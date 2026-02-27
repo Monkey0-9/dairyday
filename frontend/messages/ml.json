@@ -41,6 +41,7 @@
     "dashboard": "ഡാഷ്ബോർഡ്",
     "settings": "ക്രമീകരണങ്ങൾ",
     "profile": "പ്രൊഫൈൽ",
+    "support": "സഹായം",
     "language": "ഭാഷ",
     "theme": "തീം",
     "loading": "ലോഡ് ചെയ്യുന്നു...",
@@ -48,7 +49,11 @@
     "cancel": "റദ്ദാക്കുക",
     "edit": "എഡിറ്റ് ചെയ്യുക",
     "delete": "ഡിലീറ്റ് ചെയ്യുക",
-    "back": "തിരികെ"
+    "back": "തിരികെ",
+    "active": "Active",
+    "status": "Status",
+    "calendar": "Calendar",
+    "records": "Records"
   },
   "Auth": {
     "email": "ഇമെയിൽ വിലാസം",
@@ -91,7 +96,21 @@
     "failedToSendOtp": "ഒടിപി അയയ്ക്കുന്നതിൽ പരാജയപ്പെട്ടു",
     "passwordResetFailed": "പാസ്‌വേഡ് റീസെറ്റ് പരാജയപ്പെട്ടു",
     "redirectingToLogin": "ലോഗിൻ പേജിലേക്ക് പുനർനിർദ്ദേശിക്കുന്നു...",
-    "backToStep1": "ഘട്ടം 1-ലേക്ക് തിരികെ"
+    "backToStep1": "ഘട്ടം 1-ലേക്ക് തിരികെ",
+    "loginWithPhone": "Login with Phone",
+    "loginWithCredentials": "Login with Password",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "+91 XXXXX XXXXX",
+    "otpPlaceholder": "Enter 6-digit OTP",
+    "valPhoneRequired": "Valid phone number required (e.g., +91...)",
+    "invalidOtp": "Invalid OTP code. Please try again.",
+    "resendOtp": "Resend OTP",
+    "requestSent": "Reset request submitted to administrators.",
+    "awaitingApproval": "Awaiting Admin Clearance",
+    "resetAwaitingDesc": "Your password reset request is currently under administrative review. Once authorized, this terminal will unlock for decryption.",
+    "checkingStatus": "Checking authorization status...",
+    "sendRequest": "Request Reset",
+    "failedToSendRequest": "Failed to transmit reset request."
   },
   "Dashboard": {
     "todaysDelivery": "ഇന്നത്തെ ഡെലിവറി",
@@ -102,8 +121,12 @@
     "preOrder": "പ്രീ-ഓർഡർ",
     "liters": "ലിറ്റർ",
     "status": "നില",
-    "title": "ഡാഷ്ബോർഡ്",
-    "subtitle": "നിങ്ങളുടെ ഉപയോഗത്തിന്റെ അവലോകനം",
+    "title": "എന്റെ ഡാഷ്‌ബോർഡ്",
+    "vitalOverview": "പ്രധാന അവലോകനം",
+    "protocolVersion": "വൈറ്റൽ_സ്ട്രീം_v4.2",
+    "previousMonth": "കഴിഞ്ഞ മാസം",
+    "nextMonth": "അടുത്ത മാസം",
+    "subtitle": "നിങ്ങളുടെ ദൈനംദിന പാൽ ഉപയോഗത്തിന്റെ അവലോകനം",
     "currentBalance": "നിലവിലെ ബാലൻസ്",
     "statusSkipped": "ഒഴിവാക്കി",
     "awaitingVerification": "അഡ്മിൻ പരിശോധനയിൽ",
@@ -122,8 +145,12 @@
     "awaitSettle": "സെറ്റിൽമെന്റ്_കാത്തിരിക്കുന്നു",
     "executeSettlement": "സെറ്റിൽമെന്റ്_നടത്തുക",
     "settlementFinalized": "സെറ്റിൽമെന്റ്_പൂർത്തിയായി",
+    "reconId": "റീക്കോൺ_ഐഡി",
     "vitalStream": "വൈറ്റൽ_സ്ട്രീം",
     "efficiencyMean": "കാര്യക്ഷമത_ശരാശരി",
+    "vol": "വിഒഎൽ",
+    "litersLabel": "ലിറ്ററുകൾ",
+    "unitLiters": "ലിറ്ററുകൾ",
     "dailyYieldAvg": "ദിവസേനയുള്ള_ഉൽപ്പാദനം_ശരാശരി",
     "protocolSteady": "പ്രോട്ടോക്കോൾ_സ്ഥിരതയുള്ളത്",
     "health": "ആരോഗ്യം",
@@ -135,7 +162,14 @@
     "dailySales": "ദിവസേനയുള്ള വിൽപന",
     "monthlySales": "പ്രതിമാസ വിൽപന",
     "customerGrowth": "ഉപഭോക്തൃ വളർച്ച",
-    "viewAll": "എല്ലാം കാണുക"
+    "viewAll": "എല്ലാം കാണുക",
+    "notifications": "Personal Alerts",
+    "noNotifications": "All Systems Nominal",
+    "billAlert": "Unpaid bill for {month}",
+    "requestApproved": "Request for {date} APPROVED",
+    "requestRejected": "Request for {date} REJECTED",
+    "requestPending": "Request for {date} PENDING",
+    "authLevel": "AUTH_L3"
   },
   "Settings": {
     "appearance": "രൂപം",
@@ -180,7 +214,16 @@
     "oldPassword": "പഴയ പാസ്‌വേഡ്",
     "newPassword": "പുതിയ പാസ്‌വേഡ്",
     "confirmPassword": "പാസ്‌വേഡ് സ്ഥിരീകരിക്കുക",
-    "updatePassword": "പാസ്‌വേഡ് പുതുക്കുക"
+    "updatePassword": "പാസ്‌വേഡ് പുതുക്കുക",
+    "adminVault": "Admin Workspace",
+    "clearanceGranted": "Access: Confirmed",
+    "localeNode": "Location Hub",
+    "atmos": "Visual Theme",
+    "scale": "UI Scaling",
+    "operatorClearance": "Admin Clearance level",
+    "abortChanges": "Abort Changes",
+    "syncingNode": "Synchronizing...",
+    "saveProtocol": "Save Changes"
   },
   "Nav": {
     "overview": "അവലോകനം",
@@ -202,7 +245,8 @@
       "registrations": "പുതിയ രജിസ്ട്രേഷനുകൾ",
       "bills": "ബില്ലുകൾ",
       "payments": "പേയ്‌മെന്റുകൾ",
-      "support": "പിന്തുണ"
+      "support": "പിന്തുണ",
+      "passwordRequests": "Password Requests"
     },
     "roles": {
       "admin": "സിസ്റ്റം അഡ്മിൻ",
@@ -260,7 +304,9 @@
           "desc": "ഉപഭോക്തൃ ഉപയോഗ പാറ്റേണുകളും ട്രെൻഡുകളും വിശകലനം ചെയ്യുക.",
           "cta": "റിപ്പോർട്ടുകൾ കാണുക"
         }
-      }
+      },
+      "viewAll": "View All",
+      "noNotifications": "No new notifications"
     },
     "dailyEntry": {
       "title": "ദൈനംദിന എൻട്രി",
@@ -284,7 +330,8 @@
       "criticalFault": "പിശക്: {error}",
       "scanResultNull": "പഴയ വിവരങ്ങൾ ഒന്നും കണ്ടെത്തിയില്ല.",
       "patternSync": "ഡാറ്റ പുനഃസ്ഥാപിച്ചു: {count} വിവരങ്ങൾ.",
-      "faultYesterdayScan": "പഴയ വിവരങ്ങൾ ലോഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു"
+      "faultYesterdayScan": "പഴയ വിവരങ്ങൾ ലോഡ് ചെയ്യുന്നതിൽ പരാജയപ്പെട്ടു",
+      "enterLiters": "Enter Liters"
     },
     "approvals": {
       "title": "പരിശോധനാ പ്രോട്ടോക്കോൾ",
@@ -313,7 +360,13 @@
       "authLevel": "അധികാര നില",
       "adminLevel": "അഡ്മിൻ ലെവൽ 1",
       "liveNode": "സജീവ നോഡ്",
-      "verificationTerminal": "പരിശോധനാ പോർട്ടൽ"
+      "verificationTerminal": "പരിശോധനാ പോർട്ടൽ",
+      "totalPending": "Pending Authorization",
+      "pendingSubtext": "items to review",
+      "clearanceQueue": "Review Queue",
+      "nodeHealth": "System Integrity",
+      "nominal": "Operational",
+      "liveTransNode": "Active Stream"
     },
     "bills": {
       "title": "ബില്ലിംഗ് മാനേജ്‌മെന്റ്",
@@ -378,7 +431,13 @@
       "authorizeSettlement": "ക്രമം_അംഗീകരിക്കുക",
       "logPdf": "ലോഗ്_പിഡിഎഫ്",
       "encrypting": "എൻക്രിപ്റ്റ്_ചെയ്യുന്നു",
-      "draftState": "ഡ്രാഫ്റ്റ്_അവസ്ഥ"
+      "draftState": "ഡ്രാഫ്റ്റ്_അവസ്ഥ",
+      "realizedGrowth": "Collected",
+      "outstandingRisk": "Outstanding",
+      "totalExposure": "Total Bills",
+      "activeLiabilities": "Total Due",
+      "efficiencyIndex": "Collection %",
+      "liquidityRatio": "Efficiency"
     },
     "payments": {
       "title": "പേയ്‌മെന്റ് സെൽ",
@@ -478,7 +537,12 @@
       "updateSuccess": "വിവരങ്ങൾ വിജയകരമായി പുതുക്കി!",
       "saveChanges": "സംരക്ഷിക്കുക",
       "statusActive": "സജീവം",
-      "statusInactive": "നിഷ്ക്രിയം"
+      "statusInactive": "നിഷ്ക്രിയം",
+      "registry": "Registry",
+      "activeNode": "Active",
+      "deactivated": "Deactivated",
+      "provisionNode": "Add Customer",
+      "updateNode": "Update Customer"
     },
     "registrations": {
       "title": "രജിസ്ട്രേഷൻ",
@@ -498,7 +562,20 @@
       "joinProtocolActive": "രജിസ്ട്രേഷൻ_പ്രോട്ടോക്കോൾ_സജീവം",
       "networkClean": "നെറ്റ്‌വർക്ക്_ക്ലീൻ",
       "protocolNode": "പ്രോട്ടോക്കോൾ_നോഡ്",
-      "noRequests": "പുതിയ അപേക്ഷകൾ ഒന്നുമില്ല."
+      "noRequests": "പുതിയ അപേക്ഷകൾ ഒന്നുമില്ല.",
+      "registrations": "Pending Approval",
+      "description": "Approve or decline new registration requests.",
+      "filterByIdentity": "Search...",
+      "fetchingData": "Loading...",
+      "sectorUnknown": "Unknown",
+      "pendingGate": "Pending",
+      "authorize": "Approve",
+      "networkIntegrity": "Verified",
+      "activeShield": "Protected",
+      "requestVelocity": "Frequency",
+      "protocolSteady": "Stable",
+      "pendingClearance": "Awaiting Review",
+      "awaitingAction": "Action Required"
     },
     "consumption": {
       "title": "ഉപയോഗ ലെഡ്ജർ",
@@ -516,7 +593,34 @@
       "totals": "ആകെ",
       "delivered": "നൽകിയത്",
       "empty": "ശൂന്യം",
-      "locked": "ലോക്ക് ചെയ്തു (7+ ദിവസം)"
+      "locked": "ലോക്ക് ചെയ്തു (7+ ദിവസം)",
+      "syncComplete": "Synchronization complete"
+    },
+    "registry": "Registry",
+    "passwordRequests": {
+      "title": "Password Reset",
+      "titleHighlight": "Requests",
+      "subtitle": "Security oversight and access recovery management.",
+      "refresh": "Refresh",
+      "totalRequests": "Total Volume",
+      "pendingApproval": "Awaiting Review",
+      "successRate": "Recovery Rate",
+      "filterPlaceholder": "Filter by identity...",
+      "tableUser": "Customer Name",
+      "tableEmail": "Email Identity",
+      "tablePhone": "Contact Phone",
+      "tableRequestedUser": "User Details",
+      "tableRequestDate": "Timestamp",
+      "tableStatus": "Integrity Status",
+      "tableActions": "Management",
+      "noRequests": "No active recovery requests.",
+      "statusPending": "PENDING",
+      "statusApproved": "APPROVED",
+      "statusRejected": "REJECTED",
+      "statusCompleted": "COMPLETED",
+      "reject": "Reject",
+      "approve": "Authorize",
+      "waitingForUser": "Verified: Active"
     }
   },
   "Records": {
@@ -532,7 +636,17 @@
     "auditState": "ഓഡിറ്റ്_നില",
     "ledgerTimeline": "ലെഡ്ജർ_ടൈംലൈൻ",
     "nullEvent": "ശൂന്യ_സംഭവം",
-    "zeroYieldEvent": "സീറോ_യീൽഡ്_സംഭവം"
+    "zeroYieldEvent": "സീറോ_യീൽഡ്_സംഭവം",
+    "consumptionTab": "Consumption",
+    "billingTab": "Settlements",
+    "billingSubtitle": "Financial reconciliation history",
+    "consumptionLedger": "CONSUMPTION_LEDGER_v4.2",
+    "yieldRecords": "Yield Records",
+    "nominalSecure": "NOMINAL_SECURE",
+    "settlementComplete": "SETTLEMENT_COMPLETE",
+    "awaitSettlement": "AWAIT_SETTLEMENT",
+    "zeroLedgerEvent": "ZERO_LEDGER_EVENT",
+    "download": "Download PDF"
   },
   "Payment": {
     "title": "പേയ്‌മെന്റുകൾ",
@@ -561,7 +675,24 @@
     "gatewayNotLoaded": "ലോഡ് ആയില്ല.",
     "billPaymentDesc": "ബില്ല് - {month}",
     "customerName": "ഡയറി കസ്റ്റമർ",
-    "securePayment": "{gateway} വഴി സുരക്ഷിതം"
+    "securePayment": "{gateway} വഴി സുരക്ഷിതം",
+    "portal": "Payment Portal",
+    "description": "Manage your subscriptions and payments",
+    "upiId": "UPI ID",
+    "upiCopied": "UPI ID Copied!",
+    "utrRequired": "Please enter a valid UTR reference",
+    "utrInvalid": "Invalid UTR. Please enter the 12-digit transaction number.",
+    "utrSuccess": "UTR submitted for verification!",
+    "utrFailed": "Failed to submit UTR.",
+    "verifying": "Verifying",
+    "verificationInProgress": "Verification in Progress",
+    "scanToPay": "Scan to Pay",
+    "upiIdLabel": "UPI ID",
+    "enterUtr": "Enter UTR",
+    "utrPlaceholder": "12-digit Reference Number",
+    "verifyPayment": "Verify Payment",
+    "paid": "Paid",
+    "unpaid": "Unpaid"
   },
   "Calendar": {
     "title": "കലണ്ടർ",
@@ -588,7 +719,49 @@
     "updateSuccess": "പുതുക്കി.",
     "requestSubmitted": "അഡ്മിന് അയച്ചു.",
     "updateError": "പരാജയപ്പെട്ടു.",
-    "legendPending": "അംഗീകാരം കാക്കുന്നു"
+    "legendPending": "അംഗീകാരം കാക്കുന്നു",
+    "viewOnly": "View Only",
+    "editable": "Editable",
+    "modificationLimit": "This day is view-only. Modifications allowed for Today and Tomorrow only.",
+    "manage": "Manage",
+    "statusPending": "Pending",
+    "statusDelivered": "Delivered",
+    "statusCancelled": "Cancelled",
+    "statusSkipped": "Skipped",
+    "modifyOrder": "Modify Your Order",
+    "standardQtyDesc": "Standard: 1.0 L",
+    "extraQtyLabel": "Extra Quantity (L)",
+    "optional": "Optional",
+    "immutableLock": "IMMUTABLE_LOCK: Archive finalization complete.",
+    "handoffSuccess": "Handoff Successful: Awaiting Admin Sync",
+    "commError": "COMMUNICATION_ERROR",
+    "temporalGrid": "TEMPORAL_GRID_v4",
+    "authSecure": "Auth_Secure",
+    "node": "Node",
+    "pendingVerify": "PENDING_VERIFY",
+    "lockedNode": "LOCKED_NODE",
+    "syncActive": "Real-time sync active :: Ghost protocols operational",
+    "selectNode": "SELECT_NODE",
+    "awaitingVerification": "AWAITING_VERIFICATION",
+    "unitVolume": "UNIT_VOLUME",
+    "target": "TARGET",
+    "reserveVar": "RESERVE_VAR",
+    "statusVector": "STATUS_VECTOR",
+    "initializeGhost": "INITIALIZE_GHOST_EDIT",
+    "idleState": "IDLE_STATE",
+    "ghost": "Ghost",
+    "mode": "Mode",
+    "temporalMod": "Temporal Modification // Node",
+    "pauseSession": "Pause Session",
+    "suspendDelivery": "SUSPEND_UNIT_DELIVERY",
+    "standardVal": "STANDARD_VAL",
+    "reduceAmount": "REDUCE_AMOUNT",
+    "netYield": "NET_YIELD",
+    "preOrderLabel": "PRE-ORDER / EXTRA",
+    "preOrderDesc": "Additional unit request for this node only",
+    "synchronizing": "SYNCHRONIZING...",
+    "executeUpdate": "EXECUTE_UPDATE",
+    "abortChanges": "ABORT_CHANGES"
   },
   "Landing": {
     "nav": {
@@ -600,7 +773,7 @@
       "revenue": "വരുമാനം",
       "network": "ശൃംഖല",
       "authorize": "അംഗീകരിക്കുക",
-      "dairyOs": "DairyDay"
+      "dairyOs": "DairyDays"
     },
     "hero": {
       "version": "v2.0.0",
@@ -712,7 +885,7 @@
       "button": " ലോഗിൻ ചെയ്യുക"
     },
     "footer": {
-      "copyright": "© 2026 DairyDay",
+      "copyright": "© 2026 DairyDays",
       "privacy": "സ്വകാര്യത",
       "legal": "നിയമം",
       "infrastructure": "സൗകര്യം",
@@ -762,6 +935,15 @@
     "opsRun247": "ഡെലിവറി 24/7 ലഭ്യമാണ്",
     "criticalSupport": "അടിയന്തിര സഹായം",
     "availableNow": "ലഭ്യമാണ്",
-    "billingHours": "ബില്ലിംഗ് സമയം"
+    "billingHours": "ബില്ലിംഗ് സമയം",
+    "sendEmail": "ഇമെയിൽ അയയ്ക്കാം",
+    "faq1Q": "ഇന്നത്തെ ഡെലിവറി എങ്ങനെ റദ്ദാക്കാം?",
+    "faq1A": "കലണ്ടറിൽ പോയി ഇന്നത്തെ തീയതി ക്ലിക്ക് ചെയ്ത് 'ഡെലിവറി റദ്ദാക്കുക' ഓപ്ഷൻ ഉപയോഗിക്കുക. ഇത് രാവിലെ 6 മണിക്ക് മുൻപ് ചെയ്യണം.",
+    "faq2Q": "എന്റെ ബില്ല് എപ്പോഴാണ് ലഭിക്കുക?",
+    "faq2A": "കഴിഞ്ഞ മാസത്തെ ഉപയോഗത്തിനുള്ള ബില്ലുകൾ എല്ലാ മാസവും ഒന്നാം തീയതി തയ്യാറാകും.",
+    "faq3Q": "കൂടുതൽ പാൽ എങ്ങനെ ഓർഡർ ചെയ്യാം?",
+    "faq3A": "കലണ്ടറിൽ നാളത്തെ തീയതി തിരഞ്ഞെടുത്ത് അളവ് വർദ്ധിപ്പിക്കുക. അഡ്മിൻ ഇത് സ്ഥിരീകരിക്കുന്നതാണ്.",
+    "faq4Q": "പണം നൽകിയത് കാണിക്കുന്നില്ലേ?",
+    "faq4A": "യുപിഐ പെയ്‌മെന്റുകൾ ഞങ്ങളുടെ സ്റ്റാഫ് 12-24 മണിക്കൂറിനുള്ളിൽ പരിശോധിച്ച് അപ്‌ഡേట్ ചെയ്യും. നാളെ വീണ്ടും നോക്കുക!"
   }
 }

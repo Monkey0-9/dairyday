@@ -2,8 +2,9 @@
 
 import React from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { format } from "date-fns"
+import { formatCurrency, getDateFnsLocale } from "@/lib/i18n-utils"
 import {
   Users,
   Milk,
@@ -21,9 +22,10 @@ import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 
 import { analyticsApi, authApi } from "@/lib/api"
-import { Skeleton } from "@/components/ui/skeleton"
+import { StatsSkeleton } from "@/components/skeletons"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { PremiumErrorState } from "@/components/ui/state-displays"
 
 /* ─── Premium Components ─── */
 
@@ -40,12 +42,11 @@ interface StatCardProps {
   suffix?: string
   trend?: string
   icon: React.ReactNode
-  loading?: boolean
   color?: "primary" | "emerald" | "amber" | "white"
   index: number
 }
 
-const StatCard = ({ title, value, prefix, suffix, trend, icon, loading, color, index }: StatCardProps) => {
+const StatCard = ({ title, value, prefix, suffix, trend, icon, color, index }: StatCardProps) => {
   const colorMap = {
     primary: "text-primary bg-primary/10 border-primary/20",
     emerald: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -64,7 +65,7 @@ const StatCard = ({ title, value, prefix, suffix, trend, icon, loading, color, i
 
       <div className="flex items-start justify-between mb-2 relative z-10">
         <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center border transition-all duration-700", colorMap[color as keyof typeof colorMap] || colorMap.white)}>
-          {React.cloneElement(icon as React.ReactElement, { size: 14 })}
+          {React.cloneElement(icon as React.ReactElement, { size: 14, "aria-hidden": "true" })}
         </div>
         {trend && (
           <Badge className="bg-white/5 border-white/5 text-white/20 px-2 py-0.5 font-micro text-[7px] uppercase tracking-widest italic group-hover:text-white transition-colors">
@@ -78,15 +79,11 @@ const StatCard = ({ title, value, prefix, suffix, trend, icon, loading, color, i
           {title}
         </p>
 
-        {loading ? (
-          <Skeleton className="h-6 w-20 bg-white/5 rounded-lg animate-pulse" />
-        ) : (
-          <h2 className="text-xl font-black font-heading tracking-tighter text-white italic leading-none truncate uppercase">
-            {prefix && <span className="text-sm align-top mr-0.5 not-italic opacity-40">{prefix}</span>}
-            {value.toLocaleString()}
-            {suffix && <span className="text-[10px] align-bottom ml-0.5 not-italic opacity-20">{suffix}</span>}
-          </h2>
-        )}
+        <h2 className="text-xl font-black font-heading tracking-tighter text-white italic leading-none truncate uppercase">
+          {prefix && <span className="text-sm align-top mr-0.5 not-italic opacity-40">{prefix}</span>}
+          {value.toLocaleString()}
+          {suffix && <span className="text-[10px] align-bottom ml-0.5 not-italic opacity-20">{suffix}</span>}
+        </h2>
       </div>
 
       <Scanline />
@@ -115,7 +112,7 @@ const NavProtocolCard = ({ title, description, icon, href, cta, index }: NavProt
 
       <div className="space-y-3 relative z-10">
         <div className="h-8 w-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center text-white/10 group-hover:text-primary group-hover:border-primary/20 transition-all duration-700">
-          {React.cloneElement(icon as React.ReactElement, { size: 16 })}
+          {React.cloneElement(icon as React.ReactElement, { size: 16, "aria-hidden": "true" })}
         </div>
         <div className="space-y-0.5">
           <h3 className="text-lg font-heading font-black italic tracking-tighter text-white uppercase group-hover:text-primary transition-colors">{title}</h3>
@@ -126,7 +123,7 @@ const NavProtocolCard = ({ title, description, icon, href, cta, index }: NavProt
       <div className="mt-4 flex items-center justify-between relative z-10">
         <span className="font-micro text-[7px] text-white/20 uppercase tracking-[0.3em] italic">{cta}</span>
         <div className="h-7 w-7 rounded-full border border-white/10 bg-white/5 flex items-center justify-center transition-all group-hover:bg-primary group-hover:border-primary group-hover:text-white">
-          <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+          <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" aria-hidden="true" />
         </div>
       </div>
       <Scanline />
@@ -136,6 +133,9 @@ const NavProtocolCard = ({ title, description, icon, href, cta, index }: NavProt
 
 export default function AdminDashboardPage() {
   const t = useTranslations("Admin.dashboard")
+  const tCommon = useTranslations("Common")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -144,11 +144,22 @@ export default function AdminDashboardPage() {
     setMounted(true)
   }, [])
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-dashboard-stats"],
     queryFn: () => analyticsApi.getDashboard().then(res => res.data),
     staleTime: 30_000,
   })
+
+  if (isError) {
+    return (
+      <div className="container mx-auto px-4 py-20">
+        <PremiumErrorState 
+          message={t('statsLoadError') || "Failed to load operational analytics"} 
+          onRetry={() => refetch()} 
+        />
+      </div>
+    )
+  }
 
   if (!mounted) return null
 
@@ -159,7 +170,7 @@ export default function AdminDashboardPage() {
       {/* Strategic Command Hero */}
       <section className="relative overflow-hidden rounded-2xl glass-card border-white/5 bg-white/[0.02] p-6 group shadow-2xl">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-primary/5 rounded-full blur-[100px] -mr-32 pointer-events-none animate-pulse-glow" />
-        <div className="absolute bottom-0 left-0 w-1/3 h-2/3 bg-emerald-500/5 rounded-full blur-[100px] -ml-32 pointer-events-none animate-pulse-glow" style={{ animationDelay: '2s' }} />
+        <div className="absolute bottom-0 left-0 w-1/3 h-2/3 bg-emerald-500/5 rounded-full blur-[100px] -ml-32 pointer-events-none animate-pulse-glow [animation-delay:2000ms]" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
           <div className="space-y-6">
@@ -180,19 +191,19 @@ export default function AdminDashboardPage() {
           <div className="p-4 rounded-xl bg-white/[0.01] border border-white/5 space-y-1 text-right">
             <span className="font-micro text-[8px] uppercase tracking-[0.4em] text-white/20 italic">{t('globalTime')}</span>
             <h2 className="text-xl text-white font-black font-heading italic uppercase tracking-tighter">
-              {mounted ? format(currentDate, "HH:mm") : "--:--"} <span className="text-[9px] font-sans opacity-20 font-normal">UTC</span>
+              {mounted ? format(currentDate, "HH:mm", { locale: dateFnsLocale }) : "--:--"} <span className="text-[9px] font-sans opacity-20 font-normal" aria-label={tCommon('accessibility.timeUnit')}>UTC</span>
             </h2>
-            <p className="font-heading font-bold italic text-white/40 text-xs uppercase tracking-tighter">{mounted ? format(currentDate, "MMM dd, yyyy") : "----------"}</p>
+            <p className="font-heading font-bold italic text-white/40 text-xs uppercase tracking-tighter" aria-label={tCommon('accessibility.currentDate')}>{mounted ? format(currentDate, "MMM dd, yyyy", { locale: dateFnsLocale }) : "----------"}</p>
           </div>
         </div>
 
         <div className="mt-8 pt-6 border-t border-white/[0.05] flex items-center gap-8 text-white/20 font-micro text-[8px] uppercase tracking-[0.3em] italic relative z-10">
           <div className="flex items-center gap-2">
-            <Database size={10} className="text-primary" />
+            <Database size={10} className="text-primary" aria-hidden="true" />
             {t('secureDbSync')}
           </div>
           <div className="flex items-center gap-2">
-            <Activity size={10} className="text-emerald-500" />
+            <Activity size={10} className="text-emerald-500" aria-hidden="true" />
             {t('engineNominal')}
           </div>
         </div>
@@ -200,45 +211,45 @@ export default function AdminDashboardPage() {
       </section>
 
       {/* Aggregate Vitals (Stats) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          index={0}
-          title={t('stats.activeBase')}
-          value={stats?.total_customers || 0}
-          icon={<Users size={18} />}
-          loading={isLoading}
-          color="primary"
-          trend="+1.2%"
-        />
-        <StatCard
-          index={1}
-          title={t('stats.dailyProduction')}
-          value={stats?.today_liters || 0}
-          suffix="L"
-          icon={<Milk size={18} />}
-          loading={isLoading}
-          color="emerald"
-        />
-        <StatCard
-          index={2}
-          title={t('stats.yieldRevenue')}
-          value={stats?.monthly_revenue || 0}
-          prefix="₹"
-          icon={<IndianRupee size={18} />}
-          loading={isLoading}
-          color="white"
-          trend="+8.4%"
-        />
-        <StatCard
-          index={3}
-          title={t('stats.settlementGap')}
-          value={stats?.pending_bills || 0}
-          icon={<AlertCircle size={18} />}
-          loading={isLoading}
-          color="amber"
-          trend={`₹${stats?.unpaid_amount || 0}`}
-        />
-      </div>
+      {isLoading ? (
+        <StatsSkeleton count={4} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            index={0}
+            title={t('stats.activeBase')}
+            value={stats?.total_customers || 0}
+            icon={<Users size={18} />}
+            color="primary"
+            trend="+1.2%"
+          />
+          <StatCard
+            index={1}
+            title={t('stats.dailyProduction')}
+            value={stats?.today_liters || 0}
+            suffix="L"
+            icon={<Milk size={18} />}
+            color="emerald"
+          />
+          <StatCard
+            index={2}
+            title={t('stats.yieldRevenue')}
+            value={mounted ? formatCurrency(stats?.monthly_revenue || 0, locale) : "0.00"}
+            prefix="₹"
+            icon={<IndianRupee size={18} />}
+            color="white"
+            trend="+8.4%"
+          />
+          <StatCard
+            index={3}
+            title={t('stats.settlementGap')}
+            value={stats?.pending_bills || 0}
+            icon={<AlertCircle size={18} />}
+            color="amber"
+            trend={`₹${stats?.unpaid_amount || 0}`}
+          />
+        </div>
+      )}
 
       {/* Strategic Rail (Quick Actions) */}
       <div className="space-y-6">

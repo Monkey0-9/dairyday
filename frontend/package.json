@@ -1,5 +1,5 @@
 {
-  "name": "dairyday-frontend",
+  "name": "dairydays-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "analyze": "cross-env ANALYZE=true next build",
     "openapi:types": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o lib/api-types.ts"
   },
   "dependencies": {
@@ -25,7 +26,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.1.5",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@supabase/supabase-js": "^2.95.3",
+    "@sentry/nextjs": "^10.39.0",
     "@tanstack/react-query": "^5.28.4",
     "@tanstack/react-table": "^8.13.2",
     "axios": "^1.6.7",
@@ -35,14 +36,14 @@
     "date-fns": "^3.6.0",
     "framer-motion": "^11.0.24",
     "lucide-react": "^0.363.0",
-    "next": "15.1.9",
-    "next-intl": "^4.8.2",
+    "next": "^15.1.9",
+    "next-intl": "^3.26.3",
     "next-pwa": "^5.6.0",
     "next-themes": "^0.3.0",
-    "react": "^18.2.0",
+    "react": "^18.3.1",
     "react-countup": "^6.5.3",
     "react-day-picker": "^8.10.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "^18.3.1",
     "react-hook-form": "^7.71.1",
     "recharts": "^2.12.3",
     "sonner": "^1.4.3",
@@ -52,10 +53,13 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^14.2.0",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^20.11.30",
     "@types/react": "^18.2.69",
     "@types/react-dom": "^18.2.22",
     "autoprefixer": "^10.4.19",
+    "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "eslint-config-next": "15.1.9",
     "postcss": "^8.4.38",

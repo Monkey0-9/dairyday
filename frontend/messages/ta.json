@@ -41,6 +41,7 @@
     "dashboard": "டாஷ்போர்டு",
     "settings": "அமைப்புகள்",
     "profile": "சுயவிவரம்",
+    "support": "ஆதரவு",
     "language": "மொழி",
     "theme": "தீம்",
     "loading": "ஏற்றுகிறது...",
@@ -48,7 +49,11 @@
     "cancel": "ரத்துசெய்",
     "edit": "திருத்து",
     "delete": "அழி",
-    "back": "பின்னால்"
+    "back": "பின்னால்",
+    "active": "Active",
+    "status": "Status",
+    "calendar": "Calendar",
+    "records": "Records"
   },
   "Auth": {
     "email": "மின்னஞ்சல் முகவரி",
@@ -91,7 +96,21 @@
     "failedToSendOtp": "OTP அனுப்புவதில் தோல்வி",
     "passwordResetFailed": "கடவுச்சொல் மீட்டமைப்பு தோல்வி",
     "redirectingToLogin": "உள்நுழைவுக்கு திருப்பி விடப்படுகிறது...",
-    "backToStep1": "படி 1-க்குத் திரும்பு"
+    "backToStep1": "படி 1-க்குத் திரும்பு",
+    "loginWithPhone": "Login with Phone",
+    "loginWithCredentials": "Login with Password",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "+91 XXXXX XXXXX",
+    "otpPlaceholder": "Enter 6-digit OTP",
+    "valPhoneRequired": "Valid phone number required (e.g., +91...)",
+    "invalidOtp": "Invalid OTP code. Please try again.",
+    "resendOtp": "Resend OTP",
+    "requestSent": "Reset request submitted to administrators.",
+    "awaitingApproval": "Awaiting Admin Clearance",
+    "resetAwaitingDesc": "Your password reset request is currently under administrative review. Once authorized, this terminal will unlock for decryption.",
+    "checkingStatus": "Checking authorization status...",
+    "sendRequest": "Request Reset",
+    "failedToSendRequest": "Failed to transmit reset request."
   },
   "Dashboard": {
     "todaysDelivery": "இன்றைய விநி யோகம்",
@@ -102,8 +121,12 @@
     "preOrder": "முன்பதிவு",
     "liters": "லிட்டர்",
     "status": "நிலை",
-    "title": "டாஷ்போர்டு",
-    "subtitle": "உங்கள் நுகர்வு பற்றிய கண்ணோட்டம்",
+    "title": "எனது டாஷ்போர்டு",
+    "vitalOverview": "முக்கிய கண்ணோட்டம்",
+    "protocolVersion": "வைட்டல்_ஸ்ட்ரீம்_v4.2",
+    "previousMonth": "கடந்த மாதம்",
+    "nextMonth": "அடுத்த மாதம்",
+    "subtitle": "உங்கள் தினசரி பால் பயன்பாட்டின் மேலோட்டம்",
     "currentBalance": "தற்போதைய இருப்பு",
     "statusSkipped": "தவிர்க்கப்பட்டது",
     "awaitingVerification": "நிர்வாகி சரிபார்ப்புக்காக காத்திருக்கிறது",
@@ -123,8 +146,12 @@
     "awaitSettle": "தீர்வு_காத்திருக்கிறது",
     "executeSettlement": "தீர்வை_செயல்படுத்தவும்",
     "settlementFinalized": "தீர்வு_முடிந்தது",
-    "vitalStream": "முக்கிய_ஸ்ட்ரீம்",
-    "efficiencyMean": "செயல்திறன்_சராசரி",
+    "reconId": "రీకాన్_ఐడీ",
+    "vitalStream": "வைட்டல்_ஸ்ட்ரீம்",
+    "efficiencyMean": "திறன்_சராசரி",
+    "vol": "வீஓஎல்",
+    "litersLabel": "லிட்டர்கள்",
+    "unitLiters": "லிட்டர்கள்",
     "dailyYieldAvg": "தினசரி_உற்பத்தி_சராசரி",
     "protocolSteady": "நெறிமுறை_நிலையானது",
     "health": "ஆரோக்கியம்",
@@ -136,7 +163,14 @@
     "dailySales": "தினசரி விற்பனை",
     "monthlySales": "மாதாந்திர விற்பனை",
     "customerGrowth": "வாடிக்கையாளர் வளர்ச்சி",
-    "viewAll": "அனைத்தையும் பார்"
+    "viewAll": "அனைத்தையும் பார்",
+    "notifications": "Personal Alerts",
+    "noNotifications": "All Systems Nominal",
+    "billAlert": "Unpaid bill for {month}",
+    "requestApproved": "Request for {date} APPROVED",
+    "requestRejected": "Request for {date} REJECTED",
+    "requestPending": "Request for {date} PENDING",
+    "authLevel": "AUTH_L3"
   },
   "Settings": {
     "appearance": "தோற்றம்",
@@ -168,7 +202,7 @@
     "fontSize": "எழுத்து அளவு",
     "sizeSmall": "சிறிய",
     "sizeMedium": "நடுத்தர",
-    "sizeLarge": "பெரிய",
+    "sizeLarge": "பெரியது",
     "visualTheme": "விஷுவல்_தீம்",
     "typography": "டைப்போகிராபி",
     "subStandard": "சந்தா_தரநிலை",
@@ -181,7 +215,16 @@
     "oldPassword": "பழைய கடவுச்சொல்",
     "newPassword": "புதிய கடவுச்சொல்",
     "confirmPassword": "கடவுச்சொல்லை உறுதிப்படுத்தவும்",
-    "updatePassword": "கடவுச்சொல்லைப் புதுப்பிக்கவும்"
+    "updatePassword": "கடவுச்சொல்லைப் புதுப்பிக்கவும்",
+    "adminVault": "Admin Workspace",
+    "clearanceGranted": "Access: Confirmed",
+    "localeNode": "Location Hub",
+    "atmos": "Visual Theme",
+    "scale": "UI Scaling",
+    "operatorClearance": "Admin Clearance level",
+    "abortChanges": "Abort Changes",
+    "syncingNode": "Synchronizing...",
+    "saveProtocol": "Save Changes"
   },
   "Nav": {
     "overview": "மேலோட்டம்",
@@ -203,7 +246,8 @@
       "registrations": "புதிய பதிவுகள்",
       "bills": "பில்கள்",
       "payments": "கட்டணங்கள்",
-      "support": "ஆதரவு"
+      "support": "ஆதரவு",
+      "passwordRequests": "Password Requests"
     },
     "roles": {
       "admin": "சிஸ்டம் நிர்வாகி",
@@ -261,7 +305,9 @@
           "desc": "நுகர்வு முறைகள் மற்றும் போக்குகளை பகுப்பாய்வு செய்யவும்.",
           "cta": "அறிக்கைகளைப் பார்"
         }
-      }
+      },
+      "viewAll": "View All",
+      "noNotifications": "No new notifications"
     },
     "dailyEntry": {
       "title": "தினசரி விநியோகப் பதிவு",
@@ -285,7 +331,8 @@
       "criticalFault": "பிழை: {error}",
       "scanResultNull": "முந்தைய தரவு இல்லை.",
       "patternSync": "மீட்டெடுக்கப்பட்டது: {count} பதிவுகள்.",
-      "faultYesterdayScan": "தரவை ஏற்றுவதில் தோல்வி"
+      "faultYesterdayScan": "தரவை ஏற்றுவதில் தோல்வி",
+      "enterLiters": "Enter Liters"
     },
     "approvals": {
       "title": "சரிபார்ப்பு மையம்",
@@ -314,7 +361,13 @@
       "authLevel": "அதிகார நிலை",
       "adminLevel": "நிர்வாகி நிலை 1",
       "liveNode": "லைவ் நோட்",
-      "verificationTerminal": "சரிபார்ப்பு முனை"
+      "verificationTerminal": "சரிபார்ப்பு முனை",
+      "totalPending": "Pending Authorization",
+      "pendingSubtext": "items to review",
+      "clearanceQueue": "Review Queue",
+      "nodeHealth": "System Integrity",
+      "nominal": "Operational",
+      "liveTransNode": "Active Stream"
     },
     "bills": {
       "title": "பில்லிங் மேலாண்மை",
@@ -379,7 +432,13 @@
       "authorizeSettlement": "அனுமதி",
       "logPdf": "PDF_பதிவு",
       "encrypting": "மறைக்குறியீடு",
-      "draftState": "டிராஃப்ட்_நிலை"
+      "draftState": "டிராஃப்ட்_நிலை",
+      "realizedGrowth": "Collected",
+      "outstandingRisk": "Outstanding",
+      "totalExposure": "Total Bills",
+      "activeLiabilities": "Total Due",
+      "efficiencyIndex": "Collection %",
+      "liquidityRatio": "Efficiency"
     },
     "payments": {
       "title": "கட்டண மையம்",
@@ -479,7 +538,12 @@
       "updateSuccess": "புதுப்பிக்கப்பட்டது!",
       "saveChanges": "சேமி",
       "statusActive": "செயலில்",
-      "statusInactive": "செயலற்றது"
+      "statusInactive": "செயலற்றது",
+      "registry": "Registry",
+      "activeNode": "Active",
+      "deactivated": "Deactivated",
+      "provisionNode": "Add Customer",
+      "updateNode": "Update Customer"
     },
     "registrations": {
       "title": "பதிவுகள்",
@@ -499,7 +563,20 @@
       "joinProtocolActive": "செயலில்",
       "networkClean": "சுத்தம்",
       "protocolNode": "முனை",
-      "noRequests": "புதிய கோரிக்கைகள் இல்லை."
+      "noRequests": "புதிய கோரிக்கைகள் இல்லை.",
+      "registrations": "Pending Approval",
+      "description": "Approve or decline new registration requests.",
+      "filterByIdentity": "Search...",
+      "fetchingData": "Loading...",
+      "sectorUnknown": "Unknown",
+      "pendingGate": "Pending",
+      "authorize": "Approve",
+      "networkIntegrity": "Verified",
+      "activeShield": "Protected",
+      "requestVelocity": "Frequency",
+      "protocolSteady": "Stable",
+      "pendingClearance": "Awaiting Review",
+      "awaitingAction": "Action Required"
     },
     "consumption": {
       "title": "நுகர்வு பதிவேடு",
@@ -517,7 +594,34 @@
       "totals": "மொத்தம்",
       "delivered": "வழங்கப்பட்டது",
       "empty": "வெற்று",
-      "locked": "பூட்டப்பட்டது (7+ நாட்கள்)"
+      "locked": "பூட்டப்பட்டது (7+ நாட்கள்)",
+      "syncComplete": "Synchronization complete"
+    },
+    "registry": "Registry",
+    "passwordRequests": {
+      "title": "Password Reset",
+      "titleHighlight": "Requests",
+      "subtitle": "Security oversight and access recovery management.",
+      "refresh": "Refresh",
+      "totalRequests": "Total Volume",
+      "pendingApproval": "Awaiting Review",
+      "successRate": "Recovery Rate",
+      "filterPlaceholder": "Filter by identity...",
+      "tableUser": "Customer Name",
+      "tableEmail": "Email Identity",
+      "tablePhone": "Contact Phone",
+      "tableRequestedUser": "User Details",
+      "tableRequestDate": "Timestamp",
+      "tableStatus": "Integrity Status",
+      "tableActions": "Management",
+      "noRequests": "No active recovery requests.",
+      "statusPending": "PENDING",
+      "statusApproved": "APPROVED",
+      "statusRejected": "REJECTED",
+      "statusCompleted": "COMPLETED",
+      "reject": "Reject",
+      "approve": "Authorize",
+      "waitingForUser": "Verified: Active"
     }
   },
   "Records": {
@@ -533,7 +637,17 @@
     "auditState": "தணிக்கை_நிலை",
     "ledgerTimeline": "லெட்ஜர்_காலவரிசை",
     "nullEvent": "வெற்று_நிகழ்வு",
-    "zeroYieldEvent": "பூஜ்ய_உற்பத்தி"
+    "zeroYieldEvent": "பூஜ்ய_உற்பத்தி",
+    "consumptionTab": "Consumption",
+    "billingTab": "Settlements",
+    "billingSubtitle": "Financial reconciliation history",
+    "consumptionLedger": "CONSUMPTION_LEDGER_v4.2",
+    "yieldRecords": "Yield Records",
+    "nominalSecure": "NOMINAL_SECURE",
+    "settlementComplete": "SETTLEMENT_COMPLETE",
+    "awaitSettlement": "AWAIT_SETTLEMENT",
+    "zeroLedgerEvent": "ZERO_LEDGER_EVENT",
+    "download": "Download PDF"
   },
   "Payment": {
     "title": "கட்டணங்கள்",
@@ -562,7 +676,24 @@
     "gatewayNotLoaded": "ஏற்றப்படவில்லை.",
     "billPaymentDesc": "பில் - {month}",
     "customerName": "வாடிக்கையாளர்",
-    "securePayment": "{gateway} மூலம் பாதுகாக்கப்பட்டது"
+    "securePayment": "{gateway} மூலம் பாதுகாக்கப்பட்டது",
+    "portal": "Payment Portal",
+    "description": "Manage your subscriptions and payments",
+    "upiId": "UPI ID",
+    "upiCopied": "UPI ID Copied!",
+    "utrRequired": "Please enter a valid UTR reference",
+    "utrInvalid": "Invalid UTR. Please enter the 12-digit transaction number.",
+    "utrSuccess": "UTR submitted for verification!",
+    "utrFailed": "Failed to submit UTR.",
+    "verifying": "Verifying",
+    "verificationInProgress": "Verification in Progress",
+    "scanToPay": "Scan to Pay",
+    "upiIdLabel": "UPI ID",
+    "enterUtr": "Enter UTR",
+    "utrPlaceholder": "12-digit Reference Number",
+    "verifyPayment": "Verify Payment",
+    "paid": "Paid",
+    "unpaid": "Unpaid"
   },
   "Calendar": {
     "title": "காலண்டர்",
@@ -589,7 +720,49 @@
     "updateSuccess": "புதுப்பிக்கப்பட்டது.",
     "requestSubmitted": "அனுமதிக்கு அனுப்பப்பட்டது.",
     "updateError": "தோல்வி.",
-    "legendPending": "ஒப்புதலுக்கு காத்திருக்கிறது"
+    "legendPending": "ஒப்புதலுக்கு காத்திருக்கிறது",
+    "viewOnly": "View Only",
+    "editable": "Editable",
+    "modificationLimit": "This day is view-only. Modifications allowed for Today and Tomorrow only.",
+    "manage": "Manage",
+    "statusPending": "Pending",
+    "statusDelivered": "Delivered",
+    "statusCancelled": "Cancelled",
+    "statusSkipped": "Skipped",
+    "modifyOrder": "Modify Your Order",
+    "standardQtyDesc": "Standard: 1.0 L",
+    "extraQtyLabel": "Extra Quantity (L)",
+    "optional": "Optional",
+    "immutableLock": "IMMUTABLE_LOCK: Archive finalization complete.",
+    "handoffSuccess": "Handoff Successful: Awaiting Admin Sync",
+    "commError": "COMMUNICATION_ERROR",
+    "temporalGrid": "TEMPORAL_GRID_v4",
+    "authSecure": "Auth_Secure",
+    "node": "Node",
+    "pendingVerify": "PENDING_VERIFY",
+    "lockedNode": "LOCKED_NODE",
+    "syncActive": "Real-time sync active :: Ghost protocols operational",
+    "selectNode": "SELECT_NODE",
+    "awaitingVerification": "AWAITING_VERIFICATION",
+    "unitVolume": "UNIT_VOLUME",
+    "target": "TARGET",
+    "reserveVar": "RESERVE_VAR",
+    "statusVector": "STATUS_VECTOR",
+    "initializeGhost": "INITIALIZE_GHOST_EDIT",
+    "idleState": "IDLE_STATE",
+    "ghost": "Ghost",
+    "mode": "Mode",
+    "temporalMod": "Temporal Modification // Node",
+    "pauseSession": "Pause Session",
+    "suspendDelivery": "SUSPEND_UNIT_DELIVERY",
+    "standardVal": "STANDARD_VAL",
+    "reduceAmount": "REDUCE_AMOUNT",
+    "netYield": "NET_YIELD",
+    "preOrderLabel": "PRE-ORDER / EXTRA",
+    "preOrderDesc": "Additional unit request for this node only",
+    "synchronizing": "SYNCHRONIZING...",
+    "executeUpdate": "EXECUTE_UPDATE",
+    "abortChanges": "ABORT_CHANGES"
   },
   "Landing": {
     "nav": {
@@ -601,7 +774,7 @@
       "revenue": "வருவாய்",
       "network": "பிணையம்",
       "authorize": "அங்கீகரிக்கவும்",
-      "dairyOs": "DairyDay"
+      "dairyOs": "DairyDays"
     },
     "hero": {
       "version": "v2.0.0",
@@ -713,7 +886,7 @@
       "button": "உள்நுழைய"
     },
     "footer": {
-      "copyright": "© 2026 DairyDay",
+      "copyright": "© 2026 DairyDays",
       "privacy": "தனியுரிமை",
       "legal": "சட்டம்",
       "infrastructure": "வசதி",
@@ -763,6 +936,15 @@
     "opsRun247": "24/7 செயல்பாடுகள்",
     "criticalSupport": "முக்கிய ஆதரவு",
     "availableNow": "இப்போது கிடைக்கிறது",
-    "billingHours": "பில்லிங் நேரம்"
+    "billingHours": "பில்லிங் நேரம்",
+    "sendEmail": "மின்னஞ்சல் அனுப்பு",
+    "faq1Q": "இன்றைய விநியோகத்தை எப்படி ரத்து செய்வது?",
+    "faq1A": "காலெண்டருக்குச் சென்று, இன்றைய தேதியைக் கிளிக் செய்து, 'டெலிவரியை ரத்து செய்' தேர்வைப் பயன்படுத்தவும். இதை காலை 6 மணிக்குள் செய்ய வேண்டும்.",
+    "faq2Q": "என் பில் எப்போது தயாராகும்?",
+    "faq2A": "கடந்த மாத பயன்பாட்டிற்கான பில்கள் ஒவ்வொரு மாதமும் 1-ம் தேதி தயாராகும்.",
+    "faq3Q": "கூடுதல் பால் சேர்ப்பது எப்படி?",
+    "faq3A": "காலெண்டரில் நாளை தேதியைத் தேர்ந்தெடுத்து அளவை அதிகரிக்கவும். நிர்வாகிகள் உங்கள் கோரிக்கையை உறுதிப்படுத்துவார்கள்.",
+    "faq4Q": "பணம் செலுத்தியது இன்னும் புதுப்பிக்கப்படவில்லையா?",
+    "faq4A": "மெனுவல் யுபிஐ பேமெண்ட்டுகள் எங்கள் பணியாளர்களால் 12-24 மணி நேரத்திற்குள் சரிபார்க்கப்படும். நாளை மீண்டும் பார்க்கவும்!"
   }
 }

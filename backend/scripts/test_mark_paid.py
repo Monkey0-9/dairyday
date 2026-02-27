@@ -1,3 +1,4 @@
+import os
 import asyncio
 import httpx
 import sys
@@ -5,7 +6,7 @@ import sys
 # Configuration
 API_URL = "http://localhost:8000/api/v1"
 ADMIN_EMAIL = "admin@dairy.com"
-ADMIN_PASS = "admin123"
+ADMIN_PASS = os.environ.get("TEST_PASSWORD", "admin123")
 
 async def test_mark_paid(client: httpx.AsyncClient):
     print("\n--- Testing MARK AS PAID Flow ---")

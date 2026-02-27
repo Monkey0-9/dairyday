@@ -10,4 +10,4 @@ from app.models.webhook_event import WebhookEvent  # noqa
 from app.models.idempotency_key import IdempotencyKey  # noqa
 from app.models.audit_log import AuditLog  # noqa
 from app.models.support import SupportTicket  # noqa
-from app.models.registration import RegistrationRequest # noqa
+from app.models.password_reset import PasswordResetRequest  # noqa

@@ -1,8 +1,9 @@
 import requests
 import json
 import sys
+import os
 
-BASE_URL = "http://localhost:8000/api/v1"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000/api/v1")
 
 def verify_profile_update():
     print("Starting Profile Update Verification...")
@@ -10,8 +11,8 @@ def verify_profile_update():
     # 1. Login
     login_url = f"{BASE_URL}/auth/login"
     payload = {
-        "username": "admin@dairy.com",
-        "password": "admin123"
+        "username": os.environ.get("ADMIN_EMAIL", "admin@dairy.com"),
+        "password": os.environ.get("ADMIN_PASSWORD", "admin123")
     }
     
     try:
@@ -19,8 +20,8 @@ def verify_profile_update():
         response = requests.post(login_url, data=payload) 
         
         if response.status_code != 200:
-             print(f"❌ Login failed: {response.text}")
-             return
+            print(f"❌ Login failed: {response.text}")
+            return
 
         data = response.json()
         token = data.get("access_token")

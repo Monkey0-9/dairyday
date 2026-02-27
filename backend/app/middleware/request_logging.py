@@ -6,14 +6,26 @@ Provides structured logging for HTTP requests with:
 - User ID extraction for authenticated requests
 - JSON log format for log aggregation
 """
+
+import re
 import time
 import logging
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+import sentry_sdk
 
 from app.core.context import set_request_id, get_request_id, set_user_id, get_user_id
 
 logger = logging.getLogger("app.request")
+
+# Pre-compile PII redaction patterns once at import time
+_SENSITIVE_KEYS = [
+    "email", "password", "token", "secret", "cvv", "card", "mobile", "phone",
+]
+_PII_PATTERNS = [
+    re.compile(rf'({key})["\']?\s*[:=]\s*["\']?([^"\'&\s,]+)["\']?', re.IGNORECASE)
+    for key in _SENSITIVE_KEYS
+]
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -48,6 +60,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Set request ID in context and state
         set_request_id(request_id)
         request.state.request_id = request_id
+        sentry_sdk.set_tag("request_id", request_id)
 
         # Start timing
         start_time = time.time()
@@ -58,7 +71,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             "request_id": request_id,
             "method": request.method,
             "path": request.url.path,
-            "query_string": self._redact_pii(request.url.query) if request.url.query else None,
+            "query_string": (
+                self._redact_pii(request.url.query) if request.url.query else None
+            ),
             "client_ip": self._get_client_ip(request),
             "user_agent": request.headers.get("User-Agent"),
         }
@@ -68,6 +83,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             user_id = str(request.state.user_id)
             set_user_id(user_id)
             log_data["user_id"] = user_id
+            sentry_sdk.set_user({"id": user_id})
+        else:
+            sentry_sdk.set_user(None)
 
         logger.info("Request started", extra={"extra_data": log_data})
 
@@ -95,11 +113,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
             # Log based on status code
             if response.status_code >= 500:
-                logger.error("Request completed with server error", extra={"extra_data": response_log_data})
+                logger.error(
+                    "Request completed with server error",
+                    extra={"extra_data": response_log_data},
+                )
             elif response.status_code >= 400:
-                logger.warning("Request completed with client error", extra={"extra_data": response_log_data})
+                logger.warning(
+                    "Request completed with client error",
+                    extra={"extra_data": response_log_data},
+                )
             else:
-                logger.info("Request completed", extra={"extra_data": response_log_data})
+                logger.info(
+                    "Request completed", extra={"extra_data": response_log_data}
+                )
 
             # Add request ID to response headers
             response.headers["X-Request-ID"] = request_id
@@ -149,19 +175,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return None
 
     def _redact_pii(self, text: str) -> str:
-        """Simple redactor for sensitive information."""
+        """Simple redactor for sensitive information using pre-compiled patterns."""
         if not text:
             return text
-        
-        sensitive_keys = ["email", "password", "token", "secret", "cvv", "card", "mobile", "phone"]
-        import re
-        
+
         redacted = text
-        for key in sensitive_keys:
-            # Pattern to match key=value or "key": "value"
-            pattern = rf'({key})["\']?\s*[:=]\s*["\']?([^"\'&\s,]+)["\']?'
-            redacted = re.sub(pattern, r'\1=[REDACTED]', redacted, flags=re.IGNORECASE)
-        
+        for pattern in _PII_PATTERNS:
+            redacted = pattern.sub(r"\1=[REDACTED]", redacted)
+
         return redacted
 
 
@@ -176,6 +197,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID")
         if not request_id:
             from app.core.context import generate_request_id
+
             request_id = generate_request_id()
 
         # Set in context
@@ -189,4 +211,3 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request_id
 
         return response
-

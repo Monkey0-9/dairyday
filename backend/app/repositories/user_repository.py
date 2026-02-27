@@ -16,24 +16,18 @@ class UserRepository:
 
     async def get_by_id(self, user_id: UUID) -> Optional[User]:
         """Fetch a user by its ID."""
-        result = await self.db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalars().first()
 
     async def get_by_email(self, email: str) -> Optional[User]:
         """Fetch a user by email."""
-        result = await self.db.execute(
-            select(User).where(User.email == email)
-        )
+        result = await self.db.execute(select(User).where(User.email == email))
         return result.scalars().first()
 
     async def get_active_users(self) -> List[User]:
         """Fetch all active users with role 'USER'."""
         result = await self.db.execute(
-            select(User).where(
-                and_(User.role == "USER", User.is_active)
-            )
+            select(User).where(and_(User.role == "USER", User.is_active))
         )
         return result.scalars().all()
 

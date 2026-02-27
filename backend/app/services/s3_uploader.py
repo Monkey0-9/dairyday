@@ -33,17 +33,22 @@ def get_s3_client():
     Returns:
         boto3 S3 client configured for MinIO or AWS S3
     """
-    config = Config(
-        signature_version="s3v4",
-        s3={'addressing_style': 'path'}
-    )
+    config = Config(signature_version="s3v4", s3={"addressing_style": "path"})
 
     if settings.AWS_ENDPOINT_URL:
         # MinIO or S3-compatible storage
+        access_key = settings.AWS_ACCESS_KEY_ID
+        secret_key = settings.AWS_SECRET_ACCESS_KEY
+
+        if not access_key or not secret_key:
+            logger.warning(
+                "AWS credentials missing for S3-compatible storage."
+            )
+
         return boto3.client(
             "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID or "minioadmin",
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY or "minioadmin",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
             endpoint_url=settings.AWS_ENDPOINT_URL,
             config=config,
             region_name=settings.AWS_REGION or "us-east-1",
@@ -63,7 +68,7 @@ def upload_file_to_s3(
     file_obj: io.BytesIO,
     bucket_name: str,
     object_name: str,
-    content_type: str = "application/pdf"
+    content_type: str = "application/pdf",
 ) -> str:
     """
     Upload a file to S3 bucket.
@@ -84,10 +89,12 @@ def upload_file_to_s3(
     # 1. Validation
     if content_type not in MIME_WHITELIST:
         raise ValueError(f"Unsupported MIME type: {content_type}")
-    
+
     file_size = len(file_obj.getvalue())
     if file_size > MAX_FILE_SIZE:
-        raise ValueError(f"File size {file_size} exceeds limit {MAX_FILE_SIZE}")
+        raise ValueError(
+            f"File size {file_size} exceeds limit {MAX_FILE_SIZE}"
+        )
 
     try:
         client = get_s3_client()
@@ -96,36 +103,47 @@ def upload_file_to_s3(
             Key=object_name,
             Body=file_obj.getvalue(),
             ContentType=content_type,
-            Metadata={
-                "dairy-app": "invoice",
-                "uploaded-at": "auto"
-            }
+            Metadata={"dairy-app": "invoice", "uploaded-at": "auto"},
         )
 
         # Return public URL or presigned URL
         if settings.AWS_ENDPOINT_URL:
             # MinIO or compatible - return direct URL
-            endpoint = settings.AWS_ENDPOINT_URL.rstrip('/')
+            endpoint = settings.AWS_ENDPOINT_URL.rstrip("/")
             return f"{endpoint}/{bucket_name}/{object_name}"
         else:
             # AWS S3 - return public URL format
-            return f"https://{bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{object_name}"
+            return (
+                f"https://{bucket_name}.s3."
+                f"{settings.AWS_REGION}.amazonaws.com/{object_name}"
+            )
 
     except Exception as e:
-        logger.warning(f"S3/MinIO upload failed, falling back to local storage: {e}")
-        
-        # Local Fallback
-        upload_dir = Path("uploads") / bucket_name
-        file_path = upload_dir / object_name
-        
+        logger.warning(
+            "S3/MinIO upload failed, falling back to local: %s",
+            e
+        )
+
+        # Local Fallback with Path Traversal Protection
+        safe_bucket = os.path.basename(bucket_name)
+        safe_object = os.path.basename(object_name)
+        upload_dir = Path("uploads").resolve() / safe_bucket
+        file_path = upload_dir / safe_object
+
+        # Verify the path is within the uploads directory
+        uploads_root = Path("uploads").resolve()
+        if not str(file_path.resolve()).startswith(str(uploads_root)):
+            logger.error("Path traversal attempt blocked: %s", object_name)
+            raise ValueError("Invalid object name")
+
         # Ensure directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(file_path, "wb") as f:
             f.write(file_obj.getvalue())
-            
+
         logger.info(f"File saved locally to {file_path}")
-        
+
         # Return a local absolute URL for dev
         return f"{settings.BASE_URL}/uploads/{bucket_name}/{object_name}"
 
@@ -134,7 +152,7 @@ def generate_presigned_url(
     bucket_name: str,
     object_name: str,
     expiration: int = 3600,
-    method: str = "get_object"
+    method: str = "get_object",
 ) -> str:
     """
     Generate a presigned URL for S3 object access.
@@ -163,12 +181,20 @@ def generate_presigned_url(
             Params=params,
             ExpiresIn=expiration,
         )
-    except Exception:
+    except Exception as e:
         # Fallback for local files: just return the local path if it exists
-        local_path = Path("uploads") / bucket_name / object_name
-        if local_path.exists():
+        safe_bucket = os.path.basename(bucket_name)
+        safe_object = os.path.basename(object_name)
+        local_path = Path("uploads").resolve() / safe_bucket / safe_object
+        local_root = Path("uploads").resolve()
+        if local_path.exists() and \
+           str(local_path.resolve()).startswith(str(local_root)):
             # Use configured BASE_URL
-            return f"{settings.BASE_URL}/uploads/{bucket_name}/{object_name}"
+            return f"{settings.BASE_URL}/uploads/{safe_bucket}/{safe_object}"
+        logger.error(
+            "Presigned URL generation failed and fallback blocked: %s",
+            e
+        )
         raise
 
 
@@ -187,10 +213,13 @@ def get_object_url(bucket_name: str, object_name: str) -> str:
         URL string for the object
     """
     if settings.AWS_ENDPOINT_URL:
-        endpoint = settings.AWS_ENDPOINT_URL.rstrip('/')
+        endpoint = settings.AWS_ENDPOINT_URL.rstrip("/")
         return f"{endpoint}/{bucket_name}/{object_name}"
     else:
-        return f"https://{bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{object_name}"
+        return (
+            f"https://{bucket_name}.s3."
+            f"{settings.AWS_REGION}.amazonaws.com/{object_name}"
+        )
 
 
 def check_object_exists(bucket_name: str, object_name: str) -> bool:
@@ -252,7 +281,11 @@ def delete_object(bucket_name: str, object_name: str) -> bool:
         raise
 
 
-def list_objects(bucket_name: str, prefix: str = "", max_keys: int = 1000) -> list:
+def list_objects(
+    bucket_name: str,
+    prefix: str = "",
+    max_keys: int = 1000
+) -> list:
     """
     List objects in an S3 bucket with optional prefix.
 
@@ -277,6 +310,9 @@ def list_objects(bucket_name: str, prefix: str = "", max_keys: int = 1000) -> li
         return [obj["Key"] for obj in objects]
 
     except ClientError as e:
-        logger.exception("Failed to list objects with prefix %s: %s", prefix, e)
+        logger.exception(
+            "Failed to list objects with prefix %s: %s",
+            prefix,
+            e
+        )
         raise
-

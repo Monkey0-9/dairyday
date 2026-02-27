@@ -46,29 +46,23 @@ class AnalyticsService:
 
             # Current month revenue
             current_revenue_result = await db.execute(
-                select(func.coalesce(func.sum(Bill.total_amount), 0))
-                .where(
+                select(func.coalesce(func.sum(Bill.total_amount), 0)).where(
                     and_(
-                        Bill.created_at >= start_of_month,
-                        Bill.created_at < next_month
+                        Bill.created_at >= start_of_month, Bill.created_at < next_month
                     )
                 )
             )
             current_revenue = float(current_revenue_result.scalar() or 0)
 
             # Previous month dates
-            start_of_prev = start_of_month.replace(
-                year=prev_year, month=prev_month
-            )
+            start_of_prev = start_of_month.replace(year=prev_year, month=prev_month)
             end_of_prev = start_of_month
 
             # Previous month revenue
             prev_revenue_result = await db.execute(
-                select(func.coalesce(func.sum(Bill.total_amount), 0))
-                .where(
+                select(func.coalesce(func.sum(Bill.total_amount), 0)).where(
                     and_(
-                        Bill.created_at >= start_of_prev,
-                        Bill.created_at < end_of_prev
+                        Bill.created_at >= start_of_prev, Bill.created_at < end_of_prev
                     )
                 )
             )
@@ -86,24 +80,25 @@ class AnalyticsService:
             active_customers = active_customers_result.scalar() or 0
 
             # Pending payments (unpaid bills)
-            pending_payments_q = select(func.count()).select_from(Bill).where(
-                Bill.status == 'UNPAID'
+            pending_payments_q = (
+                select(func.count()).select_from(Bill).where(Bill.status == "UNPAID")
             )
             pending_payments_res = await db.execute(pending_payments_q)
             pending_payments = pending_payments_res.scalar() or 0
 
             # Total unpaid amount
-            unpaid_amount_q = select(func.coalesce(func.sum(Bill.total_amount), 0)).where(
-                Bill.status == 'UNPAID'
-            )
+            unpaid_amount_q = select(
+                func.coalesce(func.sum(Bill.total_amount), 0)
+            ).where(Bill.status == "UNPAID")
             unpaid_amount_res = await db.execute(unpaid_amount_q)
             unpaid_amount = float(unpaid_amount_res.scalar() or 0)
 
             # Today's Intake (from Consumption)
             today = datetime.now().date()
             today_liters_result = await db.execute(
-                select(func.coalesce(func.sum(Consumption.quantity), 0))
-                .where(Consumption.date == today)
+                select(func.coalesce(func.sum(Consumption.quantity), 0)).where(
+                    Consumption.date == today
+                )
             )
             today_liters = float(today_liters_result.scalar() or 0)
 
@@ -111,8 +106,7 @@ class AnalyticsService:
             new_customers_result = await db.execute(
                 select(func.count(User.id)).where(
                     and_(
-                        User.created_at >= start_of_month,
-                        User.created_at < next_month
+                        User.created_at >= start_of_month, User.created_at < next_month
                     )
                 )
             )
@@ -133,7 +127,7 @@ class AnalyticsService:
                 "today_liters": today_liters,
                 "pending_bills": pending_payments,
                 "unpaid_amount": unpaid_amount,
-                "period": now.strftime("%B %Y")
+                "period": now.strftime("%B %Y"),
             }
 
         except Exception as e:
@@ -143,8 +137,7 @@ class AnalyticsService:
 
     @staticmethod
     async def get_revenue_trend(
-        db: AsyncSession,
-        months: int = 12
+        db: AsyncSession, months: int = 12
     ) -> List[Dict[str, Any]]:
         """
         Get monthly revenue trend for the specified number of months.
@@ -170,11 +163,10 @@ class AnalyticsService:
 
                 # Get revenue for this month
                 revenue_result = await db.execute(
-                    select(func.coalesce(func.sum(Bill.total_amount), 0))
-                    .where(
+                    select(func.coalesce(func.sum(Bill.total_amount), 0)).where(
                         and_(
-                            extract('year', Bill.created_at) == target_year,
-                            extract('month', Bill.created_at) == target_month
+                            extract("year", Bill.created_at) == target_year,
+                            extract("month", Bill.created_at) == target_month,
                         )
                     )
                 )
@@ -182,12 +174,14 @@ class AnalyticsService:
 
                 start_of_target = datetime(target_year, target_month, 1)
                 month_name = start_of_target.strftime("%b %Y")
-                trends.append({
-                    "month": month_name,
-                    "revenue": revenue,
-                    "year": target_year,
-                    "month_number": target_month
-                })
+                trends.append(
+                    {
+                        "month": month_name,
+                        "revenue": revenue,
+                        "year": target_year,
+                        "month_number": target_month,
+                    }
+                )
 
             logger.info(f"Revenue trend calculated for {months} months")
             return trends
@@ -221,7 +215,7 @@ class AnalyticsService:
                 "forecast_amount": round(forecast, 2),
                 "confidence": confidence,
                 "method": "SMA-3",
-                "period": "Next Month"
+                "period": "Next Month",
             }
         except Exception as e:
             logger.error(f"Error generating forecast: {str(e)}")
@@ -265,7 +259,7 @@ class AnalyticsService:
                 "active_customers": active,
                 "inactive_customers": inactive,
                 "arpu": round(arpu, 2),
-                "activation_rate": round(activation_rate, 2)
+                "activation_rate": round(activation_rate, 2),
             }
 
         except Exception as e:

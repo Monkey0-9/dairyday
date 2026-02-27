@@ -7,63 +7,56 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 import time
 
-
 # Request metrics
 REQUEST_COUNT = Counter(
     "dairy_os_requests_total",
     "Total number of HTTP requests",
-    ["method", "endpoint", "status_code"]
+    ["method", "endpoint", "status_code"],
 )
 
 REQUEST_LATENCY = Histogram(
     "dairy_os_request_duration_seconds",
     "HTTP request latency in seconds",
     ["method", "endpoint"],
-    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 # Authentication metrics
 LOGIN_ATTEMPTS = Counter(
     "dairy_os_login_attempts_total",
     "Total number of login attempts",
-    ["status", "role"]
+    ["status", "role"],
 )
 
 TOKEN_ISSUED = Counter(
-    "dairy_os_tokens_issued_total",
-    "Total number of tokens issued",
-    ["token_type"]
+    "dairy_os_tokens_issued_total", "Total number of tokens issued", ["token_type"]
 )
 
 # Business metrics
 BILL_GENERATED = Counter(
     "dairy_os_bills_generated_total",
     "Total number of bills generated",
-    ["month", "status"]
+    ["month", "status"],
 )
 
 PAYMENT_PROCESSED = Counter(
     "dairy_os_payments_processed_total",
     "Total number of payments processed",
-    ["status"]
+    ["status"],
 )
 
 CONSUMPTION_RECORDS = Counter(
     "dairy_os_consumption_records_total",
     "Total number of consumption records created/updated",
-    ["action"]
+    ["action"],
 )
 
 # Active users gauge
-ACTIVE_USERS = Gauge(
-    "dairy_os_active_users",
-    "Number of active users in the system"
-)
+ACTIVE_USERS = Gauge("dairy_os_active_users", "Number of active users in the system")
 
 # Database connection gauge
 DB_CONNECTIONS = Gauge(
-    "dairy_os_database_connections",
-    "Current number of database connections"
+    "dairy_os_database_connections", "Current number of database connections"
 )
 
 # System info
@@ -100,13 +93,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             REQUEST_COUNT.labels(
                 method=method,
                 endpoint=normalized_endpoint,
-                status_code=str(status_code)
+                status_code=str(status_code),
             ).inc()
 
-            REQUEST_LATENCY.labels(
-                method=method,
-                endpoint=normalized_endpoint
-            ).observe(duration)
+            REQUEST_LATENCY.labels(method=method, endpoint=normalized_endpoint).observe(
+                duration
+            )
 
         return response
 
@@ -114,11 +106,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         """Normalize endpoint path for better metric grouping."""
         # Replace UUID patterns
         import re
-        normalized = re.sub(r'/[0-9a-fA-F-]{36}', '/{uuid}', path)
+
+        normalized = re.sub(r"/[0-9a-fA-F-]{36}", "/{uuid}", path)
         # Replace date patterns
-        normalized = re.sub(r'/\d{4}-\d{2}-\d{2}', '/{date}', normalized)
+        normalized = re.sub(r"/\d{4}-\d{2}-\d{2}", "/{date}", normalized)
         # Replace month patterns
-        normalized = re.sub(r'/\d{4}-\d{2}$', '/{month}', normalized)
+        normalized = re.sub(r"/\d{4}-\d{2}$", "/{month}", normalized)
         return normalized
 
 
@@ -159,8 +152,4 @@ def set_db_connections(count: int):
 
 def set_system_info(version: str, environment: str):
     """Set system information."""
-    SYSTEM_INFO.info({
-        "version": version,
-        "environment": environment
-    })
-
+    SYSTEM_INFO.info({"version": version, "environment": environment})

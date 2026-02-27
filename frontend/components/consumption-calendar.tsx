@@ -144,7 +144,7 @@ export default function ConsumptionCalendar() {
     if (lockStatus === 'GHOST_EDIT') {
       setIsDialogOpen(true)
     } else {
-      toast.error("IMMUTABLE_LOCK: Archive finalization complete.")
+      toast.error(t('immutableLock'))
     }
   }
 
@@ -172,13 +172,13 @@ export default function ConsumptionCalendar() {
         extra_qty: isPaused ? 0 : editExtraQty,
         status: isPaused ? 'SKIPPED' : 'PENDING',
       })
-      toast.success("Handoff Successful: Awaiting Admin Sync")
+      toast.success(t('handoffSuccess'))
       queryClient.invalidateQueries({ queryKey: ["my-bills"] })
       queryClient.invalidateQueries({ queryKey: ["my-consumption"] })
       fetchRecords(month!)
     } catch {
       setRecords(originalRecords)
-      toast.error("COMMUNICATION_ERROR")
+      toast.error(t('commError'))
     } finally {
       setIsSaving(false)
     }
@@ -195,13 +195,13 @@ export default function ConsumptionCalendar() {
         <Card className="glass-card overflow-hidden h-fit border-border/5 bg-background/60 dark:bg-obsidian-900/60 backdrop-blur-3xl shadow-glow-primary/5">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
-              <span className="font-micro tracking-[0.4em] text-primary/60">TEMPORAL_GRID_v4</span>
+              <span className="font-micro tracking-[0.4em] text-primary/60">{t('temporalGrid')}</span>
               <div className="flex items-center gap-2 px-3 py-1 bg-foreground/5 rounded-full border border-border/5">
                 <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-[8px] font-black tracking-widest text-foreground/40 uppercase">Auth_Secure</span>
+                <span className="text-[8px] font-black tracking-widest text-foreground/40 uppercase">{t('authSecure')}</span>
               </div>
             </div>
-            <CardTitle className="text-3xl font-heading font-black italic uppercase tracking-tighter mt-4 text-foreground">Consumption <span className="text-primary italic">Node</span></CardTitle>
+            <CardTitle className="text-3xl font-heading font-black italic uppercase tracking-tighter mt-4 text-foreground">{t('title').split(' ')[0]} <span className="text-primary italic">{t('node')}</span></CardTitle>
           </CardHeader>
           <CardContent className="flex justify-center p-6 text-foreground">
             {hasMounted && (
@@ -233,15 +233,15 @@ export default function ConsumptionCalendar() {
             </div>
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse border border-amber-400/50" />
-              <span className="font-micro text-[10px] text-foreground/60">PENDING_VERIFY</span>
+              <span className="font-micro text-[10px] text-foreground/60">{t('pendingVerify')}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-foreground/20" />
-              <span className="font-micro text-[10px] text-foreground/60">LOCKED_NODE</span>
+              <span className="font-micro text-[10px] text-foreground/60">{t('lockedNode')}</span>
             </div>
             <div className="col-span-2 flex items-start gap-1 p-2 bg-primary/5 rounded-lg border border-primary/10">
               <Activity className="w-3 h-3 text-primary animate-pulse mt-0.5" />
-              <span className="font-micro text-[8px] leading-tight text-foreground/40 uppercase tracking-tighter">Real-time sync active :: Ghost protocols operational</span>
+              <span className="font-micro text-[8px] leading-tight text-foreground/40 uppercase tracking-tighter">{t('syncActive')}</span>
             </div>
           </div>
         </Card>
@@ -261,7 +261,7 @@ export default function ConsumptionCalendar() {
               </div>
 
               <header className="mb-10 text-foreground">
-                <span className="font-micro text-foreground/20 mb-2 block">{date ? format(date, 'EEEE_ISO_8601') : 'SELECT_NODE'}</span>
+                <span className="font-micro text-foreground/20 mb-2 block">{date ? format(date, 'EEEE_ISO_8601') : t('selectNode')}</span>
                 <h2 className="font-big text-foreground italic uppercase">{date ? format(date, 'dd MMM') : '--'}</h2>
                 <div className="mt-4 flex gap-4">
                   {date && (
@@ -272,7 +272,7 @@ export default function ConsumptionCalendar() {
                           getLockStatus(date) === 'GHOST_EDIT' ? "bg-primary/20 text-primary border-primary/20" :
                             "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/10"
                     )}>
-                      {selectedRecord?.request_status === 'PENDING' ? 'AWAITING_VERIFICATION' : getLockStatus(date)}
+                      {selectedRecord?.request_status === 'PENDING' ? t('awaitingVerification') : t(getLockStatus(date))}
                     </Badge>
                   )}
                 </div>
@@ -283,9 +283,9 @@ export default function ConsumptionCalendar() {
                   <div className="grid grid-cols-2 gap-6">
                     <div className="p-6 rounded-2xl bg-foreground/[0.02] border border-border/5 hover:border-primary/30 transition-all">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-micro text-foreground/30">UNIT_VOLUME</span>
+                        <span className="font-micro text-foreground/30">{t('unitVolume')}</span>
                         {selectedRecord.request_status === 'PENDING' && selectedRecord.requested_quantity !== null && (
-                          <span className="font-micro text-amber-600 dark:text-amber-400 text-[8px] tracking-widest animate-pulse">TARGET</span>
+                          <span className="font-micro text-amber-600 dark:text-amber-400 text-[8px] tracking-widest animate-pulse">{t('target')}</span>
                         )}
                       </div>
                       <div className="flex flex-col">
@@ -302,9 +302,9 @@ export default function ConsumptionCalendar() {
                     </div>
                     <div className="p-6 rounded-2xl bg-foreground/[0.02] border border-border/5 hover:border-primary/30 transition-all">
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-micro text-foreground/30">RESERVE_VAR</span>
+                        <span className="font-micro text-foreground/30">{t('reserveVar')}</span>
                         {selectedRecord.request_status === 'PENDING' && selectedRecord.requested_extra_qty !== null && (
-                          <span className="font-micro text-amber-600 dark:text-amber-400 text-[8px] tracking-widest animate-pulse">TARGET</span>
+                          <span className="font-micro text-amber-600 dark:text-amber-400 text-[8px] tracking-widest animate-pulse">{t('target')}</span>
                         )}
                       </div>
                       <div className="flex flex-col">
@@ -327,7 +327,7 @@ export default function ConsumptionCalendar() {
                         <ShieldCheck className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <span className="font-micro text-primary">STATUS_VECTOR</span>
+                        <span className="font-micro text-primary">{t('statusVector')}</span>
                         <p className="font-heading font-black italic text-foreground uppercase">{selectedRecord.status}</p>
                       </div>
                     </div>
@@ -343,14 +343,14 @@ export default function ConsumptionCalendar() {
                       onClick={() => setIsDialogOpen(true)}
                       className="w-full h-16 rounded-2xl bg-foreground text-background hover:bg-primary hover:text-white font-black italic text-xl tracking-tight transition-all duration-500"
                     >
-                      INITIALIZE_GHOST_EDIT
+                      {t('initializeGhost')}
                     </Button>
                   )}
                 </div>
               ) : (
                 <div className="py-20 text-center opacity-10">
                   <Lock size={60} className="mx-auto mb-4 text-foreground" />
-                  <span className="font-micro tracking-[1em] text-foreground">IDLE_STATE</span>
+                  <span className="font-micro tracking-[1em] text-foreground">{t('idleState')}</span>
                 </div>
               )}
             </Card>
@@ -363,17 +363,17 @@ export default function ConsumptionCalendar() {
           <div className="max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-foreground/10 scrollbar-track-transparent">
             <div className="p-8 sm:p-10 space-y-8">
               <DialogHeader className="space-y-2">
-                <DialogTitle className="text-3xl font-black font-heading italic uppercase tracking-tighter text-foreground">Ghost <span className="text-primary italic">Mode</span></DialogTitle>
+                <DialogTitle className="text-3xl font-black font-heading italic uppercase tracking-tighter text-foreground">{t('ghost')} <span className="text-primary italic">{t('mode')}</span></DialogTitle>
                 <DialogDescription className="font-micro text-foreground/20 tracking-[0.2em] uppercase text-[10px]">
-                  Temporal Modification // Node {date && format(date, 'yyyy.MM.dd')}
+                  {t('temporalMod')} {date && format(date, 'yyyy.MM.dd')}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-8">
                 <div className="flex items-center justify-between p-6 bg-foreground/[0.03] rounded-2xl border border-border/5">
                   <div className="space-y-1">
-                    <p className="font-heading font-bold italic uppercase tracking-tight text-foreground">Pause Session</p>
-                    <p className="font-micro text-foreground/20">SUSPEND_UNIT_DELIVERY</p>
+                    <p className="font-heading font-bold italic uppercase tracking-tight text-foreground">{t('pauseSession')}</p>
+                    <p className="font-micro text-foreground/20">{t('suspendDelivery')}</p>
                   </div>
                   <Switch
                     checked={isPaused}
@@ -386,12 +386,12 @@ export default function ConsumptionCalendar() {
                   <div className="space-y-6">
                     <div className="p-6 rounded-2xl bg-foreground/[0.03] border border-border/5 space-y-4">
                       <div className="flex justify-between items-center text-foreground">
-                        <span className="font-micro text-foreground/40 italic">STANDARD_VAL</span>
+                        <span className="font-micro text-foreground/40 italic">{t('standardVal')}</span>
                         <span className="text-xl font-black italic">{(Number(selectedRecord?.quantity) || dailyTargetQty)} L</span>
                       </div>
                       <Separator className="bg-foreground/5" />
                       <div className="space-y-2">
-                        <Label className="font-micro text-primary">REDUCE_AMOUNT</Label>
+                        <Label className="font-micro text-primary">{t('reduceAmount')}</Label>
                         <Input
                           type="number"
                           step="0.25"
@@ -403,7 +403,7 @@ export default function ConsumptionCalendar() {
                         />
                       </div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className="font-micro text-emerald-600 dark:text-emerald-400">NET_YIELD</span>
+                        <span className="font-micro text-emerald-600 dark:text-emerald-400">{t('netYield')}</span>
                         <span className="text-3xl font-black italic text-emerald-600 dark:text-emerald-400">
                           {selectedRecord ? Math.max(0, (Number(selectedRecord.quantity) || dailyTargetQty) - reduceQty) : 0} L
                         </span>
@@ -411,7 +411,7 @@ export default function ConsumptionCalendar() {
                     </div>
 
                     <div className="space-y-2 p-6 rounded-2xl bg-primary/5 border border-primary/10">
-                      <Label className="font-micro text-primary italic uppercase tracking-wider">PRE-ORDER / EXTRA</Label>
+                      <Label className="font-micro text-primary italic uppercase tracking-wider">{t('preOrderLabel')}</Label>
                       <Input
                         type="number"
                         step="0.25"
@@ -420,7 +420,7 @@ export default function ConsumptionCalendar() {
                         onChange={(e) => setEditExtraQty(parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
                       />
-                      <p className="text-[10px] font-micro text-foreground/30 uppercase tracking-widest mt-1">Additional unit request for this node only</p>
+                      <p className="text-[10px] font-micro text-foreground/30 uppercase tracking-widest mt-1">{t('preOrderDesc')}</p>
                     </div>
                   </div>
                 )}
@@ -433,14 +433,14 @@ export default function ConsumptionCalendar() {
                   className="w-full h-16 bg-primary hover:bg-foreground hover:text-background rounded-2xl font-black italic text-lg shadow-glow-primary/20 transition-all duration-300 gap-3 text-white"
                 >
                   {isSaving ? <Loader2 className="animate-spin h-6 w-6" /> : <Sparkles className="h-5 w-5" />}
-                  {isSaving ? "SYNCHRONIZING..." : "EXECUTE_UPDATE"}
+                  {isSaving ? t('synchronizing') : t('executeUpdate')}
                 </Button>
                 <Button
                   variant="ghost"
                   onClick={() => setIsDialogOpen(false)}
                   className="w-full font-micro opacity-40 hover:opacity-100 uppercase tracking-widest text-[10px] text-foreground"
                 >
-                  ABORT_CHANGES
+                  {t('abortChanges')}
                 </Button>
               </DialogFooter>
             </div>

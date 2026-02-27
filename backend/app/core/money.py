@@ -6,13 +6,14 @@ Provides consistent monetary handling with:
 - Currency formatting for INR
 - Tax calculation support
 """
-from decimal import Decimal, ROUND_HALF_EVEN
+
+from decimal import Decimal, ROUND_HALF_EVEN, ROUND_HALF_UP
 from dataclasses import dataclass
 
-# Rounding policy: Banker's rounding for financial accuracy
-DEFAULT_ROUNDING = ROUND_HALF_EVEN
+# Rounding policy: Standard rounding (Half Up) for user expectation
+DEFAULT_ROUNDING = ROUND_HALF_UP
 DECIMAL_PRECISION = Decimal("0.01")  # 2 decimal places for currency
-LITER_PRECISION = Decimal("0.001")   # 3 decimal places for quantity
+LITER_PRECISION = Decimal("0.001")  # 3 decimal places for quantity
 
 
 @dataclass(frozen=True)
@@ -22,12 +23,13 @@ class Money:
     Ensures all monetary values are properly rounded to 2 decimal places
     using banker's rounding (ROUND_HALF_EVEN) for financial accuracy.
     """
+
     amount: Decimal
 
     def __post_init__(self):
         # Ensure amount is properly quantized
         quantized = self.amount.quantize(DECIMAL_PRECISION, rounding=DEFAULT_ROUNDING)
-        object.__setattr__(self, 'amount', quantized)
+        object.__setattr__(self, "amount", quantized)
 
     @classmethod
     def from_float(cls, value: float) -> "Money":
@@ -79,7 +81,9 @@ class Money:
     def __mul__(self, other: Decimal) -> "Money":
         if other < 0:
             raise ValueError("Cannot multiply by negative amount")
-        return Money((self.amount * other).quantize(DECIMAL_PRECISION, rounding=DEFAULT_ROUNDING))
+        return Money(
+            (self.amount * other).quantize(DECIMAL_PRECISION, rounding=DEFAULT_ROUNDING)
+        )
 
     def __rmul__(self, other: Decimal) -> "Money":
         return self.__mul__(other)
@@ -214,7 +218,9 @@ def calculate_percentage(amount: Money, percent: Decimal) -> Money:
     """
     if percent < 0:
         raise ValueError("Percentage cannot be negative")
-    result = (amount.amount * percent).quantize(DECIMAL_PRECISION, rounding=DEFAULT_ROUNDING)
+    result = (amount.amount * percent).quantize(
+        DECIMAL_PRECISION, rounding=DEFAULT_ROUNDING
+    )
     return Money(result)
 
 
@@ -234,4 +240,3 @@ def apply_discount(amount: Money, discount_percent: Decimal) -> Money:
 
     discount = calculate_percentage(amount, discount_percent)
     return amount - discount
-

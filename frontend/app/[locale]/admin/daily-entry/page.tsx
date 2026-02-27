@@ -1,8 +1,9 @@
 "use client"
 
 import React, { useState, useMemo, useCallback, useRef } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { format, addDays, subDays } from "date-fns"
+import { DailyEntrySkeleton } from "@/components/skeletons"
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,10 +23,12 @@ import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
+import { EmptyUserState } from "@/components/ui/empty-state"
+import { PremiumErrorState } from "@/components/ui/state-displays"
 import { adminApi } from "@/lib/api"
-import { Skeleton } from "@/components/ui/skeleton"
-import { cn, formatApiError } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
+import { useOptimisticDailyEntry } from "@/hooks/use-optimistic-entry"
 
 const MetricNode = ({ icon, label, value, suffix, color, delay = 0 }: { icon: React.ReactNode; label: string; value: string; suffix?: string; color: "primary" | "emerald" | "indigo"; delay?: number }) => {
   const colors = {
@@ -54,20 +57,19 @@ const MetricNode = ({ icon, label, value, suffix, color, delay = 0 }: { icon: Re
 
 export default function DailyEntryPage() {
   const t = useTranslations('Admin.dailyEntry')
-  const queryClient = useQueryClient()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [searchQuery, setSearchQuery] = useState("")
-  const [localEntries, setLocalEntries] = useState<Record<string, number>>({})
+  const [localEntries, setLocalEntries] = useState<Record<string, number | "">>({})
   const [unsavedIds, setUnsavedIds] = useState<Set<string>>(new Set())
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const dateStr = format(selectedDate, "yyyy-MM-dd")
 
-  const { data: entries, isLoading } = useQuery({
+  const { data: entries, isLoading, isError, refetch } = useQuery({
     queryKey: ["daily-entry", dateStr],
     queryFn: async () => {
       const res = await adminApi.getDailyEntry(dateStr)
-      const initialEntries: Record<string, number> = {}
+      const initialEntries: Record<string, number | ""> = {}
       res.data.forEach((entry: { id: string; liters: number }) => {
         initialEntries[entry.id] = entry.liters
       })
@@ -77,57 +79,31 @@ export default function DailyEntryPage() {
     },
   })
 
-  const saveMutation = useMutation({
-    mutationFn: (data: { user_id: string; liters: number }[]) => adminApi.saveDailyEntry(dateStr, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily-entry"] })
-      queryClient.invalidateQueries({ queryKey: ["admin-bills"] })
-      toast.success(t('syncComplete'))
-      setUnsavedIds(new Set())
-    },
-    onError: (err) => toast.error(t('criticalFault', { error: formatApiError(err) }))
-  })
-
-  const handleLiterChange = (id: string, value: number) => {
-    const newValue = Math.max(0, Math.round(value * 100) / 100)
-    setLocalEntries(prev => ({ ...prev, [id]: newValue }))
-    setUnsavedIds(prev => new Set(prev).add(id))
-  }
+  const saveMutation = useOptimisticDailyEntry(dateStr);
 
   const filteredEntries = useMemo(() => {
     if (!entries) return []
-    return entries.filter((entry: { name?: string; phone?: string }) =>
+    return entries.filter((entry: { name?: string; phone?: string; email?: string }) =>
       (entry.name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
-      (entry.phone?.includes(searchQuery) ?? false)
+      (entry.phone?.includes(searchQuery) ?? false) ||
+      (entry.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     )
   }, [entries, searchQuery])
 
   const totals = useMemo(() => {
-    const total = Object.values(localEntries).reduce((sum, val) => sum + val, 0)
-    const active = Object.values(localEntries).filter(v => v > 0).length
+    const total = Object.values(localEntries).reduce((sum: number, val) => sum + (typeof val === 'number' ? val : 0), 0)
+    const active = Object.values(localEntries).filter(v => typeof v === 'number' && v > 0).length
     return { total, active }
   }, [localEntries])
-
-  const handleSave = () => {
-    if (unsavedIds.size === 0) return
-    const dataToSave = entries
-      .filter((e: { id: string }) => unsavedIds.has(e.id))
-      .map((e: { id: string }) => ({
-        user_id: e.id,
-        liters: localEntries[e.id],
-      }))
-    saveMutation.mutate(dataToSave)
-  }
 
   const copyFromYesterday = useCallback(async () => {
     const yesterdayStr = format(subDays(selectedDate, 1), "yyyy-MM-dd")
     try {
       const res = await adminApi.getDailyEntry(yesterdayStr)
       if (!res.data?.length) {
-        toast.info(t('scanResultNull'))
         return
       }
-      const newEntries: Record<string, number> = {}
+      const newEntries: Record<string, number | ""> = {}
       const newUnsaved = new Set<string>()
       res.data.forEach((entry: { id: string; liters: number }) => {
         newEntries[entry.id] = entry.liters
@@ -138,6 +114,49 @@ export default function DailyEntryPage() {
       toast.info(t('patternSync', { count: newUnsaved.size }))
     } catch { toast.error(t('faultYesterdayScan')) }
   }, [selectedDate, t])
+
+  if (isError) {
+    return <PremiumErrorState
+      message={t('commError')}
+      onRetry={() => refetch()}
+    />
+  }
+
+  if (isLoading) {
+    return <DailyEntrySkeleton />
+  }
+
+  const handleLiterChange = (id: string, valueStr: string) => {
+    if (valueStr === "") {
+      setLocalEntries(prev => ({ ...prev, [id]: "" }))
+      setUnsavedIds(prev => new Set(prev).add(id))
+      return
+    }
+    const value = parseFloat(valueStr)
+    if (isNaN(value)) return
+    const newValue = Math.max(0, Math.round(value * 100) / 100)
+    setLocalEntries(prev => ({ ...prev, [id]: newValue }))
+    setUnsavedIds(prev => new Set(prev).add(id))
+  }
+
+  const handleSave = () => {
+    if (unsavedIds.size === 0) return
+
+    // Check for empty fields
+    const hasEmpty = Array.from(unsavedIds).some(id => localEntries[id] === "")
+    if (hasEmpty) {
+      toast.error(t('fillRequiredFields', { defaultValue: "Please fill all required fields" }))
+      return
+    }
+
+    const dataToSave = entries
+      .filter((e: { id: string }) => unsavedIds.has(e.id))
+      .map((e: { id: string }) => ({
+        user_id: e.id,
+        liters: localEntries[e.id] as number,
+      }))
+    saveMutation.mutate(dataToSave)
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
     const currentIdx = filteredEntries.findIndex((item: { id: string }) => item.id === id)
@@ -158,7 +177,7 @@ export default function DailyEntryPage() {
       {/* atmospheric lighting */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 right-0 w-[50%] h-[50%] bg-primary/5 blur-[200px] rounded-full opacity-30 animate-pulse-glow" />
-        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-accent/5 blur-[200px] rounded-full opacity-20 animate-pulse-glow" style={{ animationDelay: '3s' }} />
+        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-accent/5 blur-[200px] rounded-full opacity-20 animate-pulse-glow animation-delay-3000" />
       </div>
 
       <div className="container mx-auto px-4 py-6 relative z-10 space-y-6">
@@ -226,14 +245,16 @@ export default function DailyEntryPage() {
           </div>
 
           {/* Liquid List */}
-          <div className="space-y-3">
+          <div className="space-y-3 mask-edge-fade-bottom max-h-[60vh] overflow-y-auto custom-scrollbar pb-10">
             <AnimatePresence mode="popLayout" initial={false}>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full rounded-2xl bg-white/[0.02]" />
-                ))
+                <DailyEntrySkeleton count={6} />
+              ) : filteredEntries.length === 0 ? (
+                <div className="py-20">
+                  <EmptyUserState />
+                </div>
               ) : (
-                filteredEntries.map((entry: { id: string; name: string; phone?: string }, i: number) => (
+                filteredEntries.map((entry: { id: string; name: string; phone?: string; email?: string }, i: number) => (
                   <motion.div
                     key={entry.id}
                     initial={{ opacity: 0, x: -10 }}
@@ -251,29 +272,34 @@ export default function DailyEntryPage() {
                         {String(i + 1).padStart(2, '0')}
                       </div>
                       <div className="space-y-0.5">
-                        <h3 className="text-lg font-heading font-black italic tracking-tight text-white uppercase">{entry.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-heading font-black italic tracking-tight text-white uppercase">{entry.name}</h3>
+                          <span className="font-mono text-[11px] text-primary/80 tracking-wide mt-0.5">{entry.email || entry.id}</span>
+                        </div>
                         <span className="font-micro text-[9px] text-white/20 tracking-[0.2em] uppercase">{entry.phone || t('anonNode')}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-6">
                       <div className="flex items-center h-10 bg-black/40 rounded-xl p-1 border border-white/5 hover:border-primary/30 transition-all">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleLiterChange(entry.id, (localEntries[entry.id] ?? 0.25) - 0.25)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleLiterChange(entry.id, String((typeof localEntries[entry.id] === 'number' ? localEntries[entry.id] as number : 1) - 0.25))}>
                           <Minus size={14} />
                         </Button>
                         <div className="px-3 flex flex-col items-center min-w-[60px]">
                           <input
                             type="number"
                             step="0.05"
-                            value={localEntries[entry.id] ?? 0}
-                            onChange={(e) => handleLiterChange(entry.id, parseFloat(e.target.value) || 0)}
+                            value={localEntries[entry.id] === undefined ? 0 : localEntries[entry.id]}
+                            onChange={(e) => handleLiterChange(entry.id, e.target.value)}
                             onKeyDown={(e) => handleKeyDown(e, entry.id)}
                             ref={el => { inputRefs.current[entry.id] = el }}
+                            title={t('enterLiters')}
+                            aria-label={`${t('enterLiters')} for ${entry.name}`}
                             className="w-16 bg-transparent border-0 text-center text-xl font-heading font-black tracking-tight text-white focus:outline-none focus:ring-0 italic select-all"
                           />
                           <span className="font-micro -mt-1 text-[8px] text-primary/40 uppercase tracking-widest">{t('nodeVal')}</span>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleLiterChange(entry.id, (localEntries[entry.id] ?? 0) + 0.25)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleLiterChange(entry.id, String((typeof localEntries[entry.id] === 'number' ? localEntries[entry.id] as number : 0) + 0.25))}>
                           <Plus size={14} />
                         </Button>
                       </div>

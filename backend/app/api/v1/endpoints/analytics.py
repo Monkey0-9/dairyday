@@ -1,20 +1,22 @@
-
 from typing import Any
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.db.session import get_db
 from app.models.user import User
 from app.services.analytics_service import AnalyticsService
+from app.core.cache import cache_response
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 @router.get("/dashboard")
+@cache_response(expire=120, key_prefix="dashboard_kpis")
 async def get_dashboard_analytics(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_active_admin),
 ) -> Any:
@@ -36,21 +38,20 @@ async def get_dashboard_analytics(
 
         logger.info("Calling AnalyticsService.get_revenue_trend...")
         revenue_trend = await AnalyticsService.get_revenue_trend(db, months=12)
-        
+
         logger.info("Calling AnalyticsService.get_customer_insights...")
         customer_insights = await AnalyticsService.get_customer_insights(db)
 
         return {
             **kpis,
             "revenue_trend": revenue_trend,
-            "customer_insights": customer_insights
+            "customer_insights": customer_insights,
         }
 
     except Exception as e:
         logger.error(f"Error fetching dashboard analytics: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve analytics: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve analytics: {str(e)}"
         )
 
 
@@ -64,8 +65,7 @@ async def get_revenue_trend(
     try:
         if months < 1 or months > 24:
             raise HTTPException(
-                status_code=400,
-                detail="Months must be between 1 and 24"
+                status_code=400, detail="Months must be between 1 and 24"
             )
 
         trend = await AnalyticsService.get_revenue_trend(db, months)
@@ -76,8 +76,7 @@ async def get_revenue_trend(
     except Exception as e:
         logger.error(f"Error fetching revenue trend: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve revenue trend: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve revenue trend: {str(e)}"
         )
 
 
@@ -94,8 +93,7 @@ async def get_customer_analytics(
     except Exception as e:
         logger.error(f"Error fetching customer analytics: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve customer analytics: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve customer analytics: {str(e)}"
         )
 
 

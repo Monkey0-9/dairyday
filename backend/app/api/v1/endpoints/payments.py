@@ -9,7 +9,11 @@ from uuid import UUID
 import logging
 
 from fastapi import (
-    APIRouter, Depends, HTTPException, Request, Header,
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Header,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -21,7 +25,6 @@ from app.models.bill import Bill
 from app.models.payment import Payment
 from app.services.payment_service import PaymentService
 from app.core.context import get_request_id
-
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -61,26 +64,17 @@ async def create_payment_order(
     bill_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
-    idempotency_key: str | None = Header(
-        default=None, alias="Idempotency-Key"
-    ),
+    idempotency_key: str = Depends(deps.require_idempotency_key),
 ) -> Any:
     """Create a payment order for a bill."""
     # Permission check
-    res = await db.execute(
-        select(Bill).where(Bill.id == bill_id)
-    )
+    res = await db.execute(select(Bill).where(Bill.id == bill_id))
     bill = res.scalars().first()
 
     if not bill:
-        raise HTTPException(
-            status_code=404, detail="Bill not found"
-        )
+        raise HTTPException(status_code=404, detail="Bill not found")
 
-    if (
-        current_user.role != "ADMIN"
-        and bill.user_id != current_user.id
-    ):
+    if current_user.role != "ADMIN" and bill.user_id != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Not authorized to pay this bill",
@@ -102,38 +96,27 @@ async def payment_webhook(
     body = await request.body()
     signature = request.headers.get("X-Razorpay-Signature")
 
-    if not await service.verify_webhook_signature(
-        body, signature
-    ):
-        raise HTTPException(
-            status_code=400, detail="Invalid signature"
-        )
+    if not await service.verify_webhook_signature(body, signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
 
     try:
         payload = await request.json()
-        return await service.process_webhook(
-            payload, get_request_id()
-        )
+        return await service.process_webhook(payload, get_request_id())
     except Exception as e:
         logger.error("Webhook processing error: %s", e)
-        raise HTTPException(
-            status_code=500, detail="Webhook failed"
-        )
+        raise HTTPException(status_code=500, detail="Webhook failed")
 
 
 @router.post("/mark-paid/{bill_id}")
 async def mark_bill_as_paid(
     bill_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(
-        deps.get_current_active_billing_manager
-    ),
+    current_user: User = Depends(deps.get_current_active_billing_manager),
+    idempotency_key: str = Depends(deps.require_idempotency_key),
 ) -> Any:
     """Mark a bill as PAID by Admin (Cash Payment)."""
     service = PaymentService(db)
-    success = await service.mark_paid_cash(
-        bill_id, current_user.email
-    )
+    success = await service.mark_paid_cash(bill_id, current_user.email)
 
     if not success:
         raise HTTPException(

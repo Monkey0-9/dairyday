@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import {
   Milk,
@@ -15,15 +16,20 @@ import {
   HelpCircle,
   Zap,
   Fingerprint,
-  UserPlus,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { authApi } from "@/lib/api"
-import { useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
+import { useQuery } from "@tanstack/react-query"
+import {
+  adminAuthApi,
+  consumptionApi,
+  registrationApi,
+  authApi
+} from "@/lib/api"
 import {
   Popover,
   PopoverContent,
@@ -40,9 +46,11 @@ const adminNav = [
   { key: "customers", href: "/admin/customers", icon: Users, roles: ["ADMIN"] },
   { key: "consumption", href: "/admin/consumption", icon: Milk, roles: ["ADMIN", "BILLING_ADMIN"] },
   { key: "approvals", href: "/admin/approvals", icon: ClipboardCheck, badge: "New", roles: ["ADMIN"] },
-  { key: "registrations", href: "/admin/registrations", icon: UserPlus, badge: "Hold", roles: ["ADMIN"] },
+
   { key: "bills", href: "/admin/bills", icon: Receipt, roles: ["ADMIN", "BILLING_ADMIN"] },
   { key: "payments", href: "/admin/payments", icon: CreditCard, roles: ["ADMIN", "BILLING_ADMIN"] },
+  { key: "registrations", href: "/admin/registrations", icon: Fingerprint, roles: ["ADMIN"] },
+  { key: "passwordRequests", href: "/admin/password-requests", icon: Zap, roles: ["ADMIN"] },
   { key: "support", href: "/admin/support", icon: HelpCircle, roles: ["ADMIN"] },
 ]
 
@@ -66,6 +74,72 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     !userRole || (item.roles && item.roles.includes(userRole))
   )
 
+  // -- Polling Logic for Admin Notifications --
+
+  interface PendingRequest {
+    id: string;
+    status: string;
+  }
+
+  // 1. Password Reset Requests
+  const { data: passwordRequests = [] } = useQuery({
+    queryKey: ["pending-password-requests"],
+    queryFn: async () => {
+      const res = await adminAuthApi.getPasswordRequests()
+      return res.data.filter((r: PendingRequest) => r.status === 'PENDING')
+    },
+    enabled: userRole === 'ADMIN',
+    staleTime: 60_000,
+    refetchInterval: 60000,
+  })
+
+  // 2. Consumption Approvals
+  const { data: consumptionRequests = [] } = useQuery({
+    queryKey: ["pending-consumption-requests"],
+    queryFn: async () => {
+      const res = await consumptionApi.getRequests()
+      return res.data
+    },
+    enabled: false,
+    staleTime: 60_000,
+    refetchInterval: 60000,
+  })
+
+  // 3. User Registrations
+  const { data: registrationRequests = [] } = useQuery({
+    queryKey: ["pending-registration-requests"],
+    queryFn: async () => {
+      const res = await registrationApi.getRequests()
+      return res.data
+    },
+    enabled: false,
+    staleTime: 60_000,
+    refetchInterval: 60000,
+  })
+
+  const counts: Record<string, number> = {
+    passwordRequests: passwordRequests.length,
+    approvals: consumptionRequests.length,
+    registrations: registrationRequests.length,
+  }
+
+  const totalPending = counts.passwordRequests + counts.approvals + counts.registrations
+
+  // Notification Toast Logic
+  const [prevTotal, setPrevTotal] = useState(0)
+  useEffect(() => {
+    if (totalPending > prevTotal) {
+      toast.info(t('dashboard.notifications'), {
+        description: `SYSLOG: ${totalPending} pending items require administrative oversight.`,
+        action: {
+          label: "View All",
+          onClick: () => { window.location.href = "/admin/password-requests" }
+        }
+      })
+    }
+    setPrevTotal(totalPending)
+  }, [totalPending, prevTotal, t])
+
   const NavContent = ({ mobile = false }: { mobile?: boolean }) => (
     <div className="flex flex-col h-full bg-background/40 dark:bg-black/40 backdrop-blur-3xl border-r border-border/50 transition-all duration-700">
       {/* Industrial Logo */}
@@ -76,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex flex-col">
             <span className="font-heading font-black text-lg italic tracking-tighter text-foreground uppercase leading-none">
-              DairyDay <span className="text-primary italic">Elite</span>
+              DairyDays <span className="text-primary italic">Elite</span>
             </span>
             <span className="font-micro text-[0.45rem] tracking-[0.4em] text-foreground/20 uppercase mt-0.5">ADMIN_SESSION_v4.2</span>
           </div>
@@ -97,8 +171,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className={cn(
                 "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-500 font-heading font-black italic relative group",
                 isActive
-                  ? "bg-primary/5 text-primary border border-primary/20 shadow-glow-primary/5"
-                  : "text-foreground/40 hover:text-foreground hover:bg-foreground/[0.02] border border-transparent"
+                  ? "bg-primary/5 text-primary border border-primary/20 shadow-glow-primary/5 shadow-inner"
+                  : "text-foreground/40 hover:text-foreground hover:bg-foreground/[0.03] border border-transparent hover:border-border/50"
               )}
             >
               {isActive && (
@@ -109,16 +183,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 isActive ? "scale-110 shadow-glow-primary" : "group-hover:scale-110 group-hover:text-primary"
               )} />
               <span className="flex-1 text-[11px] uppercase tracking-tighter">{t(`nav.${item.key}`)}</span>
-              {item.badge && (
+              {(item.badge || counts[item.key] > 0) && (
                 <Badge
                   className={cn(
                     "text-[0.4375rem] lg:text-[0.5rem] px-1.5 lg:px-2 py-0.5 font-micro tracking-widest uppercase rounded-lg",
                     isActive
                       ? "bg-primary text-white"
-                      : "bg-foreground/5 text-foreground/40 border-foreground/5"
+                      : (counts[item.key] > 0
+                        ? "bg-primary/20 text-primary border-primary/20 animate-pulse"
+                        : "bg-foreground/5 text-foreground/40 border-foreground/5")
                   )}
                 >
-                  {item.badge}
+                  {counts[item.key] > 0 ? counts[item.key] : item.badge}
                 </Badge>
               )}
             </Link>
@@ -153,12 +229,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex h-[100dvh] bg-background selection:bg-primary/20 text-foreground font-sans overflow-hidden">
-      {/* High-Fidelity Atmosphere */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-primary/5 blur-[150px] rounded-full opacity-30 animate-pulse-glow" />
-        <div className="absolute bottom-0 left-0 w-[30%] h-[30%] bg-emerald-500/5 blur-[120px] rounded-full opacity-20 animate-pulse-glow" style={{ animationDelay: '3s' }} />
-      </div>
-
       {/* Desktop Sidebar Rail */}
       <aside className="hidden lg:block w-72 sticky top-0 h-screen z-40">
         <NavContent />
@@ -195,28 +265,71 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="flex items-center gap-3">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border border-border/10 bg-foreground/5 hover:bg-foreground/10 relative group">
-                    <Bell size={18} className="text-foreground/40 group-hover:text-primary transition-colors" />
-                    <span className="absolute top-3 right-3 w-1.5 h-1.5 bg-primary rounded-full shadow-glow-primary animate-pulse" />
+                  <Button variant="ghost" size="icon" className="h-11 w-11 rounded-2xl border border-border/10 bg-foreground/5 hover:bg-primary/5 relative group transition-all duration-500 shadow-inner">
+                    <Bell size={20} className={cn("transition-all duration-500", totalPending > 0 ? "text-primary drop-shadow-[0_0_8px_rgba(20,184,166,0.3)]" : "text-foreground/40 group-hover:text-primary")} />
+                    {totalPending > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 bg-primary text-[9px] font-black text-white flex items-center justify-center rounded-full shadow-glow-primary border-2 border-background animate-bounce-subtle">
+                        {totalPending}
+                      </span>
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0 border-border/50 bg-background/90 backdrop-blur-3xl rounded-3xl overflow-hidden glass-card p-4">
                   <div className="p-4 border-b border-border/10">
                     <h4 className="font-heading font-black italic text-sm tracking-tight text-foreground uppercase">{t('dashboard.notifications')}</h4>
                   </div>
-                  <div className="py-4 space-y-4">
-                    {[1, 2].map(i => (
-                      <div key={i} className="flex gap-4 p-4 rounded-xl hover:bg-foreground/5 transition-all group cursor-pointer">
-                        <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                          <Zap size={18} className="fill-current" />
+                  <div className="py-4 space-y-2">
+                    {totalPending === 0 ? (
+                      <div className="p-8 text-center space-y-2">
+                        <div className="h-12 w-12 rounded-2xl bg-foreground/5 border border-border/10 flex items-center justify-center mx-auto text-foreground/20">
+                          <Bell size={24} />
                         </div>
-                        <div className="space-y-1">
-                          <p className="font-heading font-black italic text-xs uppercase tracking-tight">System_Log_{i}</p>
-                          <p className="text-[0.625rem] text-foreground/40 tracking-tight leading-relaxed">Infrastructure health synchronized at 100% capacity.</p>
-                        </div>
+                        <p className="font-micro text-[10px] tracking-widest text-foreground/40 uppercase italic">
+                          {t('dashboard.noNotifications') || "System_Clear"}
+                        </p>
                       </div>
-                    ))}
+                    ) : (
+                      [
+                        { key: "passwordRequests", label: t('nav.passwordRequests'), icon: Zap, href: "/admin/password-requests" },
+                        { key: "approvals", label: t('nav.approvals'), icon: ClipboardCheck, href: "/admin/approvals" },
+                        { key: "registrations", label: t('nav.registrations'), icon: Fingerprint, href: "/admin/registrations" },
+                      ]
+                        .filter(item => counts[item.key] > 0)
+                        .map((item) => {
+                          const Icon = item.icon
+                          return (
+                            <Link
+                              key={item.key}
+                              href={item.href}
+                              className="flex items-center gap-4 p-4 rounded-2xl hover:bg-foreground/5 transition-all group border border-transparent hover:border-border/10"
+                            >
+                              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-500">
+                                <Icon size={18} className="fill-current" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-heading font-black italic text-xs uppercase tracking-tight truncate">
+                                  {item.label}
+                                </p>
+                                <p className="text-[0.625rem] text-primary font-black tracking-widest uppercase mt-0.5 opacity-60">
+                                  {counts[item.key]} PENDING_TASKS
+                                </p>
+                              </div>
+                            </Link>
+                          )
+                        })
+                    )}
                   </div>
+                  {totalPending > 0 && (
+                    <div className="p-4 border-t border-border/10 bg-foreground/[0.02]">
+                      <Button
+                        variant="ghost"
+                        className="w-full text-[10px] font-black tracking-widest uppercase text-foreground/40 hover:text-primary transition-all rounded-xl h-10 border border-transparent hover:border-border/10"
+                        onClick={() => { window.location.href = "/admin/password-requests" }}
+                      >
+                        {t('dashboard.viewAll') || "System_Oversight_Mode"}
+                      </Button>
+                    </div>
+                  )}
                 </PopoverContent>
               </Popover>
 

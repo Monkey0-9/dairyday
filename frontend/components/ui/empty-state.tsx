@@ -21,11 +21,11 @@ export interface EmptyStateProps {
 export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn("flex flex-col items-center justify-center py-16 px-4 text-center", className)}>
-      <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-6">
-        <Icon className="h-8 w-8 text-muted-foreground" />
+      <div className="silent-glass h-16 w-16 rounded-2xl flex items-center justify-center mb-6">
+        <Icon className="h-8 w-8 text-primary/70" />
       </div>
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-sm text-muted-foreground max-w-md mb-6">{description}</p>
+      <h3 className="text-xl slant-heading text-foreground mb-2">{title}</h3>
+      <p className="text-sm slant-accent max-w-md mb-6">{description}</p>
       {action && (
         <Button onClick={action.onClick} variant="outline" className="gap-2">
           <Icon className="h-4 w-4" />
@@ -48,7 +48,7 @@ export function EmptyGridState({ onImport, onAdd }: GridStateProps) {
     if (onImport) onImport()
     else if (onAdd) onAdd()
   }
-  
+
   return (
     <EmptyState
       icon={Table}
@@ -83,7 +83,7 @@ export function EmptyUserState({ onAdd }: UserStateProps) {
     <EmptyState
       icon={Users}
       title="No users found"
-      description="Add customers to get started with your dairyday management."
+      description="Add customers to get started with your dairydays management."
       action={onAdd ? { label: "Add Customer", onClick: onAdd } : undefined}
     />
   )

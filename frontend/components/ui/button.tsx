@@ -5,27 +5,29 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.96] tap-bounce",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-glow-primary hover:bg-primary/95 hover-lift",
+          "bg-primary text-primary-foreground shadow-glow-sm hover:shadow-glow hover:-translate-y-0.5 btn-glow",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 hover:shadow-lg",
         outline:
-          "border border-white/10 bg-white/5 backdrop-blur-sm shadow-sm hover:bg-white/10 hover:text-accent-foreground",
+          "border border-white/10 bg-surface-elevated/50 backdrop-blur-sm shadow-sm hover:bg-surface-hover hover:border-white/20 hover:text-primary",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent/50 hover:text-accent-foreground",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 hover:-translate-y-0.5",
+        ghost: "hover:bg-primary/10 hover:text-primary",
         link: "text-primary underline-offset-4 hover:underline",
-        glass: "glass-card hover-lift",
+        glass: "glass-card hover:border-primary/30 hover:shadow-glow-sm",
+        glow: "bg-gradient-to-r from-primary to-primary-dark text-white shadow-glow hover:shadow-glow-intense hover:-translate-y-0.5",
       },
       size: {
-        default: "h-8 px-3 py-1.5 text-[13px]",
-        sm: "h-7 rounded-md px-2 text-[11px]",
-        lg: "h-9 rounded-md px-6 text-base",
-        icon: "h-8 w-8",
+        default: "h-11 min-h-[44px] px-5 py-2 text-[14px]",
+        sm: "h-9 min-h-[40px] rounded-lg px-3 text-[12px]",
+        lg: "h-12 min-h-[48px] rounded-xl px-6 text-base",
+        xl: "h-14 min-h-[56px] rounded-xl px-8 text-lg",
+        icon: "h-11 w-11 min-h-[44px] min-w-[44px]",
       },
     },
     defaultVariants: {

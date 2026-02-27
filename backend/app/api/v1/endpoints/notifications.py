@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.websocket.connection_manager import manager
 import logging
@@ -6,11 +5,9 @@ import logging
 router = APIRouter()
 logger = logging.getLogger("app.websocket")
 
+
 @router.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: str = Query(...)
-):
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     """
     WebSocket endpoint for real-time notifications.
     Token must be provided as a query param for initial handshake.
@@ -21,10 +18,12 @@ async def websocket_endpoint(
         from app.core.config import settings
         from app.core import security
 
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
         user_id = payload.get("sub")
         if not user_id:
-            await websocket.close(code=1008) # Policy Violation
+            await websocket.close(code=1008)  # Policy Violation
             return
 
         await manager.connect(user_id, websocket)

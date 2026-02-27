@@ -20,10 +20,9 @@
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 224 71% 4%;
 
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 220 14.3% 95.9%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 38%; /* Darkened for WCAG AA 4.5:1+ */
+    --accent: 240 4.8% 95.9%;
     --accent-foreground: 224 71% 4%;
 
     --destructive: 0 84.2% 60.2%;
@@ -35,49 +34,90 @@
 
     --radius: 1.25rem;
 
+    /* Semantic Tokens - Light */
+    --success: 160 84% 39%; /* #10b981 */
+    --warning: 38 92% 50%; /* #f59e0b */
+    --danger: 0 84% 60%; /* #ef4444 */
+    --info: 221 83% 53%; /* #3b82f6 */
+
     /* Atmospheric Tokens */
     --glow-primary: 182 85% 35% / 0.4;
+    --glow-success: 160 84% 39% / 0.4;
+    --glow-danger: 0 84% 60% / 0.4;
 
-    /* Glassmorphism 2.0 Tokens */
-    --glass-bg: 0 0% 100% / 0.05;
-    --glass-border: 0 0% 100% / 0.1;
+    /* Glassmorphism 2.0 Tokens - Premium Upgrade */
+    --glass-bg: 0 0% 100% / 0.03;
+    --glass-border: 0 0% 100% / 0.08;
     --glass-blur: 24px;
+    --glass-elevated-bg: 0 0% 100% / 0.08;
+    --glass-elevated-border: 0 0% 100% / 0.15;
+
+    /* Cinematic Light & Atmospheric Glow */
+    --light-primary: 182 85% 65% / 0.1;
+    --glow-intensity: 0.4;
+    --glow-primary: 182 85% 35% / var(--glow-intensity);
+
+    /* Fluid Typography Roots - Mobile Perfect */
+    --font-size-base: clamp(14px, 0.85rem + 0.15vw, 16px);
+    --font-size-lg: clamp(16px, 1rem + 0.2vw, 18px);
+    --font-size-xl: clamp(18px, 1.25rem + 0.3vw, 24px);
+    --font-size-2xl: clamp(24px, 1.5rem + 0.5vw, 32px);
   }
 
   .dark {
-    --background: 240 10% 2%;
-    /* Billion-Dollar Obsidian #020205 */
+    --background: 240 10% 4%;
+    /* Deep void #0a0a0f */
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3%;
+    --card: 240 10% 6%;
+    /* Surface elevated #12121a */
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3%;
+    --popover: 240 10% 8%;
+    /* Popover surface #1a1a25 */
     --popover-foreground: 0 0% 98%;
 
-    --primary: 182 85% 35%;
+    /* Indigo accent for premium feel */
+    --primary: 239 84% 67%;
+    /* Indigo 500 #6366f1 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 10% 6%;
+    --secondary: 240 10% 10%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 10% 4%;
+    --muted: 240 10% 12%;
     --muted-foreground: 240 5% 65%;
 
-    --accent: 182 85% 35%;
+    /* Accent - Indigo glow */
+    --accent: 239 84% 67%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 10% 8%;
-    --input: 240 10% 8%;
-    --ring: 182 85% 35%;
+    --border: 240 10% 15%;
+    --input: 240 10% 15%;
+    --ring: 239 84% 67%;
+
+    /* Semantic Tokens - Dark */
+    --success: 160 84% 45%; 
+    --warning: 38 92% 55%;
+    --danger: 0 84% 65%;
+    --info: 217 91% 60%;
 
     /* Glassmorphism 2.0 Tokens */
-    --glass-bg: 0 0% 0% / 0.4;
-    --glass-border: 255 255 255 / 0.05;
+    --glass-bg: 240 10% 8% / 0.7;
+    --glass-border: 0 0% 100% / 0.08;
     --glass-blur: 24px;
+    --glass-elevated-bg: 240 10% 12% / 0.8;
+    --glass-elevated-border: 0 0% 100% / 0.15;
+
+    /* Cinematic Light - Indigo glow */
+    --light-primary: 239 84% 67% / 0.25;
+
+    /* Milk cream accent for dairy theme */
+    --milk-cream: 45 90% 96%;
+    /* Amber cream #fef3c7 */
   }
 }
 
@@ -87,7 +127,8 @@
   }
 
   html {
-    @apply transition-[font-size] duration-500 ease-out;
+    font-size: var(--font-size-base);
+    @apply antialiased scroll-smooth transition-[font-size] duration-500 ease-out;
   }
 
   body {
@@ -161,6 +202,7 @@
   .glass-morphic {
     @apply bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-md border border-white/10 shadow-xl;
     -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 
   /* Premium Card Effects */
@@ -168,6 +210,25 @@
     @apply bg-card border border-border/50 shadow-sm transition-all duration-300;
     @apply hover:shadow-lg hover:border-primary/20 hover:-translate-y-0.5;
   }
+
+  /* ─── SLANT & SILENT AESTHETICS ─── */
+  .slant-heading {
+    @apply italic transform -skew-x-3 tracking-wide font-black;
+  }
+
+  .slant-accent {
+    @apply italic transform -skew-x-6 tracking-widest uppercase text-foreground/40;
+  }
+
+  .silent-glass {
+    @apply bg-white/[0.01] border-[0.5px] border-white/[0.04] backdrop-blur-3xl shadow-none transition-all duration-700;
+  }
+
+  .silent-glass:hover {
+    @apply bg-white/[0.03] border-white/[0.1] shadow-glow-primary;
+  }
+
+  /* ───────────────────────────────── */
 
   .glow-card {
     @apply relative overflow-hidden;
@@ -214,6 +275,22 @@
     box-shadow: 0 0 20px -5px hsl(var(--success) / 0.4);
   }
 
+  /* Root Clipping & Masking for Mobile Perfection */
+  .mask-edge-fade-right {
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  }
+
+  .mask-edge-fade-bottom {
+    -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+  }
+
+  /* Tap Feedback - Premium Mobile Micro-interaction */
+  .tap-bounce {
+    @apply active:scale-[0.97] transition-transform duration-150;
+  }
+
   /* Hover Effects */
   .hover-lift {
     @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
@@ -223,10 +300,98 @@
     @apply transition-transform duration-200 hover:scale-105;
   }
 
+  /* ============================================
+     MOBILE-FIRST TOUCH TARGETS - ACCESSIBILITY
+     ============================================ */
+
+  /* Minimum 44px touch targets for interactive containers - Elite Mobile standard */
+  .touch-target-auto button,
+  .touch-target-auto a[href],
+  .touch-target-auto input,
+  .touch-target-auto select,
+  .touch-target-auto textarea,
+  .touch-target-auto [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+    @apply flex items-center justify-center;
+  }
+
+  /* Compact touch targets for icon buttons - optimized for speed */
+  .touch-target-sm {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px;
+    @apply transition-transform active:scale-95;
+  }
+
+  /* Standard touch targets for buttons */
+  .touch-target {
+    min-height: 48px;
+    padding: 12px 20px;
+  }
+
+  /* Large touch targets for primary actions */
+  .touch-target-lg {
+    min-height: 56px;
+    padding: 16px 24px;
+  }
+
+  /* Enhanced Glassmorphism Glow Effects */
+  .shadow-glow {
+    box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.3), 0 0 60px -10px hsl(var(--primary) / 0.15);
+  }
+
+  .shadow-glow-sm {
+    box-shadow: 0 0 15px -3px hsl(var(--primary) / 0.25);
+  }
+
+  .shadow-glow-intense {
+    box-shadow: 0 0 40px -5px hsl(var(--primary) / 0.4), 0 0 80px -15px hsl(var(--primary) / 0.2);
+  }
+
+  /* Button glow animation */
+  .btn-glow {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-glow::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.5) 0%, transparent 50%, hsl(var(--primary) / 0.3) 100%);
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .btn-glow:hover::before {
+    opacity: 1;
+  }
+
   /* Animated Background Patterns */
   .pattern-dots {
     background-image: radial-gradient(circle, hsl(var(--muted-foreground) / 0.1) 1px, transparent 1px);
     background-size: 20px 20px;
+  }
+
+  /* Ground Grid - Billion Dollar Perspective */
+  .ground-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--primary) / 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--primary) / 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: linear-gradient(to top, black, transparent);
+    mask-image: linear-gradient(to top, black, transparent);
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .rotate-x-60 {
+    transform: rotateX(60deg);
   }
 
   /* Pulse Animation for Alerts */
@@ -262,8 +427,9 @@
   }
 
   .font-micro {
-    @apply font-mono text-[0.5625rem] font-bold uppercase tracking-[0.4em];
-    color: hsl(var(--muted-foreground) / 0.5);
+    @apply font-mono font-bold uppercase tracking-[0.4em];
+    font-size: max(0.75rem, 0.625rem);
+    color: hsl(var(--muted-foreground) / 0.7);
   }
 
   /* Custom Scrollbar Utility */
@@ -277,6 +443,43 @@
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-white/10 rounded-full transition-colors hover:bg-white/20;
+  }
+
+  /* Animation Delay Utilities */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animation-delay-700 {
+    animation-delay: 700ms;
+  }
+
+  .animation-delay-1000 {
+    animation-delay: 1000ms;
+  }
+
+  .animation-delay-2000 {
+    animation-delay: 2000ms;
+  }
+
+  .animation-delay-3000 {
+    animation-delay: 3000ms;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4000ms;
   }
 }
 
@@ -315,6 +518,32 @@
   }
 }
 
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes pulse-glow-heavy {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow: 0 0 30px 10px hsl(var(--primary) / 0.3);
+    transform: scale(1.05);
+  }
+}
+
 @layer utilities {
   @keyframes gradient-text {
     0% {
@@ -342,9 +571,47 @@
     animation: pulse-glow 2s ease-in-out infinite;
   }
 
+  .animate-pulse-slow {
+    animation: pulse-slow 4s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow-heavy {
+    animation: pulse-glow-heavy 4s ease-in-out infinite;
+  }
+
   .animate-gradient-text {
     background-size: 200% auto;
     animation: gradient-text 4s linear infinite;
+  }
+
+  @keyframes scan {
+    from {
+      transform: translateY(-100%);
+    }
+
+    to {
+      transform: translateY(100%);
+    }
+  }
+
+  .animate-scan {
+    animation: scan 3s linear infinite;
+  }
+
+  @keyframes grid-pulse {
+
+    0%,
+    100% {
+      opacity: 0.1;
+    }
+
+    50% {
+      opacity: 0.2;
+    }
+  }
+
+  .animate-grid-pulse {
+    animation: grid-pulse 10s ease-in-out infinite;
   }
 }
 
@@ -391,6 +658,19 @@
 /* Focus Ring Enhancement */
 :focus-visible {
   @apply outline-none ring-2 ring-primary/50 ring-offset-2 ring-offset-background;
+}
+
+/* Font Size Scaling Utility Classes */
+.font-size-small {
+  --font-scale: 0.75;
+}
+
+.font-size-medium {
+  --font-scale: 1;
+}
+
+.font-size-large {
+  --font-scale: 1.35;
 }
 
 /* Smooth Page Transitions */

@@ -1,4 +1,3 @@
-
 import logging
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
@@ -8,10 +7,12 @@ import traceback
 
 logger = logging.getLogger("app.errors")
 
+
 class GlobalErrorHandlerMiddleware(BaseHTTPMiddleware):
     """
     Middleware for catching all unhandled exceptions and formatting them.
     """
+
     async def dispatch(self, request: Request, call_next):
         try:
             return await call_next(request)
@@ -25,9 +26,9 @@ class GlobalErrorHandlerMiddleware(BaseHTTPMiddleware):
                     "error": {
                         "code": "HTTP_EXCEPTION",
                         "message": e.detail,
-                        "request_id": getattr(request.state, "request_id", None)
-                    }
-                }
+                        "request_id": getattr(request.state, "request_id", None),
+                    },
+                },
             )
         except SQLAlchemyError as e:
             logger.error(f"Database error: {str(e)}\n{traceback.format_exc()}")
@@ -37,9 +38,9 @@ class GlobalErrorHandlerMiddleware(BaseHTTPMiddleware):
                     "error": {
                         "code": "DATABASE_ERROR",
                         "message": "A system error occurred while processing your request.",
-                        "request_id": getattr(request.state, "request_id", None)
+                        "request_id": getattr(request.state, "request_id", None),
                     }
-                }
+                },
             )
         except Exception as e:
             logger.error(f"Unhandled error: {str(e)}\n{traceback.format_exc()}")
@@ -49,7 +50,7 @@ class GlobalErrorHandlerMiddleware(BaseHTTPMiddleware):
                     "error": {
                         "code": "INTERNAL_SERVER_ERROR",
                         "message": "An internal server error occurred.",
-                        "request_id": getattr(request.state, "request_id", None)
+                        "request_id": getattr(request.state, "request_id", None),
                     }
-                }
+                },
             )

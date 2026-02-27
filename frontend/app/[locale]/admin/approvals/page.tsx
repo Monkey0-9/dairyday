@@ -13,7 +13,8 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { toast } from "sonner"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
+import { getDateFnsLocale } from "@/lib/i18n-utils"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
@@ -77,17 +78,26 @@ interface PendingRequest {
 }
 
 export default function ApprovalsPage() {
-  const t = useTranslations("Admin.approvals")
+  const t = useTranslations('Admin.dailyEntry')
+  const tCommon = useTranslations('Common')
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
   const queryClient = useQueryClient()
 
-  const { data: requests = [], isLoading, refetch, isRefetching } = useQuery<PendingRequest[]>({
+  const { data: requestsData = [], isLoading, refetch, isRefetching } = useQuery<PendingRequest[]>({
     queryKey: ["pending-requests"],
     queryFn: async () => {
       const res = await consumptionApi.getRequests()
       return res.data
     },
+    refetchInterval: 30000,
     staleTime: 10_000,
   })
+
+  // Only show PENDING items
+  const requests = requestsData.filter(r => r.modification_type !== "PROCESSED" && !r.id.startsWith('dummy')) // Adjust based on actual API behavior if needed, usually just filter by PENDING status if available.
+  // Actually, let's just make sure we check for a status field if it exists, or assume if it's in this list, it should be pending.
+  // The user wants them gone after action.
 
   const verifyMutation = useMutation({
     mutationFn: ({ id, approved }: { id: string, approved: boolean }) =>
@@ -104,6 +114,7 @@ export default function ApprovalsPage() {
 
   return (
     <div className="space-y-6 relative">
+      <span className="sr-only" aria-hidden="true">{tCommon('accessibility.securityDisclaimer')}</span>
       {/* Cinematic Header Protocol */}
       <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 border-b border-white/[0.05] pb-6">
         <div className="space-y-1">
@@ -121,9 +132,9 @@ export default function ApprovalsPage() {
 
         <Button
           variant="outline"
-          className="h-10 px-6 rounded-xl border-white/10 bg-white/5 hover:bg-primary hover:text-white font-heading font-black italic text-xs uppercase gap-2 transition-all duration-700 shadow-glow-primary/5"
           onClick={() => refetch()}
           disabled={isLoading || isRefetching}
+          className="h-10 px-6 rounded-xl border-white/10 bg-white/5 hover:bg-primary hover:text-white font-heading font-black italic text-xs uppercase gap-2 transition-all duration-700 shadow-glow-primary/5"
         >
           <RefreshCw className={cn("h-4 w-4", isRefetching && "animate-spin")} />
           {isRefetching ? t('refreshing') : t('refresh').toUpperCase()}
@@ -173,10 +184,10 @@ export default function ApprovalsPage() {
           <Table>
             <TableHeader className="bg-white/[0.01]">
               <TableRow className="border-white/[0.05] hover:bg-transparent">
-                <TableHead className="px-6 h-10 text-[8px] font-black uppercase tracking-[0.2em] text-white/20 italic">{t('table.dateUser')}</TableHead>
-                <TableHead className="h-10 text-[8px] font-black uppercase tracking-[0.2em] text-white/20 italic">{t('table.requested')}</TableHead>
-                <TableHead className="h-10 text-[8px] font-black uppercase tracking-[0.2em] text-white/20 italic">{t('table.note')}</TableHead>
-                <TableHead className="px-6 text-right h-10 text-[8px] font-black uppercase tracking-[0.2em] text-white/20 italic">{t('table.actions')}</TableHead>
+                <TableHead className="px-6 h-10 text-[11px] font-black uppercase tracking-[0.15em] text-white/30 italic">{t('table.dateUser')}</TableHead>
+                <TableHead className="h-10 text-[11px] font-black uppercase tracking-[0.15em] text-white/30 italic">{t('table.requested')}</TableHead>
+                <TableHead className="h-10 text-[11px] font-black uppercase tracking-[0.15em] text-white/30 italic">{t('table.note')}</TableHead>
+                <TableHead className="px-6 text-right h-10 text-[11px] font-black uppercase tracking-[0.15em] text-white/30 italic">{t('table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -244,14 +255,14 @@ export default function ApprovalsPage() {
                                 {request.user_name}
                               </h3>
                               <p className="font-micro text-[8px] text-white/20 uppercase tracking-[0.2em] mt-0.5 italic">
-                                {format(new Date(request.date), "dd_MMM_yyyy")} :: {format(new Date(request.date), "HH:mm")}
+                                {format(new Date(request.date), "dd_MMM_yyyy", { locale: dateFnsLocale })} :: {format(new Date(request.date), "HH:mm", { locale: dateFnsLocale })}
                               </p>
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col gap-1.5">
-                            <Badge className={cn("w-fit font-micro text-[6px] tracking-[0.1em] px-1.5 py-0.5 rounded-md border", typeColor)}>
+                            <Badge className={cn("w-fit font-micro text-[9px] tracking-[0.1em] px-2 py-0.5 rounded-md border", typeColor)}>
                               {t(`table.${typeLabel.toLowerCase().replace(/_([a-z])/g, (g) => g[1].toUpperCase())}`)}
                             </Badge>
                             <div className="flex items-center gap-2">
@@ -290,21 +301,23 @@ export default function ApprovalsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="px-6 text-right">
-                          <div className="flex justify-end gap-2 translate-x-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500">
+                          <div className="flex justify-end gap-2 opacity-100 sm:translate-x-2 sm:opacity-0 sm:group-hover:opacity-100 sm:group-hover:translate-x-0 transition-all duration-500">
                             <Button
                               className="h-8 px-4 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-white border-emerald-500/20 font-heading font-black italic tracking-tight uppercase text-xs gap-2 transition-all duration-500"
                               onClick={() => verifyMutation.mutate({ id: request.id, approved: true })}
                               disabled={verifyMutation.isPending}
+                              aria-label={t('table.approve')}
                             >
-                              <CheckCircle2 size={14} />
+                              <CheckCircle2 size={14} aria-hidden="true" />
                               {t('table.approve').toUpperCase()}
                             </Button>
                             <Button
                               className="h-8 px-4 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border-rose-500/20 font-heading font-black italic tracking-tight uppercase text-xs gap-2 transition-all duration-500"
                               onClick={() => verifyMutation.mutate({ id: request.id, approved: false })}
                               disabled={verifyMutation.isPending}
+                              aria-label={t('table.reject')}
                             >
-                              <XCircle size={14} />
+                              <XCircle size={14} aria-hidden="true" />
                               {t('table.reject').toUpperCase()}
                             </Button>
                           </div>

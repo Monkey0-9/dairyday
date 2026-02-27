@@ -4,10 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from app.db.base import Base
 from app.models.user import User
 from app.core.security import get_password_hash
-import random
-import datetime
 from sqlalchemy import select
-from app.models.consumption import Consumption
 
 
 def get_local_engine():
@@ -18,111 +15,77 @@ def get_local_engine():
 
 async def init_models(engine=None):
     """
-    Initialize database models.
-    Elite Standard: Strict PostgreSQL enforcement. Zero fallback.
+    Standardized initialization logic. PostgreSQL required.
     """
     if engine is None:
         try:
             from app.db.session import engine as pg_engine
+
             async with pg_engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
             return pg_engine
         except Exception as e:
             msg = (
                 "CRITICAL: Database initialization failed. "
-                f"PostgreSQL required. Error: {str(e)}"
+                "PostgreSQL required. Error: " + str(e)
             )
             print(msg)
             raise RuntimeError(msg)
-    else:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        return engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    return engine
 
 
 async def create_initial_data(engine=None):
     """Create initial admin user and test users."""
-    if engine is None:
-        try:
-            from app.db.session import engine as pg_engine
-            engine = pg_engine
-        except Exception:
-            engine = get_local_engine()
-
     async with AsyncSession(engine) as session:
-        # 1. Create Admin
-        result = await session.execute(
-            select(User).where(User.email == "admin@dairy.com")
-        )
-        admin = result.scalars().first()
-
-        if not admin:
-            print("Creating superuser admin@dairy.com")
-            admin = User(
-                name="Admin User",
-                email="admin@dairy.com",
-                hashed_password=get_password_hash(os.getenv("ADMIN_PASSWORD", "admin123")),
-                role="ADMIN",
-                is_active=True,
-                price_per_liter=0.0
-            )
-            session.add(admin)
-            await session.flush()
-
-        # 2. Create 10 Users
-        users = []
-        for i in range(1, 11):
-            email = f"user{i}@dairy.com"
-            res = await session.execute(
-                select(User).where(User.email == email)
-            )
-            user = res.scalars().first()
-            if not user:
-                print(f"Creating user {email}")
-                user = User(
-                    name=f"Customer {i}",
-                    email=email,
-                    hashed_password=get_password_hash(os.getenv("TEST_USER_PASSWORD", "password123")),
-                    role="USER",
-                    is_active=True,
-                    price_per_liter=60.0 + (i * 2)  # Vary price slightly
+        async with session.begin():
+            # 1. Create/Verify Admin
+            admin_email = "admin@dairy.com"
+            admin_pwd = os.getenv("ADMIN_PASSWORD")
+            if not admin_pwd:
+                if os.getenv("ENVIRONMENT") == "production":
+                    raise RuntimeError(
+                        "CRITICAL: ADMIN_PASSWORD environment variable "
+                        "not set in production!"
+                    )
+                admin_pwd = "admin_dev_only_123"  # Secure-ish dev fallback
+                print(
+                    "WARNING: Using dev fallback for ADMIN_PASSWORD. "
+                    "Set this in .env!"
                 )
-                session.add(user)
-                await session.flush()
-            users.append(user)
 
-        # 3. Seed Consumption for last 90 days
-        today = datetime.date.today()
-        for user in users:
-            # Check if user already has consumption data to avoid duplicates
-            check = await session.execute(
-                select(Consumption).where(Consumption.user_id == user.id)
-                .limit(1)
+            result = await session.execute(
+                select(User).where(User.email == admin_email)
             )
-            if check.scalars().first():
-                continue
+            admin = result.scalars().first()
 
-            print(f"Seeding consumption for {user.email}")
-            for d in range(1, 91):
-                date = today - datetime.timedelta(days=d)
-                qty = round(random.uniform(0.5, 4.0), 1)
-                # Ensure some days are 0 (no delivery)
-                if random.random() < 0.1:
-                    qty = 0.0
+            if not admin:
+                print(f"Creating superuser {admin_email}")
+                admin = User(
+                    name="Admin User",
+                    email=admin_email,
+                    hashed_password=get_password_hash(admin_pwd),
+                    role="ADMIN",
+                    is_active=True,
+                    price_per_liter=0.0,
+                )
+                session.add(admin)
+            else:
+                # Elite Standard: Force update admin settings in development/seeding
+                if os.getenv("FORCE_ADMIN_SEED", "false").lower() == "true":
+                    from app.core.security import verify_password
 
-                # Make older entries locked conceptually
-                is_locked = d > 7
+                    if not verify_password(admin_pwd, admin.hashed_password):
+                        print(f"Updating password for {admin_email}")
+                        admin.hashed_password = get_password_hash(admin_pwd)
 
-                session.add(Consumption(
-                    user_id=user.id,
-                    date=date,
-                    quantity=qty,
-                    locked=is_locked,
-                    source='MANUAL'
-                ))
+                    admin.role = "ADMIN"
+                    admin.is_active = True
+                    session.add(admin)
 
-        await session.commit()
-        print("Initial data created/updated successfully.")
+    print("Initial data (Admin) verified/updated successfully.")
 
 
 async def main():

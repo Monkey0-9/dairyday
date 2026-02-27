@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Header
 from app.core import security
 from app.core.config import settings
 from app.db.session import get_db
@@ -12,8 +13,7 @@ from app.models.user import User
 from sqlalchemy import select
 
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/auth/login",
-    auto_error=False
+    tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False
 )
 
 
@@ -35,15 +35,15 @@ def is_date_locked(consumption_date: date) -> bool:
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
+    token: str = Depends(oauth2_scheme),
 ) -> User:
     """
     Get the current authenticated user from the JWT token.
     Supports both internal tokens and Logto tokens.
     """
     try:
-        # Support reading from secure cookie
-        if request is not None:
+        # Support reading from secure cookie as fallback
+        if not token and request is not None:
             cookie_token = request.cookies.get("access_token")
             if cookie_token:
                 token = cookie_token
@@ -55,10 +55,14 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # 1. Try Logto validation first if it looks like a Logto token or as a fallback
-        # In a real scenario, you might check the issuer header or have a separate path
-        logto_payload = await security.verify_logto_token(token)
-        
+        # 1. Try Logto validation first if it looks like a Logto token
+        # Elite Check: Only verify if it looks like a Logto/OpenID token (3 parts)
+        # to avoid unnecessary warnings for local HS256 tokens.
+        if token and token.count(".") == 2:
+            logto_payload = await security.verify_logto_token(token)
+        else:
+            logto_payload = None
+
         if logto_payload:
             # Logto authenticated
             logto_sub = logto_payload.get("sub")
@@ -67,27 +71,33 @@ async def get_current_user(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Logto token missing sub claim",
                 )
-            
+
             # Lookup user by logto_id
             result = await db.execute(select(User).where(User.logto_id == logto_sub))
             user = result.scalars().first()
-            
+
             # Fallback: check by email if provided by Logto
             if not user and logto_payload.get("email"):
-                result = await db.execute(select(User).where(User.email == logto_payload.get("email")))
+                result = await db.execute(
+                    select(User).where(User.email == logto_payload.get("email"))
+                )
                 user = result.scalars().first()
                 if user:
                     # Link account
                     user.logto_id = logto_sub
                     db.add(user)
                     await db.commit()
-            
+
             if not user:
-                raise HTTPException(status_code=404, detail="User not found for Logto identity")
-            
+                raise HTTPException(
+                    status_code=404, detail="User not found for Logto identity"
+                )
+
             if not user.is_active:
                 raise HTTPException(status_code=400, detail="Inactive user")
-            
+
+            # Set user_id in request state for rate limiting/analytics
+            request.state.user_id = str(user.id)
             return user
 
         # 2. Fallback to existing local JWT validation
@@ -146,16 +156,20 @@ async def get_current_user(
         if isinstance(e, HTTPException):
             raise e
         import logging
+
         logging.error(f"Authentication Error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication process failed"
+            detail="Authentication process failed",
         )
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+
+    # Set user_id in request state for rate limiting/analytics
+    request.state.user_id = str(user.id)
     return user
 
 
@@ -168,7 +182,7 @@ def get_current_active_admin(
     if current_user.role != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges"
+            detail="The user doesn't have enough privileges",
         )
     return current_user
 
@@ -182,7 +196,7 @@ def get_current_active_billing_manager(
     if current_user.role not in ["ADMIN", "BILLING_ADMIN"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Requires billing management privileges"
+            detail="Requires billing management privileges",
         )
     return current_user
 
@@ -195,8 +209,8 @@ def get_current_active_superadmin(
     """
     if current_user.role != "SUPERADMIN":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Requires superadmin privileges"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires superadmin privileges",
         )
     return current_user
 
@@ -209,15 +223,13 @@ def get_current_active_user(
     """
     if not current_user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
         )
     return current_user
 
 
 async def get_optional_current_user(
-    db: AsyncSession = Depends(get_db),
-    request: Request = None
+    db: AsyncSession = Depends(get_db), request: Request = None
 ) -> Optional[User]:
     """
     Optionally get the current user if authenticated.
@@ -240,3 +252,25 @@ async def get_optional_current_user(
     except HTTPException:
         return None
 
+async def require_idempotency_key(
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
+) -> str:
+    """
+    Ensure Idempotency-Key is present and not already processed
+    for state-mutating endpoints.
+    """
+    from app.core.redis import get_redis
+    redis = await get_redis()
+    if redis:
+        key_name = f"idempotency:{idempotency_key}"
+        # Lock active for 2 hours to prevent exact retries
+        acquired = await redis.set(key_name, "processing", nx=True, ex=7200)
+        if not acquired:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "Request already processed or in progress "
+                    "for this idempotency key"
+                ),
+            )
+    return idempotency_key

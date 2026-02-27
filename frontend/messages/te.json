@@ -41,6 +41,7 @@
     "dashboard": "డాష్‌బోర్డ్",
     "settings": "సెట్టింగ్‌లు",
     "profile": "ప్రొఫైల్",
+    "support": "మద్దతు",
     "language": "భాష",
     "theme": "థీమ్",
     "loading": "లోడ్ అవుతోంది...",
@@ -48,7 +49,11 @@
     "cancel": "రద్దు చేయండి",
     "edit": "సవరించండి",
     "delete": "తొలగించండి",
-    "back": "వెనుకకు"
+    "back": "వెనుకకు",
+    "active": "Active",
+    "status": "Status",
+    "calendar": "Calendar",
+    "records": "Records"
   },
   "Auth": {
     "email": "ఇమెయిల్ చిరునామా",
@@ -91,7 +96,21 @@
     "failedToSendOtp": "OTP పంపడంలో విఫలమైంది",
     "passwordResetFailed": "పాస్‌వర్డ్ రీసెట్ విఫలమైంది",
     "redirectingToLogin": "లాగిన్‌కి దారి మళ్ళించబడుతోంది...",
-    "backToStep1": "దశ 1కి తిరిగి వెళ్లండి"
+    "backToStep1": "దశ 1కి తిరిగి వెళ్లండి",
+    "loginWithPhone": "Login with Phone",
+    "loginWithCredentials": "Login with Password",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "+91 XXXXX XXXXX",
+    "otpPlaceholder": "Enter 6-digit OTP",
+    "valPhoneRequired": "Valid phone number required (e.g., +91...)",
+    "invalidOtp": "Invalid OTP code. Please try again.",
+    "resendOtp": "Resend OTP",
+    "requestSent": "Reset request submitted to administrators.",
+    "awaitingApproval": "Awaiting Admin Clearance",
+    "resetAwaitingDesc": "Your password reset request is currently under administrative review. Once authorized, this terminal will unlock for decryption.",
+    "checkingStatus": "Checking authorization status...",
+    "sendRequest": "Request Reset",
+    "failedToSendRequest": "Failed to transmit reset request."
   },
   "Dashboard": {
     "todaysDelivery": "నేటి డెలివరీ",
@@ -102,8 +121,12 @@
     "preOrder": "ముందస్తు ఆర్డర్",
     "liters": "లీటర్లు",
     "status": "స్థితి",
-    "title": "డాష్‌బోర్డ్",
-    "subtitle": "మీ వినియోగం యొక్క అవలోకనం",
+    "title": "నా డ్యాష్‌బోర్డ్",
+    "vitalOverview": "ముఖ్య అవలోకనం",
+    "protocolVersion": "వైటల్_స్ట్రీమ్_v4.2",
+    "previousMonth": "క్రితం నెల",
+    "nextMonth": "వచ్చే నెల",
+    "subtitle": "మీ రోజువారీ పాల వినియోగం యొక్క అవలోకనం",
     "currentBalance": "ప్రస్తుత బ్యాలెన్స్",
     "statusSkipped": "వదిలివేయబడింది",
     "awaitingVerification": "అడ్మిన్ ధృవీకరణ కోసం వేచి ఉంది",
@@ -123,8 +146,12 @@
     "awaitSettle": "సెటిల్మెంట్_వేచి_చూస్తోంది",
     "executeSettlement": "సెటిల్మెంట్_చేయండి",
     "settlementFinalized": "సెటిల్మెంట్_పూర్తయింది",
+    "reconId": "రీకాన్_ఐడి",
     "vitalStream": "వైటల్_స్ట్రీమ్",
-    "efficiencyMean": "సగటు_సామర్థ్యం",
+    "efficiencyMean": "దక్షత_సగటు",
+    "vol": "వీఓఎల్",
+    "litersLabel": "లీటర్లు",
+    "unitLiters": "లీటర్లు",
     "dailyYieldAvg": "సగటు_రోజువారీ_దిగుబడి",
     "protocolSteady": "ప్రోటోకాల్_స్థిరంగా_ఉంది",
     "health": "ఆరోగ్యం",
@@ -136,7 +163,14 @@
     "dailySales": "రోజువారీ అమ్మకాలు",
     "monthlySales": "నెలవారీ అమ్మకాలు",
     "customerGrowth": "కస్టమర్ వృద్ధి",
-    "viewAll": "అన్నీ చూడండి"
+    "viewAll": "అన్నీ చూడండి",
+    "notifications": "Personal Alerts",
+    "noNotifications": "All Systems Nominal",
+    "billAlert": "Unpaid bill for {month}",
+    "requestApproved": "Request for {date} APPROVED",
+    "requestRejected": "Request for {date} REJECTED",
+    "requestPending": "Request for {date} PENDING",
+    "authLevel": "AUTH_L3"
   },
   "Settings": {
     "appearance": "రూపురేఖలు",
@@ -168,7 +202,7 @@
     "fontSize": "ఫాంట్ పరిమాణం",
     "sizeSmall": "చిన్న",
     "sizeMedium": "మధ్యస్థ",
-    "sizeLarge": "పెద్ద",
+    "sizeLarge": "పెద్దది",
     "visualTheme": "విజువల్_థీమ్",
     "typography": "టైపోగ్రఫీ",
     "subStandard": "సబ్‌స్క్రిప్షన్_స్టాండర్డ్",
@@ -181,7 +215,16 @@
     "oldPassword": "పాత పాస్‌వర్డ్",
     "newPassword": "కొత్త పాస్‌వర్డ్",
     "confirmPassword": "పాస్‌వర్డ్‌ను ధృవీకరించండి",
-    "updatePassword": "పాస్‌వర్డ్‌ను నవీకరించండి"
+    "updatePassword": "పాస్‌వర్డ్‌ను నవీకరించండి",
+    "adminVault": "Admin Workspace",
+    "clearanceGranted": "Access: Confirmed",
+    "localeNode": "Location Hub",
+    "atmos": "Visual Theme",
+    "scale": "UI Scaling",
+    "operatorClearance": "Admin Clearance level",
+    "abortChanges": "Abort Changes",
+    "syncingNode": "Synchronizing...",
+    "saveProtocol": "Save Changes"
   },
   "Nav": {
     "overview": "అవలోకనం",
@@ -203,7 +246,8 @@
       "registrations": "కొత్త రిజిస్ట్రేషన్లు",
       "bills": "బిల్లులు",
       "payments": "చెల్లింపులు",
-      "support": "మద్దతు"
+      "support": "మద్దతు",
+      "passwordRequests": "Password Requests"
     },
     "roles": {
       "admin": "సిస్టమ్ అడ్మిన్",
@@ -261,7 +305,9 @@
           "desc": "వినియోగ విధానాలు మరియు పోకడలను విశ్లేషించండి.",
           "cta": "నివేదికలను చూడండి"
         }
-      }
+      },
+      "viewAll": "View All",
+      "noNotifications": "No new notifications"
     },
     "dailyEntry": {
       "title": "రోజువారీ డెలివరీ నమోదు",
@@ -285,7 +331,8 @@
       "criticalFault": "లోపం: {error}",
       "scanResultNull": "మునుపటి డేటా లేదు.",
       "patternSync": "పునరుద్ధరించబడింది: {count} రికార్డులు.",
-      "faultYesterdayScan": "డేటాను లోడ్ చేయడంలో విఫలమైంది"
+      "faultYesterdayScan": "డేటాను లోడ్ చేయడంలో విఫలమైంది",
+      "enterLiters": "Enter Liters"
     },
     "approvals": {
       "title": "ధృవీకరణ కేంద్రం",
@@ -314,7 +361,13 @@
       "authLevel": "అధికార స్థాయి",
       "adminLevel": "అడ్మిన్ స్థాయి 1",
       "liveNode": "లైవ్ నోడ్",
-      "verificationTerminal": "ధృవీకరణ ముగింపు"
+      "verificationTerminal": "ధృవీకరణ ముగింపు",
+      "totalPending": "Pending Authorization",
+      "pendingSubtext": "items to review",
+      "clearanceQueue": "Review Queue",
+      "nodeHealth": "System Integrity",
+      "nominal": "Operational",
+      "liveTransNode": "Active Stream"
     },
     "bills": {
       "title": "బిల్లింగ్ నిర్వహణ",
@@ -379,7 +432,13 @@
       "authorizeSettlement": "అనుమతించు",
       "logPdf": "PDF_లాగ్",
       "encrypting": "ఎన్క్రిప్టింగ్",
-      "draftState": "డ్రాఫ్ట్_స్టేట్"
+      "draftState": "డ్రాఫ్ట్_స్టేట్",
+      "realizedGrowth": "Collected",
+      "outstandingRisk": "Outstanding",
+      "totalExposure": "Total Bills",
+      "activeLiabilities": "Total Due",
+      "efficiencyIndex": "Collection %",
+      "liquidityRatio": "Efficiency"
     },
     "payments": {
       "title": "చెల్లింపు కేంద్రం",
@@ -479,7 +538,12 @@
       "updateSuccess": "నవీకరించబడింది!",
       "saveChanges": "సేవ్",
       "statusActive": "యాక్టివ్",
-      "statusInactive": "నిష్క్రియం"
+      "statusInactive": "నిష్క్రియం",
+      "registry": "Registry",
+      "activeNode": "Active",
+      "deactivated": "Deactivated",
+      "provisionNode": "Add Customer",
+      "updateNode": "Update Customer"
     },
     "registrations": {
       "title": "రిజిస్ట్రేషన్లు",
@@ -499,7 +563,20 @@
       "joinProtocolActive": "యాక్టివ్",
       "networkClean": "క్లీన్",
       "protocolNode": "నోడ్",
-      "noRequests": "కొత్త అభ్యర్థనలు లేవు."
+      "noRequests": "కొత్త అభ్యర్థనలు లేవు.",
+      "registrations": "Pending Approval",
+      "description": "Approve or decline new registration requests.",
+      "filterByIdentity": "Search...",
+      "fetchingData": "Loading...",
+      "sectorUnknown": "Unknown",
+      "pendingGate": "Pending",
+      "authorize": "Approve",
+      "networkIntegrity": "Verified",
+      "activeShield": "Protected",
+      "requestVelocity": "Frequency",
+      "protocolSteady": "Stable",
+      "pendingClearance": "Awaiting Review",
+      "awaitingAction": "Action Required"
     },
     "consumption": {
       "title": "వినియోగ రిజిస్టర్",
@@ -517,7 +594,34 @@
       "totals": "మొత్తం",
       "delivered": "అందించబడింది",
       "empty": "ఖాళీ",
-      "locked": "లాక్ చేయబడింది (7+ రోజులు)"
+      "locked": "లాక్ చేయబడింది (7+ రోజులు)",
+      "syncComplete": "Synchronization complete"
+    },
+    "registry": "Registry",
+    "passwordRequests": {
+      "title": "Password Reset",
+      "titleHighlight": "Requests",
+      "subtitle": "Security oversight and access recovery management.",
+      "refresh": "Refresh",
+      "totalRequests": "Total Volume",
+      "pendingApproval": "Awaiting Review",
+      "successRate": "Recovery Rate",
+      "filterPlaceholder": "Filter by identity...",
+      "tableUser": "Customer Name",
+      "tableEmail": "Email Identity",
+      "tablePhone": "Contact Phone",
+      "tableRequestedUser": "User Details",
+      "tableRequestDate": "Timestamp",
+      "tableStatus": "Integrity Status",
+      "tableActions": "Management",
+      "noRequests": "No active recovery requests.",
+      "statusPending": "PENDING",
+      "statusApproved": "APPROVED",
+      "statusRejected": "REJECTED",
+      "statusCompleted": "COMPLETED",
+      "reject": "Reject",
+      "approve": "Authorize",
+      "waitingForUser": "Verified: Active"
     }
   },
   "Records": {
@@ -533,7 +637,17 @@
     "auditState": "ఆడిట్_స్థితి",
     "ledgerTimeline": "లెడ్జర్_టైమ్ లైన్",
     "nullEvent": "శూన్య_ఈవెంట్",
-    "zeroYieldEvent": "సున్నా_దిగుబడి"
+    "zeroYieldEvent": "సున్నా_దిగుబడి",
+    "consumptionTab": "Consumption",
+    "billingTab": "Settlements",
+    "billingSubtitle": "Financial reconciliation history",
+    "consumptionLedger": "CONSUMPTION_LEDGER_v4.2",
+    "yieldRecords": "Yield Records",
+    "nominalSecure": "NOMINAL_SECURE",
+    "settlementComplete": "SETTLEMENT_COMPLETE",
+    "awaitSettlement": "AWAIT_SETTLEMENT",
+    "zeroLedgerEvent": "ZERO_LEDGER_EVENT",
+    "download": "Download PDF"
   },
   "Payment": {
     "title": "చెల్లింపులు",
@@ -562,7 +676,24 @@
     "gatewayNotLoaded": "లోడ్ కాలేదు.",
     "billPaymentDesc": "బిల్లు - {month}",
     "customerName": "కస్టమర్",
-    "securePayment": "{gateway} ద్వారా సురక్షితం"
+    "securePayment": "{gateway} ద్వారా సురక్షితం",
+    "portal": "Payment Portal",
+    "description": "Manage your subscriptions and payments",
+    "upiId": "UPI ID",
+    "upiCopied": "UPI ID Copied!",
+    "utrRequired": "Please enter a valid UTR reference",
+    "utrInvalid": "Invalid UTR. Please enter the 12-digit transaction number.",
+    "utrSuccess": "UTR submitted for verification!",
+    "utrFailed": "Failed to submit UTR.",
+    "verifying": "Verifying",
+    "verificationInProgress": "Verification in Progress",
+    "scanToPay": "Scan to Pay",
+    "upiIdLabel": "UPI ID",
+    "enterUtr": "Enter UTR",
+    "utrPlaceholder": "12-digit Reference Number",
+    "verifyPayment": "Verify Payment",
+    "paid": "Paid",
+    "unpaid": "Unpaid"
   },
   "Calendar": {
     "title": "క్యాలెండర్",
@@ -589,7 +720,49 @@
     "updateSuccess": "నవీకరించబడింది.",
     "requestSubmitted": "అడ్మిన్‌కు పంపబడింది.",
     "updateError": "విఫలమైంది.",
-    "legendPending": "ఆమోదం కోసం వేచి ఉంది"
+    "legendPending": "ఆమోదం కోసం వేచి ఉంది",
+    "viewOnly": "View Only",
+    "editable": "Editable",
+    "modificationLimit": "This day is view-only. Modifications allowed for Today and Tomorrow only.",
+    "manage": "Manage",
+    "statusPending": "Pending",
+    "statusDelivered": "Delivered",
+    "statusCancelled": "Cancelled",
+    "statusSkipped": "Skipped",
+    "modifyOrder": "Modify Your Order",
+    "standardQtyDesc": "Standard: 1.0 L",
+    "extraQtyLabel": "Extra Quantity (L)",
+    "optional": "Optional",
+    "immutableLock": "IMMUTABLE_LOCK: Archive finalization complete.",
+    "handoffSuccess": "Handoff Successful: Awaiting Admin Sync",
+    "commError": "COMMUNICATION_ERROR",
+    "temporalGrid": "TEMPORAL_GRID_v4",
+    "authSecure": "Auth_Secure",
+    "node": "Node",
+    "pendingVerify": "PENDING_VERIFY",
+    "lockedNode": "LOCKED_NODE",
+    "syncActive": "Real-time sync active :: Ghost protocols operational",
+    "selectNode": "SELECT_NODE",
+    "awaitingVerification": "AWAITING_VERIFICATION",
+    "unitVolume": "UNIT_VOLUME",
+    "target": "TARGET",
+    "reserveVar": "RESERVE_VAR",
+    "statusVector": "STATUS_VECTOR",
+    "initializeGhost": "INITIALIZE_GHOST_EDIT",
+    "idleState": "IDLE_STATE",
+    "ghost": "Ghost",
+    "mode": "Mode",
+    "temporalMod": "Temporal Modification // Node",
+    "pauseSession": "Pause Session",
+    "suspendDelivery": "SUSPEND_UNIT_DELIVERY",
+    "standardVal": "STANDARD_VAL",
+    "reduceAmount": "REDUCE_AMOUNT",
+    "netYield": "NET_YIELD",
+    "preOrderLabel": "PRE-ORDER / EXTRA",
+    "preOrderDesc": "Additional unit request for this node only",
+    "synchronizing": "SYNCHRONIZING...",
+    "executeUpdate": "EXECUTE_UPDATE",
+    "abortChanges": "ABORT_CHANGES"
   },
   "Landing": {
     "nav": {
@@ -601,7 +774,7 @@
       "revenue": "ఆదాయం",
       "network": "నెట్‌వర్క్",
       "authorize": "సెషన్ అనుమతి",
-      "dairyOs": "DairyDay"
+      "dairyOs": "DairyDays"
     },
     "hero": {
       "version": "v2.0.0",
@@ -713,7 +886,7 @@
       "button": "లాగిన్"
     },
     "footer": {
-      "copyright": "© 2026 DairyDay",
+      "copyright": "© 2026 DairyDays",
       "privacy": "గోప్యత",
       "legal": "చట్టపరమైన",
       "infrastructure": "వసతులు",
@@ -763,6 +936,15 @@
     "opsRun247": "24/7 కార్యకలాపాలు",
     "criticalSupport": "అత్యవసర మద్దతు",
     "availableNow": "ప్రస్తుతం అందుబాటులో ఉంది",
-    "billingHours": "బిల్లింగ్ సమయం"
+    "billingHours": "బిల్లింగ్ సమయం",
+    "sendEmail": "ఇమెయిల్ పంపండి",
+    "faq1Q": "ఈరోజు డెలివరీని ఎలా రద్దు చేయాలి?",
+    "faq1A": "క్యాలెండర్‌కు వెళ్లి, ఈరోజు తేదీపై క్లిక్ చేసి, 'డెలివరీ రద్దు చేయి' టోగుల్‌ని ఉపయోగించండి. ఇది ఉదయం 6 గంటల లోపు చేయాలి.",
+    "faq2Q": "నా బిల్లు ఎప్పుడు జనరేట్ అవుతుంది?",
+    "faq2A": "గత నెల వినియోగానికి ప్రతి నెలా 1వ తేదీన బిల్లులు జనరేట్ చేయబడతాయి.",
+    "faq3Q": "అదనపు పాలు ఎలా జోడించాలి?",
+    "faq3A": "క్యాలెండర్‌లో రేపటిని ఎంచుకుని, పరిమాణాన్ని పెంచండి. అడ్మిన్ మీ అభ్యర్థనను ధృవీకరిస్తారు.",
+    "faq4Q": "చెల్లింపు ఇంకా అప్‌డేట్ కాలేదా?",
+    "faq4A": "మాన్యువల్ UPI చెల్లింపులు మా సిబ్బంది ద్వారా 12-24 గంటలలోపు ధృవీకరించబడతాయి. రేపు మళ్ళీ తనిఖీ చేయండి!"
   }
 }

@@ -39,11 +39,12 @@ export default function RegistrationsPage() {
     const [searchTerm, setSearchTerm] = useState("")
 
     const { data: requests, isLoading, refetch } = useQuery({
-        queryKey: ["registration-requests"],
+        queryKey: ["pending-registration-requests"],
         queryFn: async () => {
             const response = await registrationApi.getRequests()
             return response.data
         },
+        refetchInterval: 30000,
     })
 
     const approveMutation = useMutation({

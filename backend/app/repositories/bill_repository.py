@@ -16,35 +16,25 @@ class BillRepository:
 
     async def get_by_id(self, bill_id: UUID) -> Optional[Bill]:
         """Fetch a bill by its ID."""
-        result = await self.db.execute(
-            select(Bill).where(Bill.id == bill_id)
-        )
+        result = await self.db.execute(select(Bill).where(Bill.id == bill_id))
         return result.scalars().first()
 
-    async def get_by_user_and_month(
-        self, user_id: UUID, month: str
-    ) -> Optional[Bill]:
+    async def get_by_user_and_month(self, user_id: UUID, month: str) -> Optional[Bill]:
         """Fetch a specific bill for a user and month."""
         result = await self.db.execute(
-            select(Bill).where(
-                and_(Bill.user_id == user_id, Bill.month == month)
-            )
+            select(Bill).where(and_(Bill.user_id == user_id, Bill.month == month))
         )
         return result.scalars().first()
 
     async def get_all_for_month(self, month: str) -> List[Bill]:
         """Fetch all bills for a specific month."""
-        result = await self.db.execute(
-            select(Bill).where(Bill.month == month)
-        )
+        result = await self.db.execute(select(Bill).where(Bill.month == month))
         return result.scalars().all()
 
     async def get_pending_for_user(self, user_id: UUID) -> List[Bill]:
         """Fetch all UNPAID bills for a user."""
         result = await self.db.execute(
-            select(Bill).where(
-                and_(Bill.user_id == user_id, Bill.status == "UNPAID")
-            )
+            select(Bill).where(and_(Bill.user_id == user_id, Bill.status == "UNPAID"))
         )
         return result.scalars().all()
 

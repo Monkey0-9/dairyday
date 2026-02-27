@@ -53,8 +53,8 @@ export default function AdminSupportPage() {
   const t = useTranslations("Admin.support")
   const [isTicketOpen, setIsTicketOpen] = useState(false)
   const [ticketData, setTicketData] = useState({
-    title: "",
-    description: "",
+    subject: "",
+    message: "",
     priority: "MEDIUM"
   })
 
@@ -63,16 +63,16 @@ export default function AdminSupportPage() {
     onSuccess: () => {
       toast.success(t("ticketSuccess") || "TICKET_LOGGED_SUCCESSFULLY")
       setIsTicketOpen(false)
-      setTicketData({ title: "", description: "", priority: "MEDIUM" })
+      setTicketData({ subject: "", message: "", priority: "MEDIUM" })
     },
     onError: () => {
-      toast.error("Failed to create ticket")
+      toast.error(t("ticketError"))
     }
   })
 
   const handleSubmit = () => {
-    if (!ticketData.title || !ticketData.description) {
-      toast.error("Please fill in all fields")
+    if (!ticketData.subject || !ticketData.message) {
+      toast.error(t("fillAllFields"))
       return
     }
     createTicketMutation.mutate(ticketData)
@@ -121,7 +121,7 @@ export default function AdminSupportPage() {
             <span className="font-micro text-[10px] text-primary tracking-[0.6em] uppercase">{t('opsSupport')}</span>
           </div>
           <h1 className="text-3xl lg:text-5xl font-black font-heading italic uppercase leading-none text-white">
-            System <span className="text-gradient">Operations</span>
+            {t('systemOperations')}
           </h1>
           <p className="text-white/40 font-heading font-medium italic text-sm tracking-tight max-w-2xl">
             {t("subtitle")}
@@ -154,10 +154,10 @@ export default function AdminSupportPage() {
                   <Label htmlFor="title" className="font-micro text-[9px] uppercase tracking-[0.2em] text-white/40 italic">{t('titleVector')}</Label>
                   <Input
                     id="title"
-                    value={ticketData.title}
-                    onChange={(e) => setTicketData({ ...ticketData, title: e.target.value })}
+                    value={ticketData.subject}
+                    onChange={(e) => setTicketData({ ...ticketData, subject: e.target.value })}
                     className="h-10 bg-white/[0.02] border-white/5 rounded-xl font-bold italic focus:border-primary/40 focus:bg-white/[0.04] text-sm"
-                    placeholder="Brief description of the anomaly..."
+                    placeholder={t('anomalyPlaceholder')}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -181,11 +181,11 @@ export default function AdminSupportPage() {
                   <Label htmlFor="description" className="font-micro text-[9px] uppercase tracking-[0.2em] text-white/40 italic">{t('diagnosticData')}</Label>
                   <Textarea
                     id="description"
-                    value={ticketData.description}
-                    onChange={(e) => setTicketData({ ...ticketData, description: e.target.value })}
+                    value={ticketData.message}
+                    onChange={(e) => setTicketData({ ...ticketData, message: e.target.value })}
                     rows={4}
                     className="bg-white/[0.02] border-white/5 rounded-xl font-medium resize-none focus:border-primary/40 focus:bg-white/[0.04] text-sm"
-                    placeholder="Detailed system logs or observation notes..."
+                    placeholder={t('diagnosticPlaceholder')}
                   />
                 </div>
               </div>
@@ -279,7 +279,7 @@ export default function AdminSupportPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
                 <p className="font-micro text-[8px] uppercase tracking-[0.3em] text-white/20 italic mb-1">{t("emailSupport")}</p>
-                <p className="font-bold text-white tracking-wide text-xs">ops@dairyday.com</p>
+                <p className="font-bold text-white tracking-wide text-xs">dairydaysdairydays@gmail.com</p>
               </div>
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
                 <p className="font-micro text-[8px] uppercase tracking-[0.3em] text-white/20 italic mb-1">{t("escalation")}</p>
@@ -289,7 +289,7 @@ export default function AdminSupportPage() {
 
             <Button
               className="w-full h-10 bg-white/[0.05] hover:bg-white hover:text-black text-white font-heading font-black italic uppercase tracking-wider gap-2 transition-all duration-500 rounded-xl border border-white/5 text-xs"
-              onClick={() => window.location.href = "mailto:ops@dairyday.com"}
+              onClick={() => window.location.href = "mailto:dairydaysdairydays@gmail.com"}
             >
               {t("emailDashboard")} <ExternalLink className="h-3 w-3" />
             </Button>

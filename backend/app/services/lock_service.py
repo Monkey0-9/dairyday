@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from app.core.config import settings
 
+
 class LockService:
     @staticmethod
     def get_lock_date() -> date:

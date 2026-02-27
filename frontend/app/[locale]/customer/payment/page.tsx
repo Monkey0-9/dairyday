@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 import { useState, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -9,25 +11,20 @@ import {
   Sparkles,
   Download,
   Loader2,
-  History
+  History as HistoryIcon,
+  Copy,
+  Check,
+  Share2
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import CountUp from "react-countup"
 import { toast } from "sonner"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
+import { formatCurrency, getStatusKey } from "@/lib/i18n-utils"
 import Image from "next/image"
 
-import { billsApi, authApi, paymentsApi } from "@/lib/api"
+import { billsApi, authApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import {
-  XCircle,
-} from "lucide-react"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -38,35 +35,16 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-
-interface RazorpayOptions {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id: string;
-  handler: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
-  prefill: {
-    name: string;
-    contact: string;
-    email: string;
-  };
-  theme: {
-    color: string;
-  };
-}
-
-interface RazorpayInstance {
-  on: (event: string, handler: (response: { error?: { description: string } }) => void) => void;
-  open: () => void;
-}
-
-declare global {
-  interface Window {
-    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
-  }
-}
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { PageHeader } from "@/components/page-header"
+import { PremiumLoadingState } from "@/components/ui/state-displays"
+import { TableSkeleton } from "@/components/skeletons"
 
 interface Bill {
   id: string;
@@ -76,31 +54,50 @@ interface Bill {
   status: "PAID" | "UNPAID";
   pdf_url?: string;
   is_locked?: boolean;
+  utr_reference?: string;
 }
 
 export default function PaymentPage() {
-  const t = useTranslations("Payment")
-  const [userId, setUserId] = useState<string | null>(null)
+  const [isUpiModalOpen, setIsUpiModalOpen] = useState(false)
+  const [qrCode, setQrCode] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [utrReference, setUtrReference] = useState("")
+  const [isSubmittingUtr, setIsSubmittingUtr] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  const locale = useLocale()
+  const t = useTranslations("Payment")
+  const tCommon = useTranslations("Common")
+
+  // Lazy load Razorpay script
+  useEffect(() => {
+    const scriptId = "razorpay-checkout-js"
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script")
+      script.id = scriptId
+      script.src = "https://checkout.razorpay.com/v1/checkout.js"
+      script.async = true
+      document.body.appendChild(script)
+    }
+  }, [])
 
   useEffect(() => {
     setUserId(authApi.getUserId())
     setMounted(true)
   }, [])
 
-  // Fetch ALL bills
-  const { data: bills = [], isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ["my-bills"],
     queryFn: async () => {
-      // billsApi.list() without arguments now fetches all bills for the user
       const res = await billsApi.list()
       return res.data
     },
     enabled: !!userId,
+    staleTime: 60000,
   })
 
-  // Find latest UNPAID bill, or just the latest bill if all paid
-  // Backend sorts by month desc, so bills[0] is latest
+  const bills = data?.bills || []
   const latestBill = bills[0] as Bill | undefined
   const unpaidBill = bills.find((b: Bill) => b.status === "UNPAID")
   const activeBill = (unpaidBill || latestBill) as Bill | undefined
@@ -109,263 +106,292 @@ export default function PaymentPage() {
   const totalLiters = Number(activeBill?.total_liters ?? 0)
   const isPaid = activeBill?.status === "PAID"
 
-  const [qrCode, setQrCode] = useState<string | null>(null)
+  const UPI_ID = "9980592787@ybl"
 
-  const handlePayment = async (billId: string) => {
+  const handlePayment = async () => {
+    const amount = billAmount
+    const upiLink = `upi://pay?pa=${UPI_ID}&pn=DairyDays&am=${amount}&cu=INR&tn=Bill-${activeBill?.month || 'Payment'}`
+    setQrCode(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiLink)}`)
+    setIsUpiModalOpen(true)
+  }
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(UPI_ID)
+    setCopied(true)
+    toast.success(t('upiCopied'))
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSubmitUtr = async () => {
+    if (!activeBill || !utrReference.trim()) {
+      toast.error(t('utrRequired'))
+      return
+    }
+
+    const utrRegex = /^[0-9]{12}$/;
+    if (!utrRegex.test(utrReference)) {
+      toast.error(t('utrInvalid'));
+      return;
+    }
+
+    setIsSubmittingUtr(true)
     try {
-      const res = await paymentsApi.createOrder(billId)
-      const order = res
-
-      // For UPI/QR, we'll generate a payment link and show as QR
-      // In a real scenario, this would be a UPI intent link
-      const upiLink = `upi://pay?pa=dairyday@bank&pn=DairyDay&am=${order.amount / 100}&cu=INR&tn=Bill-${activeBill?.month || 'Payment'}`
-      setQrCode(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiLink)}`)
-
-      toast.info(t('qrGenerated'))
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
-        amount: order.amount,
-        currency: order.currency,
-        name: "DairyDay",
-        description: t('billPaymentDesc', { month: activeBill?.month || '' }),
-        order_id: order.id,
-        handler: async function () {
-          setQrCode(null)
-          toast.success(t('paymentSuccess'))
-          refetch()
-        },
-        prefill: {
-          name: t('customerName'),
-          contact: "",
-          email: ""
-        },
-        theme: {
-          color: "#4f46e5"
-        }
-      }
-
-      if (window.Razorpay) {
-        const rzp1 = new window.Razorpay(options)
-        rzp1.on('payment.failed', function (response) {
-          toast.error(t('paymentFailed') + ": " + (response.error?.description || "Unknown error"))
-        })
-        rzp1.open()
-      } else {
-        toast.error(t('gatewayNotLoaded'))
-      }
+      await billsApi.submitUtr(activeBill.id, utrReference)
+      toast.success(t('utrSuccess'))
+      setUtrReference("")
+      setIsUpiModalOpen(false)
+      refetch()
     } catch {
-      toast.error(t('initiateFailed'))
+      toast.error(t('utrFailed'))
+    } finally {
+      setIsSubmittingUtr(false)
     }
   }
 
-  // Polling for payment status if QR is visible
+  const activeBillId = activeBill?.id
   useEffect(() => {
-    if (!qrCode || !activeBill) return
-    const interval = setInterval(() => {
-      refetch()
-      // If bill status changes to PAID, clear QR
-      if (activeBill.status === "PAID") {
+    if (!isUpiModalOpen || !activeBillId) return
+    const interval = setInterval(async () => {
+      const result = await refetch()
+      const refreshedBills = result.data?.bills || []
+      const currentBill = refreshedBills.find((b: Bill) => b.id === activeBillId)
+      if (currentBill?.status === "PAID") {
+        setIsUpiModalOpen(false)
         setQrCode(null)
         clearInterval(interval)
+        toast.success(t('paymentSuccess'))
       }
     }, 5000)
     return () => clearInterval(interval)
-  }, [qrCode, activeBill, refetch])
+  }, [isUpiModalOpen, activeBillId, refetch, t])
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 min-h-[calc(100vh-140px)] text-foreground">
-
-      {/* 1. Hero / Active Bill Section */}
-      <div className="flex flex-col items-center justify-center relative">
-        {/* Animated Background */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.05, 0.1, 0.05],
-            }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full"
-            style={{
-              background: isPaid
-                ? "radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)"
-                : "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
-            }}
-          />
-        </div>
-
-        <AnimatePresence mode="wait">
-          {!activeBill && !isLoading ? (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center p-8 rounded-2xl bg-foreground/5 border border-border/10"
-            >
-              <Sparkles className="h-10 w-10 text-yellow-500 mx-auto mb-3" />
-              <h2 className="text-xl font-bold">{t('allCaughtUp')}</h2>
-              <p className="text-muted-foreground">{t('noBills')}</p>
-            </motion.div>
-          ) : isPaid ? (
-            /* ── SUCCESS STATE (All Paid) ── */
-            <motion.div
-              key="paid"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center space-y-4 relative z-10 py-6"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-              >
-                <div className="h-16 w-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-                </div>
-              </motion.div>
-              <div>
-                <h1 className="text-2xl font-black text-foreground mb-1">{t('noDues')}</h1>
-                <p className="text-muted-foreground text-sm">
-                  {t('lastBillPaid', { month: activeBill?.month || '' })}
-                </p>
-              </div>
-            </motion.div>
-          ) : (
-            /* ── PAYMENT CARD ── */
-            <motion.div
-              key="unpaid"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full max-w-sm relative z-10 space-y-6"
-            >
-              <div
-                className="rounded-2xl p-6 border border-border/10 text-center backdrop-blur-xl bg-background/60 dark:bg-slate-900/60 shadow-2xl"
-              >
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Badge variant="outline" className="border-indigo-500/30 text-indigo-600 dark:text-indigo-300 bg-indigo-500/10 text-[10px] px-2 py-0">
-                    {t('dueFor', { month: activeBill?.month || '' })}
-                  </Badge>
-                </div>
-                <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-[0.2em] mb-1">
-                  {t('totalPayable')}
-                </p>
-                {isLoading ? (
-                  <div className="h-10 w-24 bg-foreground/[0.1] rounded-lg animate-pulse mx-auto mb-3" />
-                ) : (
-                  <h1 className="text-4xl font-black text-foreground tracking-tighter leading-none mb-3">
-                    ₹{mounted ? (
-                      <CountUp end={billAmount} duration={1.5} separator="," />
-                    ) : (
-                      billAmount.toLocaleString("en-IN")
-                    )}
-                  </h1>
-                )}
-
-                <div className="flex justify-between text-sm py-4 border-t border-border/10">
-                  <span className="text-muted-foreground">{t('totalConsumption')}</span>
-                  <span className="font-mono text-foreground">{totalLiters.toFixed(1)} L</span>
-                </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => activeBill && handlePayment(activeBill.id)}
-                  disabled={isLoading}
-                  className="w-full h-12 rounded-xl font-bold get-started-button text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 mt-2"
-                >
-                  <Lock className="h-4 w-4" />
-                  {t('payNow')}
-                </motion.button>
-
-                <AnimatePresence>
-                  {qrCode && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-6 pt-6 border-t border-border/10"
-                    >
-                      <div className="bg-white p-3 rounded-xl mx-auto w-fit mb-3">
-                        <Image
-                          src={qrCode}
-                          alt={t('qrAlt')}
-                          width={160}
-                          height={160}
-                          className="w-40 h-40"
-                          unoptimized
-                        />
-                      </div>
-                      <p className="text-[9px] font-black uppercase tracking-widest text-primary mb-3">
-                        {t('scanWithUpi')}
-                      </p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[10px] h-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => setQrCode(null)}
-                      >
-                        <XCircle className="h-3 w-3 mr-2" />
-                        {t('cancelQr')}
-                      </Button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <Shield className="h-3 w-3" />
-                {t('securePayment', { gateway: 'Razorpay' })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+    <div className="min-h-screen bg-transparent text-foreground selection:bg-primary/40 relative">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-primary/5 blur-[180px] rounded-full opacity-40 animate-pulse-glow" />
       </div>
 
-      {/* 2. Bill History Table */}
-      {bills.length > 0 && (
-        <Card className="border-none bg-background/50 dark:bg-slate-900/50 backdrop-blur-sm shadow-xl">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-indigo-500" />
-              <CardTitle className="text-foreground">{t('historyTitle')}</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent border-b border-indigo-500/10">
-                  <TableHead className="text-foreground/60">{t('month')}</TableHead>
-                  <TableHead className="text-right text-foreground/60">{t('liters')}</TableHead>
-                  <TableHead className="text-right text-foreground/60">{t('amount')}</TableHead>
-                  <TableHead className="text-center text-foreground/60">{t('status')}</TableHead>
-                  <TableHead className="text-right text-foreground/60">{t('invoice')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bills.map((bill: Bill) => (
-                  <TableRow key={bill.id} className="hover:bg-indigo-500/5 transition-colors border-b border-indigo-500/5">
-                    <TableCell className="font-medium text-foreground">{bill.month}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{Number(bill.total_liters).toFixed(1)} L</TableCell>
-                    <TableCell className="text-right font-bold text-foreground">₹{bill.total_amount}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline" className={cn(
-                        "border-0",
-                        bill.status === "PAID" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500" : "bg-rose-500/10 text-rose-600 dark:text-rose-500"
-                      )}>
-                        {bill.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <PdfDownloadButton bill={bill} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+      <div className="container max-w-5xl mx-auto px-6 py-12 relative z-10 space-y-16">
+        <PageHeader
+          title={t('title')}
+          highlight={t('portal')}
+          subtitle={t('description') || "Manage your subscriptions and payments"}
+          badge="FINANCIAL_NODE_v4.2"
+          badgeIcon={<Shield size={12} className="text-primary" aria-hidden="true" />}
+        />
 
+        <div className="flex flex-col items-center justify-center relative">
+          <AnimatePresence mode="wait">
+            {isLoading ? (
+              <PremiumLoadingState key="loading" />
+            ) : !activeBill ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center p-12 rounded-[2.5rem] glass-card bg-foreground/[0.02] border border-border/10"
+              >
+                <Sparkles className="h-12 w-12 text-yellow-500 mx-auto mb-6 opacity-40" />
+                <h2 className="text-2xl font-black font-heading italic uppercase">{t('allCaughtUp')}</h2>
+                <p className="font-micro text-foreground/20 uppercase tracking-widest mt-2">{t('noBills')}</p>
+              </motion.div>
+            ) : isPaid ? (
+              <motion.div
+                key="paid"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center space-y-6 relative z-10 py-10"
+              >
+                <div className="h-20 w-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-6 shadow-glow-emerald/20">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-black font-heading italic uppercase text-foreground mb-2">{t('noDues')}</h1>
+                  <p className="font-micro text-foreground/20 uppercase tracking-widest italic">
+                    {t('lastBillPaid', { month: activeBill?.month || '' })}
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="unpaid"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-sm relative z-10 space-y-8"
+              >
+                <div className="rounded-[2.5rem] p-10 border border-border/10 text-center glass-card bg-background/40 backdrop-blur-3xl shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-[0.03] scale-150 rotate-12 transition-transform duration-1000 group-hover:scale-125 text-primary">
+                    <HistoryIcon size={120} />
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 mb-8 relative z-10">
+                    <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 font-micro text-[10px] px-3 py-1 uppercase tracking-widest">
+                      {t('dueFor', { month: activeBill?.month || '' })}
+                    </Badge>
+                  </div>
+
+                  <p className="font-micro text-foreground/20 text-[10px] font-bold uppercase tracking-[0.4em] mb-2 relative z-10">
+                    {t('totalPayable')}
+                  </p>
+
+                  {activeBill?.utr_reference && activeBill?.status === "UNPAID" && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20"
+                    >
+                      <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                      <span className="font-micro text-[9px] text-blue-500 uppercase tracking-widest font-black">{t('verificationInProgress')}</span>
+                    </motion.div>
+                  )}
+
+                  <h1 className="text-6xl font-black font-heading italic text-foreground tracking-tighter leading-none mb-8 relative z-10 group-hover:text-primary transition-colors duration-1000">
+                    ₹{mounted ? formatCurrency(billAmount, locale) : "--"}
+                  </h1>
+
+                  <div className="flex justify-between items-center py-6 border-t border-border/5 relative z-10">
+                    <span className="font-micro text-foreground/20 uppercase tracking-widest">{t('totalConsumption')}</span>
+                    <span className="text-xl font-heading font-black italic text-foreground/60">{totalLiters.toFixed(1)} <span className="text-xs font-sans font-normal opacity-40 not-italic">{t('liters').toUpperCase()[0]}</span></span>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => activeBill && handlePayment()}
+                    disabled={isLoading}
+                    className="w-full h-16 rounded-2xl font-black italic text-xl tracking-tight bg-primary hover:bg-foreground text-white hover:text-background shadow-glow-primary/20 transition-all duration-500 flex items-center justify-center gap-3 relative z-10"
+                  >
+                    <Lock className="h-5 w-5" />
+                    {t('payNow').toUpperCase()}
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {bills.length > 0 && (
+          <div className="space-y-8">
+            <div className="flex items-center gap-6 px-10 py-4 bg-foreground/[0.02] rounded-2xl border border-border/5">
+              <HistoryIcon className="h-5 w-5 text-indigo-500" />
+              <span className="font-micro text-foreground/20 uppercase tracking-[0.4em]">{t('historyTitle')}</span>
+              <div className="h-[1px] flex-1 bg-foreground/5" />
+            </div>
+
+            <div className="rounded-[2.5rem] border-border/10 bg-background/40 backdrop-blur-3xl overflow-x-auto shadow-2xl">
+              {isLoading ? (
+                <div className="p-8">
+                  <TableSkeleton rows={5} cols={5} />
+                </div>
+              ) : (
+                <Table className="min-w-[800px]">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent border-b border-border/5 h-20 px-8">
+                    <TableHead className="font-micro text-foreground/40 uppercase tracking-widest pl-10">{t('month')}</TableHead>
+                    <TableHead className="text-right font-micro text-foreground/40 uppercase tracking-widest">{t('liters')}</TableHead>
+                    <TableHead className="text-right font-micro text-foreground/40 uppercase tracking-widest">{t('amount')}</TableHead>
+                    <TableHead className="text-center font-micro text-foreground/40 uppercase tracking-widest">{t('status')}</TableHead>
+                    <TableHead className="text-right font-micro text-foreground/40 uppercase tracking-widest pr-10">{t('invoice')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bills.map((bill: Bill) => (
+                    <TableRow key={bill.id} className="hover:bg-primary/[0.02] transition-all duration-700 border-b border-border/5 h-24 px-8 group">
+                      <TableCell className="font-heading font-black italic text-xl text-foreground pl-10 group-hover:text-primary transition-colors">{bill.month}</TableCell>
+                      <TableCell className="text-right font-heading font-bold italic text-foreground/60">{Number(bill.total_liters).toFixed(1)} <span className="text-[10px] opacity-20 not-italic">{t('liters').toUpperCase()[0]}</span></TableCell>
+                      <TableCell className="text-right font-heading font-black italic text-2xl text-foreground">₹{formatCurrency(Number(bill.total_amount), locale)}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={cn(
+                          "rounded-full px-4 py-1 font-black italic uppercase text-[10px] tracking-widest transition-all",
+                          bill.status === "PAID"
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : bill.utr_reference
+                              ? "bg-blue-500/10 text-blue-500"
+                              : "bg-primary/10 text-primary animate-pulse"
+                        )}>
+                          {bill.status === "UNPAID" && bill.utr_reference
+                            ? t('verifying')
+                            : tCommon(`status.${getStatusKey(bill.status)}`)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right pr-10">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const text = encodeURIComponent(
+                                `DairyDay Bill — ${bill.month}: ₹${Number(bill.total_amount).toFixed(0)}`
+                              );
+                              window.open(`https://wa.me/?text=${text}`, '_blank');
+                            }}
+                            className="h-12 w-12 p-0 rounded-full bg-foreground/[0.03] border border-border/5 text-foreground/20 hover:text-emerald-500 transition-all"
+                            aria-label="Share via WhatsApp"
+                          >
+                            <Share2 size={18} />
+                          </Button>
+                          <PdfDownloadButton bill={bill} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={isUpiModalOpen} onOpenChange={setIsUpiModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white text-black border-none rounded-[2rem] p-8">
+          <DialogHeader>
+            <DialogTitle className="text-center font-heading font-black italic text-3xl uppercase tracking-tighter">{t('scanToPay')}</DialogTitle>
+            <DialogDescription className="text-center font-micro uppercase tracking-widest text-black/40">
+              {t('scanWithUpi')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center space-y-6 pt-4">
+            <div className="p-4 bg-white rounded-[2rem] shadow-xl border border-gray-100">
+              {qrCode && <Image src={qrCode} alt="QR" width={250} height={250} className="rounded-xl" unoptimized />}
+            </div>
+
+            <div className="flex items-center gap-3 bg-gray-50 px-5 py-4 rounded-2xl w-full">
+              <div className="flex-1">
+                <p className="font-micro text-[10px] uppercase tracking-widest text-black/40 mb-1">{t('upiId')}</p>
+                <p className="font-mono font-bold text-lg text-black">{UPI_ID}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={copyToClipboard}
+                className="rounded-xl h-12 w-12 border-gray-200"
+                aria-label={tCommon('accessibility.copyUpi')}
+              >
+                {copied ? <Check className="h-5 w-5" aria-hidden="true" /> : <Copy className="h-5 w-5" aria-hidden="true" />}
+              </Button>
+            </div>
+
+            <div className="w-full space-y-4 pt-4 border-t border-gray-100">
+              <div className="space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-black/40">{t('enterUtr')}</p>
+                <Input
+                  placeholder={t('utrPlaceholder')}
+                  value={utrReference}
+                  onChange={(e) => setUtrReference(e.target.value)}
+                  className="h-14 rounded-xl border-gray-200 bg-gray-50 text-black font-mono"
+                />
+                <Button
+                  onClick={handleSubmitUtr}
+                  disabled={isSubmittingUtr || !utrReference.trim()}
+                  className="w-full h-14 rounded-xl bg-primary text-white font-bold uppercase"
+                >
+                  {isSubmittingUtr ? <Loader2 className="h-5 w-5 animate-spin" /> : t('verifyPayment')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -378,6 +404,7 @@ function PdfDownloadButton({ bill }: { bill: Bill }) {
       return res.data
     },
     enabled: !!bill.is_locked && !bill.pdf_url,
+    retry: false,
     refetchInterval: (query) => {
       const data = query.state.data as { status: string; pdf_url?: string } | undefined
       return data?.status === "completed" ? false : 5000
@@ -392,20 +419,20 @@ function PdfDownloadButton({ bill }: { bill: Bill }) {
         variant="ghost"
         size="sm"
         onClick={() => window.open(pdfUrl, '_blank')}
-        className="h-8 w-8 p-0 rounded-full hover:bg-indigo-500/10 hover:text-indigo-500"
+        className="h-12 w-12 p-0 rounded-full bg-foreground/[0.03] border border-border/5 text-foreground/20 hover:text-primary transition-all"
       >
-        <Download className="h-4 w-4" />
+        <Download size={20} />
       </Button>
     )
   }
 
   if (bill.is_locked) {
     return (
-      <Button variant="ghost" size="sm" disabled className="h-8 w-8 p-0 opacity-50">
-        <Loader2 className="h-3 w-3 animate-spin" />
+      <Button variant="ghost" size="sm" disabled className="h-12 w-12 p-0 opacity-20">
+        <Loader2 className="h-5 w-5 animate-spin" />
       </Button>
     )
   }
 
-  return <span className="text-muted-foreground">-</span>
+  return <span className="font-micro text-foreground/5 tracking-widest">-</span>
 }

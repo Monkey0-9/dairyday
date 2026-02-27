@@ -8,7 +8,7 @@ import * as z from "zod"
 import { Loader2, Save, User, MapPin, Phone, Globe, Palette, Fingerprint } from "lucide-react"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
-import { useRouter, usePathname } from "@/i18n/routing"
+import { useRouter, usePathname } from '@/i18n/routing'
 import { useTheme } from "next-themes"
 import { useFontSize } from "@/components/font-size-provider"
 

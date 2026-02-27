@@ -8,6 +8,7 @@
     "address": "Residential Address",
     "password": "Set Password",
     "confirmPassword": "Confirm Password",
+    "daily_target_qty": "Daily Milk Quantity (Liters)",
     "submit": "Submit Request",
     "back": "Back to Login",
     "successTitle": "Request Transmitted",
@@ -15,15 +16,15 @@
     "pendingStatus": "Awaiting Verification",
     "verificationTitle": "Verify your identity",
     "verificationDesc": "We've sent a 6-digit code to your email. Please enter it below to continue.",
-    "otpPlaceholder": "CODE_6_DIGITS",
+    "otpPlaceholder": "Enter 6-digit code",
     "verifyButton": "Verify Code",
     "verifySuccess": "Identity verified! Awaiting admin approval.",
     "invalidOtp": "Invalid or expired code.",
-    "namePlaceholder": "OPERATOR_NAME",
+    "namePlaceholder": "Full Name",
     "phonePlaceholder": "+91 XXXXX XXXXX",
-    "emailPlaceholder": "EMAIL_ADDRESS",
-    "addressPlaceholder": "RESIDENTIAL_SECTOR",
-    "resubmitDetails": "RE_SUBMIT_DETAILS",
+    "emailPlaceholder": "Email Address",
+    "addressPlaceholder": "Full Address",
+    "resubmitDetails": "Re-submit Details",
     "verificationCodeSent": "Verification Code Sent!",
     "registrationFailure": "REGISTRATION_FAILURE",
     "valNameRequired": "Name must be at least 2 characters",
@@ -32,7 +33,8 @@
     "valAddressRequired": "Address must be at least 5 characters",
     "valPasswordRequired": "Password must be at least 8 characters",
     "valPasswordMatch": "Passwords do not match",
-    "valOtpRequired": "Code must be 6 digits"
+    "valOtpRequired": "Code must be 6 digits",
+    "valDailyQuantityRequired": "Daily quantity must be at least 0.1 liters"
   },
   "Common": {
     "welcome": "Welcome",
@@ -41,6 +43,7 @@
     "dashboard": "Dashboard",
     "settings": "Settings",
     "profile": "Profile",
+    "support": "Support",
     "language": "Language",
     "theme": "Theme",
     "loading": "Loading...",
@@ -50,53 +53,59 @@
     "delete": "Delete",
     "back": "Back",
     "active": "Active",
-    "status": "Status"
+    "records": "Records",
+    "status": {
+      "PAID": "Paid",
+      "UNPAID": "Unpaid",
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled",
+      "SKIPPED": "Skipped",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "accessibility": {
+      "close": "Close",
+      "openMenu": "Open Menu",
+      "logo": "DairyDays Logo",
+      "profileImage": "Profile Picture",
+      "downloadInvoice": "Download Invoice PDF",
+      "copyUpi": "Copy UPI ID",
+      "search": "Search",
+      "previous": "Previous",
+      "next": "Next",
+      "timeUnit": "UTC Time",
+      "currentDate": "Current Date",
+      "unitL": "L"
+    },
+    "validation": {
+      "required": "This field is required",
+      "email": "Invalid email address",
+      "phone": "Invalid phone number",
+      "passwordMin": "Password must be at least 8 characters",
+      "utr": "Invalid UTR. Please enter the 12-digit transaction number."
+    }
   },
   "Auth": {
-    "email": "Email Address",
-    "password": "Password",
-    "invalidCredentials": "Invalid credentials",
-    "login": "Login",
-    "forgotPassword": "Forgot password?",
-    "register": "Register",
-    "loginSuccess": "Login successful",
-    "loginFailed": "Login failed",
-    "placeholder": "Email or Phone Number",
-    "forgotPasswordTitle": "Reset Password",
-    "forgotPasswordDesc": "Enter your email or phone number to receive an OTP.",
-    "sendOtp": "Send OTP",
-    "resetPasswordTitle": "Set New Password",
-    "resetPasswordDesc": "Enter the OTP sent to you and choose a new password.",
-    "newPassword": "New Password",
-    "confirmPassword": "Confirm New Password",
-    "resetButton": "Reset Password",
-    "otpSuccess": "OTP sent successfully!",
-    "resetSuccess": "Password reset successfully! Redirecting to login...",
-    "identifierKey": "IDENTIFIER_KEY",
-    "operatorCodePlaceholder": "OPERATOR_CODE",
-    "securityAuth": "SECURITY_AUTH",
-    "stayPersistent": "STAY_PERSISTENT",
-    "verifying": "VERIFYING...",
-    "initializeData": "INITIALIZE DATA",
-    "recruitmentPhaseActive": "RECRUITMENT_PHASE_ACTIVE?",
-    "requestAuthorization": "REQUEST_AUTHORIZATION",
-    "encryptedAuthBridge": "ENCRYPTED_AUTH_BRIDGE",
-    "regionLabel": "REGION",
-    "encryptionLabel": "ENCRYPTION",
-    "systemUptime": "SYSTEM_UPTIME",
-    "securityClearanceGranted": "Security Clearance Granted: Welcome back.",
-    "criticalAuthFailure": "CRITICAL_AUTH_FAILURE",
-    "identifierRequired": "IDENTIFIER_REQUIRED",
-    "otpMustBe6Digits": "OTP_MUST_BE_6_DIGITS",
-    "passwordTooShort": "PASSWORD_TOO_SHORT",
-    "passwordsDoNotMatch": "PASSWORDS_DO_NOT_MATCH",
-    "failedToSendOtp": "FAILED_TO_SEND_OTP",
-    "passwordResetFailed": "PASSWORD_RESET_FAILED",
-    "redirectingToLogin": "REDIRECTING_TO_LOGIN",
-    "backToStep1": "BACK_TO_STEP_1"
+    "identifierRequired": "Email or phone number is required",
+    "initializeData": "Initializing Secure Data",
+    "stayPersistent": "Stay signed in",
+    "encryptedAuthBridge": "Encrypted Auth Bridge",
+    "regionLabel": "Region",
+    "encryptionLabel": "Encryption",
+    "systemUptime": "System Uptime",
+    "operatorCodePlaceholder": "Operator Code",
+    "securityAuth": "Security Authentication",
+    "identifierKey": "Identifier Key"
   },
   "Dashboard": {
     "title": "My Dashboard",
+    "vitalOverview": "Overview",
+    "protocolVersion": "Live Status",
+    "previousMonth": "Previous Month",
+    "nextMonth": "Next Month",
     "subtitle": "Overview of your daily milk usage",
     "todaysDelivery": "Today's Delivery",
     "monthlyBill": "Monthly Bill",
@@ -113,18 +122,51 @@
     "volume": "Volume",
     "continuity": "Continuity",
     "deliveryStreak": "Delivery Streak",
-    "currentSettleDue": "Current_Settle_Due",
-    "statusNominal": "STATUS_NOMINAL",
-    "awaitSettle": "AWAIT_SETTLE",
-    "executeSettlement": "EXECUTE_SETTLEMENT",
-    "settlementFinalized": "SETTLEMENT_FINALIZED",
-    "vitalStream": "VITAL_STREAM",
-    "efficiencyMean": "Efficiency Mean",
-    "dailyYieldAvg": "DAILY_YIELD_AVG",
-    "protocolSteady": "Protocol_Steady",
+    "currentSettleDue": "Current Balance Due",
+    "statusNominal": "Status Nominal",
+    "awaitSettle": "Awaiting Settlement",
+    "executeSettlement": "Finalize Payment",
+    "settlementFinalized": "Settlement Finalized",
+    "reconId": "Verification ID",
+    "notifications": "Personal Alerts",
+    "noNotifications": "All Systems Nominal",
+    "viewAll": "View All",
+    "billAlert": "Unpaid bill for {month}",
+    "requestApproved": "Request for {date} APPROVED",
+    "requestRejected": "Request for {date} REJECTED",
+    "requestPending": "Request for {date} PENDING",
+    "vitalStream": "Health Monitor",
+    "efficiencyMean": "Daily Average",
+    "vol": "Volume",
+    "litersLabel": "Liters",
+    "unitLiters": "Liters",
+    "dailyYieldAvg": "Daily Average",
+    "protocolSteady": "Protocol Steady",
     "health": "Health",
     "security": "Security",
-    "nodes": "NODES"
+    "nodes": "Nodes",
+    "authLevel": "Secure Session",
+    "AIAssistant": {
+      "greeting": "Hi! I'm your DairyDays assistant. How can I help you today?",
+      "queries": {
+        "milkTypes": "Milk Variants",
+        "milkTypesQuery": "What types of milk do you offer?",
+        "a2Milk": "A2 Benefits",
+        "a2MilkQuery": "What are the benefits of A2 milk?",
+        "storage": "Storage Tips",
+        "storageQuery": "How should I store the milk?",
+        "billing": "Billing Help",
+        "billingQuery": "How can I pay my bill?"
+      },
+      "error": "I'm sorry, I'm having trouble connecting right now.",
+      "discovery": "Personal Assistant",
+      "close": "Close Assistant",
+      "maximize": "Open Assistant",
+      "title": "Dairy Assistant",
+      "status": "Online",
+      "minimize": "Minimize",
+      "placeholder": "Ask anything..."
+    }
   },
   "Admin": {
     "nav": {
@@ -134,6 +176,7 @@
       "consumption": "Consumption",
       "approvals": "Approvals",
       "registrations": "Join Requests",
+      "passwordRequests": "Password Requests",
       "bills": "Bills",
       "payments": "Payments",
       "support": "Support"
@@ -147,6 +190,7 @@
     "operationalNode": "Admin Portal",
     "dashboardActive": "System Online",
     "dashboard": {
+      "operationalNode": "Admin Portal",
       "strategicOversight": "Strategic Overview",
       "oversightDescription": "Monitor and manage the entire dairy network operations from one place.",
       "globalTime": "System Time",
@@ -182,24 +226,26 @@
         "dailyEntry": {
           "title": "Daily Entry",
           "desc": "Record today's deliveries for all active customers.",
-          "cta": "Start Entries"
+          "launchCta": "Start Entries"
         },
         "finance": {
           "title": "Bills & Payments",
           "desc": "Manage monthly bills and record payments.",
-          "cta": "Open Finance"
+          "initiateCta": "Open Finance"
         },
         "market": {
           "title": "Reports",
           "desc": "View customer consumption patterns and trends.",
-          "cta": "View Reports"
+          "viewCta": "View Reports"
         }
-      }
+      },
+      "viewAll": "View All",
+      "noNotifications": "No new notifications"
     },
     "dailyEntry": {
       "title": "Daily Milk Entry",
       "operationalCommand": "Entry Terminal",
-      "cloneHistory": "Copy Previous",
+      "cloneHistory": "Copy previous day",
       "totalNodes": "Total Customers",
       "activeVectors": "Active Deliveries",
       "aggregateVolume": "Total Volume",
@@ -214,11 +260,30 @@
       "nodeVal": "Volume",
       "syncing": "Saving...",
       "authorizeNodes": "Save {count} Entries",
-      "syncComplete": "Records saved successfully.",
       "criticalFault": "Error: {error}",
       "scanResultNull": "No previous records found.",
       "patternSync": "Data restored: {count} entries.",
-      "faultYesterdayScan": "Failed to load previous data"
+      "faultYesterdayScan": "Failed to load previous data",
+      "enterLiters": "Enter Liters"
+    },
+    "consumption": {
+      "title": "Consumption Ledger",
+      "subtitle": "Monitor daily usage across the entire network.",
+      "syncComplete": "Daily Entry saved",
+      "export": "Export Report",
+      "searchPlaceholder": "Search customer...",
+      "customer": "Customer",
+      "actions": "Actions",
+      "noCustomersFound": "No records found.",
+      "totalMilk": "Total Milk Volume",
+      "avgRate": "Average Rate",
+      "deleteTitle": "Authorize Deletion",
+      "deleteDesc": "Are you sure you want to remove {name} from this ledger?",
+      "deleteConfirm": "Confirm Delete",
+      "totals": "Daily Totals",
+      "delivered": "Delivered",
+      "empty": "Empty",
+      "locked": "Locked"
     },
     "approvals": {
       "title": "Pending Requests",
@@ -266,6 +331,12 @@
       "totalLiters": "Total Liters",
       "pendingDues": "Total Dues",
       "collectionRate": "Collection Rate",
+      "realizedGrowth": "Collected",
+      "outstandingRisk": "Outstanding",
+      "totalExposure": "Total Bills",
+      "activeLiabilities": "Total Due",
+      "efficiencyIndex": "Collection %",
+      "liquidityRatio": "Efficiency",
       "pendingNodes": "Unpaid",
       "settledNodes": "Paid",
       "duesSubtext": "bills available",
@@ -275,6 +346,8 @@
       "searchPlaceholder": "Search customer...",
       "showingUnpaid": "Unpaid Only",
       "allBills": "All Bills",
+      "filterGrid": "Filter Grid",
+      "overdue": "Overdue",
       "zeroNodesIdentified": "No bills found",
       "customer": "Customer",
       "amount": "Amount",
@@ -315,6 +388,7 @@
       "encrypting": "Processing...",
       "draftState": "Draft"
     },
+    "registry": "Registry",
     "payments": {
       "title": "Payment Vault",
       "subtitle": "Verify and reconcile payments.",
@@ -353,11 +427,56 @@
       "paymentSuccess": "Payment recorded",
       "ledgerAnnotationRequired": "Please enter a note for verification."
     },
+    "support": {
+      "title": "System Support",
+      "subtitle": "Technical nexus for infrastructure maintenance and anomaly resolution",
+      "opsSupport": "OPS_SUPPORT_v3.0",
+      "systemGuard": "DRY_GUARD_ACTIVE",
+      "createTicket": "Log Anomaly",
+      "anomalyLog": "TICKET_INITIATION_PROTOCOL",
+      "titleVector": "Anomaly Vector",
+      "priorityLevel": "Severity Layer",
+      "diagnosticData": "Diagnostic Payload",
+      "lowObservation": "Low Observation",
+      "mediumConcern": "Medium Concern",
+      "highAlert": "High Alert",
+      "criticalFailure": "Critical Failure",
+      "transmitTicket": "Transmit to Grid",
+      "ticketSuccess": "TICKET_LOGGED_SUCCESSFULLY",
+      "ticketError": "Failed to log ticket. Connection timeout.",
+      "fillAllFields": "Please fill all diagnostic fields.",
+      "priorityHotline": "Priority Hotline",
+      "priorityDesc": "High-priority voice channel for immediate resolution",
+      "whatsapp": "Relay Node",
+      "whatsappDesc": "Encrypted instant messaging for quick syncs",
+      "whatsappTag": "SECURE_RELAY",
+      "smsAlerts": "Flash Pings",
+      "smsDesc": "Crisis notification system for critical hardware",
+      "smsTag": "FLASH_NOTIFY",
+      "liveVoiceNode": "LIVE_VOICE_NODE",
+      "technicalConcierge": "Technical Concierge",
+      "conciergeDesc": "Direct link to our dairy-tech engineers for specialized infrastructure guidance",
+      "emailSupport": "PRIMARY_UPLINK",
+      "escalation": "ESCALATION_PATH",
+      "emailDashboard": "Open Support Mailbox",
+      "operationalGuides": "Operational Blueprints",
+      "guideExport": "Strategic Data Export",
+      "guideBilling": "Financial Algorithm Sync",
+      "guidePermissions": "Access Matrix Setup",
+      "guideHardware": "Sensor Grid Calibration",
+      "systemOperations": "System Operations",
+      "anomalyPlaceholder": "Brief description of the anomaly...",
+      "diagnosticPlaceholder": "Detailed system logs or observation notes..."
+    },
     "customers": {
       "title": "Customer Management",
       "subtitle": "Manage your customer base and billing rates.",
+      "registry": "Registry",
       "totalCustomers": "Total Customers",
       "activeCustomers": "Active Customers",
+      "activeNode": "Active",
+      "deactivated": "Deactivated",
+      "provisionNode": "Add Customer",
       "avgRate": "Avg. Rate",
       "addCustomer": "Add Customer",
       "allCustomers": "All Customers",
@@ -412,6 +531,7 @@
       "updateDescription": "Update details for {name}.",
       "updateSuccess": "Customer updated!",
       "saveChanges": "Save",
+      "updateNode": "Update Customer",
       "statusActive": "Active",
       "statusInactive": "Inactive"
     },
@@ -441,23 +561,58 @@
       "awaitingAction": "Action Required",
       "protocolNode": "Request"
     },
-    "consumption": {
-      "title": "Consumption Ledger",
-      "subtitle": "Detailed delivery records.",
-      "export": "Export CSV",
-      "searchPlaceholder": "Search customer...",
-      "customer": "Customer",
-      "actions": "Actions",
-      "noCustomersFound": "No customers found.",
-      "totalMilk": "Total Milk",
-      "avgRate": "Avg Rate",
-      "deleteTitle": "Delete records?",
-      "deleteDesc": "This will remove all records for {name}.",
-      "deleteConfirm": "Delete",
-      "totals": "Calculated Totals",
-      "delivered": "Delivered",
-      "empty": "No Entry",
-      "locked": "Locked (7+ Days)"
+    "passwordRequests": {
+      "title": "Access",
+      "titleHighlight": "Requests",
+      "subtitle": "Security layer for administrative password override authorization",
+      "refresh": "Sync Protocol",
+      "totalRequests": "Total Vectors",
+      "pendingApproval": "Pending Auth",
+      "successRate": "Resolution Rate",
+      "filterPlaceholder": "Search identity or node...",
+      "tableUser": "Subject",
+      "tableEmail": "Relay Address",
+      "tablePhone": "Terminal ID",
+      "tableRequestDate": "Init Date",
+      "tableStatus": "Protocol State",
+      "tableActions": "Resolution",
+      "noRequests": "No active override requests found",
+      "statusPending": "PENDING",
+      "statusApproved": "APPROVED",
+      "statusRejected": "REJECTED",
+      "statusCompleted": "COMPLETED",
+      "reject": "Terminate",
+      "approve": "Authorize",
+      "waitingForUser": "AWAITING_USER",
+      "approveError": "Failed to approve request",
+      "approveSuccess": "Request Approved. User can now reset their password.",
+      "rejectError": "Failed to reject request",
+      "rejectSuccess": "Request Rejected"
+    }
+  },
+  "AIAssistant": {
+    "title": "AI Assistant",
+    "discovery": "Dairy Assistant",
+    "status": "Active System",
+    "greeting": "Namaste! 🐄 I am your DairyDays Milk Assistant. Ask me about milk types, storage, billing, or any dairy-related questions!",
+    "placeholder": "Ask me anything about milk...",
+    "error": "I apologize, but my connection to the Dairy Grid is currently experiencing latency. Please retry transmission.",
+    "maximize": "Maximize AI Assistant",
+    "minimize": "Minimize AI Assistant",
+    "close": "Close AI Assistant",
+    "queries": {
+      "milkTypes": "Milk Types",
+      "milkTypesQuery": "What types of milk do you offer?",
+      "a2Milk": "A2 Milk",
+      "a2MilkQuery": "What is special about A2 milk?",
+      "storage": "Storage Tips",
+      "storageQuery": "How should I store milk properly?",
+      "billing": "Billing",
+      "billingQuery": "How does monthly billing work?",
+      "delivery": "Delivery",
+      "deliveryQuery": "When will my milk be delivered?",
+      "payment": "Payment",
+      "paymentQuery": "How do I pay my bill?"
     }
   },
   "Settings": {
@@ -518,25 +673,36 @@
   "Records": {
     "title": "Milk Records",
     "subtitle": "Detailed delivery history",
+    "consumptionTab": "Consumption",
+    "billingTab": "Settlements",
+    "billingSubtitle": "Financial reconciliation history",
     "export": "Export",
     "date": "Date",
     "liters": "Liters",
-    "noRecords": "No records found for this month.",
-    "total": "Total",
-    "volumeAgg": "Volume_Agg",
-    "nodeCount": "Node_Count",
-    "auditState": "Audit_State",
-    "ledgerTimeline": "Ledger_Timeline",
-    "nullEvent": "NULL_EVENT",
-    "zeroYieldEvent": "ZERO_YIELD_EVENT"
+    "consumptionLedger": "History Log",
+    "yieldRecords": "My Records",
+    "volumeAgg": "Total Volume",
+    "nodeCount": "Logged Days",
+    "auditState": "Security Status",
+    "nominalSecure": "Secure",
+    "ledgerTimeline": "Timeline",
+    "nullEvent": "No Delivery",
+    "zeroYieldEvent": "No records found",
+    "settlementComplete": "Paid",
+    "awaitSettlement": "Pending",
+    "zeroLedgerEvent": "No ledger entries",
+    "download": "Download PDF"
   },
   "Payment": {
     "title": "Payments",
+    "portal": "Payment Portal",
+    "description": "Manage your subscriptions and payments",
     "allCaughtUp": "All caught up!",
     "noBills": "No bills generated yet.",
     "noDues": "No Dues Pending",
     "lastBillPaid": "Last bill for {month} was paid.",
     "dueFor": "Due for {month}",
+    "upiId": "UPI ID",
     "totalPayable": "Total Payable",
     "totalConsumption": "Total Consumption",
     "payNow": "Pay Now",
@@ -557,7 +723,21 @@
     "gatewayNotLoaded": "Payment gateway not loaded. Please refresh.",
     "billPaymentDesc": "Bill Payment - {month}",
     "customerName": "Dairy Customer",
-    "securePayment": "Secured by {gateway} • UPI / Cards / NetBanking"
+    "securePayment": "Secured by {gateway} • UPI / Cards / NetBanking",
+    "upiCopied": "UPI ID Copied!",
+    "utrRequired": "Please enter a valid UTR reference",
+    "utrInvalid": "Invalid UTR. Please enter the 12-digit transaction number.",
+    "utrSuccess": "UTR submitted for verification!",
+    "utrFailed": "Failed to submit UTR.",
+    "verifying": "Verifying",
+    "verificationInProgress": "Verification in Progress",
+    "scanToPay": "Scan to Pay",
+    "upiIdLabel": "UPI ID",
+    "enterUtr": "Enter UTR",
+    "utrPlaceholder": "12-digit Reference Number",
+    "verifyPayment": "Verify Payment",
+    "paid": "Paid",
+    "unpaid": "Unpaid"
   },
   "Calendar": {
     "title": "Consumption Calendar",
@@ -593,114 +773,147 @@
     "statusDelivered": "Delivered",
     "statusCancelled": "Cancelled",
     "statusSkipped": "Skipped",
-    "awaitingVerification": "Awaiting Admin Verification",
     "modifyOrder": "Modify Your Order",
     "standardQtyDesc": "Standard: 1.0 L",
     "extraQtyLabel": "Extra Quantity (L)",
-    "optional": "Optional"
+    "optional": "Optional",
+    "immutableLock": "Record Finalized",
+    "handoffSuccess": "Request Submitted",
+    "commError": "Connection Error",
+    "temporalGrid": "Schedule",
+    "authSecure": "Secure",
+    "node": "Calendar",
+    "pendingVerify": "Pending Approval",
+    "lockedNode": "Finalized",
+    "syncActive": "Real-time sync active",
+    "selectNode": "Select a date",
+    "awaitingVerification": "Awaiting Approval",
+    "unitVolume": "Base Volume",
+    "target": "New",
+    "reserveVar": "Extra Volume",
+    "statusVector": "Current Status",
+    "initializeGhost": "Modify Order",
+    "idleState": "Select a date",
+    "ghost": "Ghost",
+    "mode": "Mode",
+    "temporalMod": "Modify Order",
+    "pauseSession": "Pause Session",
+    "suspendDelivery": "Pause delivery",
+    "standardVal": "Standard",
+    "reduceAmount": "Subtract",
+    "netYield": "Net Quantity",
+    "preOrderLabel": "Extra Milk",
+    "preOrderDesc": "Additional quantity for this day only",
+    "synchronizing": "Saving...",
+    "executeUpdate": "Confirm Changes",
+    "abortChanges": "Cancel",
+    "GHOST_EDIT": "Editable",
+    "LOCKED": "Finalized"
   },
   "Landing": {
     "nav": {
-      "features": "Features",
-      "market": "Market",
-      "security": "Security",
-      "protocol": "Protocol",
-      "infrastructure": "Infrastructure",
-      "revenue": "Revenue",
+      "features": "Signature Collection",
+      "market": "The Farm",
+      "security": "Quality Control",
+      "protocol": "Heritage",
+      "infrastructure": "Est. 1982",
+      "revenue": "Yield",
       "network": "Network",
-      "authorize": "Authorize Session",
-      "dairyOs": "DairyDay"
+      "authorize": "Customer Portal",
+      "dairyOs": "DairyDays"
     },
     "hero": {
-      "version": "v2.0.0",
-      "maximum": "Maximum",
-      "efficiency": "Efficiency",
-      "subtitle": "Professional management and billing for your local dairy business. Simple, fast, and reliable.",
-      "initialize": "Get Started",
-      "status": "System Status"
+      "version": "HERITAGE COLLECTION v2.0",
+      "title": "Uncompromising",
+      "titleHighlight": "Purity",
+      "efficiency": "Pure. Fresh. Unmatched.",
+      "subtitle": "The absolute gold standard in fresh dairy. Delivered from our heritage farms directly to your doorstep within hours.",
+      "initialize": "Secure Your Daily Supply",
+      "status": "Explore Variants",
+      "tagline": "ESTABLISHED 1982 • PREMIUM HERITAGE"
     },
-    "trustedBy": "Trusted by Industry Leaders",
+    "trustedBy": "The Gold Standard in Dairy",
     "features": {
-      "realtimeTitle": "Real-time Sync",
-      "realtimeDesc": "Instant data synchronization across all devices.",
-      "securityTitle": "Secure Data",
-      "securityDesc": "Enterprise-grade security for your business data.",
-      "dashboardTitle": "Smart Dashboard",
-      "dashboardDesc": "Comprehensive insights into your daily operations.",
-      "subtitle": "A suite of high-fidelity tools designed to revolutionize your dairy operational infrastructure.",
-      "core": "Operation Core",
-      "mainTitle": "Integrated Intelligence Protocol",
-      "mainDesc": "Real-time synchronization between collection hubs and central processing units.",
-      "title": "Engineered for",
-      "titleHighlight": "Performance",
+      "realtimeTitle": "CHILLED TO PERFECTION",
+      "realtimeDesc": "Our state-of-the-art logistics ensure milk is chilled within minutes of milking and delivered to you at peak freshness.",
+      "securityTitle": "VETERINARY CERTIFIED",
+      "securityDesc": "Daily health checks for every cow in our heritage herd guarantee the biological purity of every drop.",
+      "dashboardTitle": "SEAMLESS MANAGEMENT",
+      "dashboardDesc": "Manage your daily delivery, subscription pauses, and monthly settlements through our premium digital portal.",
+      "subtitle": "Experience the intersection of traditional farming heritage and modern delivery excellence.",
+      "core": "Our Commitment",
+      "mainTitle": "GLOBAL STANDARDS. LOCAL ROOTS.",
+      "mainDesc": "We combine four decades of farming wisdom with state-of-the-art quality control to deliver the finest milk in the region.",
+      "title": "Selected for",
+      "titleHighlight": "Purity",
       "intelligentEntry": {
-        "title": "One-Tap Entry",
-        "desc": "Record deliveries for all customers in seconds with our optimized list view."
+        "title": "Signature A2",
+        "desc": "Sourced from local heritage breeds for unmatched digestion and nutritional value."
       },
       "mobileSecure": {
-        "title": "Mobile Secure",
-        "desc": "End-to-end encrypted access on any device."
+        "title": "Farm to Table",
+        "desc": "Direct delivery from our pastures to your doorstep with zero middlemen."
       },
       "globalAnalytics": {
-        "title": "Global Analytics",
-        "desc": "Deep insights into consumption patterns and yield metrics."
+        "title": "Purity Tested",
+        "desc": "Rigorous multi-stage quality checks at every point in the supply chain."
       },
       "autoSettlement": {
-        "title": "Automated Settlement",
-        "desc": "Smart billing cycles with instant UPI reconciliation and automated ledger updates."
+        "title": "Daily Deliveries",
+        "desc": "Reliable, consistent delivery 365 days a year, regardless of the weather."
       }
     },
     "strategic": {
-      "badge": "Smart Management",
-      "title": "Real-time",
-      "titleHighlight": "Updates",
-      "desc": "Track your deliveries and payments in real-time. No more manual ledgers or lost records.",
+      "badge": "Heritage Quality",
+      "title": "Ancient",
+      "titleHighlight": "Wisdom",
+      "desc": "Caring for our herd with the same traditional methods used for generations.",
       "list": {
-        "yield": "Auto Bill Generation",
-        "sync": "Cloud Sync",
-        "anomaly": "Smart Alerts"
+        "yield": "High Cream Content",
+        "sync": "Natural Diet",
+        "anomaly": "Stress-Free Environment"
       }
     },
     "settlement": {
-      "badge": "Automated Billing",
-      "title": "Seamless",
-      "titleHighlight": "Payments",
-      "desc": "Automate your billing cycle. From generating bills to sending reminders, we handle it all.",
-      "learnMore": "Learn More",
-      "streamActive": "SYSTEM ACTIVE"
+      "badge": "Premium Service",
+      "title": "Exclusive",
+      "titleHighlight": "Access",
+      "desc": "Join an elite group of families who refuse to compromise on the purity of their daily dairy.",
+      "learnMore": "Our Story",
+      "streamActive": "FARM ACTIVE"
     },
     "pricing": {
-      "title": "Optimized for",
-      "titleHighlight": "Growth",
-      "subtitle": "Transparent pricing for enterprises of all magnitudes.",
+      "title": "Tailored for",
+      "titleHighlight": "You",
+      "subtitle": "Transparent subscription plans for your family.",
       "month": "/ Month",
-      "initialize": "Initialize Activation",
-      "mostStrategic": "Protocol Choice: Most Strategic",
+      "initialize": "Start Subscription",
+      "mostStrategic": "Most Popular Selection",
       "plans": {
         "entry": {
-          "name": "Entry",
+          "name": "Daily Essentials",
           "features": {
-            "f1": "Up to 10 Customers",
-            "f2": "Basic Analytics",
-            "f3": "Manual Billing"
+            "f1": "Fresh Cow Milk",
+            "f2": "Doorstep Delivery",
+            "f3": "Monthly Billing"
           }
         },
         "pro": {
-          "name": "Dairy Pro",
+          "name": "Heritage Gold",
           "features": {
-            "f1": "Unlimited Customers",
-            "f2": "Bento Dashboard",
-            "f3": "Automated UPI",
-            "f4": "Priority Support"
+            "f1": "A2 Premium Milk",
+            "f2": "Priority Delivery Slot",
+            "f3": "Digital Management",
+            "f4": "Farm Visits"
           }
         },
         "enterprise": {
-          "name": "Enterprise",
+          "name": "Organic Reserve",
           "features": {
-            "f1": "Multi-unit Mgmt",
-            "f2": "Custom Protocol",
-            "f3": "L3 Security",
-            "f4": "Dedicated Architect"
+            "f1": "Full Organic Range",
+            "f2": "Personalized Orders",
+            "f3": "Concierge Support",
+            "f4": "Quarterly Dairy Box"
           }
         }
       }
@@ -717,7 +930,7 @@
     "cta": {
       "scale": "Scale your",
       "infrastructure": "Business",
-      "desc": "Join hundreds of dairy operators growing their business with DairyDay.",
+      "desc": "Join hundreds of dairy operators growing their business with DairyDays.",
       "button": "Login Now"
     },
     "footer": {
@@ -726,6 +939,33 @@
       "legal": "Legal",
       "infrastructure": "Infrastructure",
       "status": "System Status: Nominal"
+    },
+    "milkTypes": {
+      "title": "Our Milk Variants",
+      "subtitle": "Choose from our premium selection of dairy products",
+      "cow": {
+        "title": "Fresh Cow Milk",
+        "desc": "Nutrient-rich, farm-fresh cow milk delivered daily"
+      },
+      "buffalo": {
+        "title": "Buffalo Milk",
+        "desc": "Rich and creamy, high in protein and calcium"
+      },
+      "a2": {
+        "title": "A2 Cow Milk",
+        "desc": "Premium A2 protein, easier to digest"
+      },
+      "organic": {
+        "title": "Organic Milk",
+        "desc": "From grass-fed cows, free from hormones"
+      }
+    },
+    "premium": {
+      "subtitle": "Premium Dairy Management",
+      "tagline": "Trusted by 1000+ Families",
+      "trust1": "Fresh Daily Delivery",
+      "trust2": "Pure & Authentic",
+      "trust3": "Easy Online Payment"
     }
   },
   "Support": {
@@ -771,6 +1011,15 @@
     "opsRun247": "Our operations run 24/7 for delivery",
     "criticalSupport": "Critical Support",
     "availableNow": "Available Now",
-    "billingHours": "Billing Hours"
+    "billingHours": "Billing Hours",
+    "sendEmail": "Send Email",
+    "faq1Q": "How to cancel for today?",
+    "faq1A": "Go to Calendar, click today's date, and use the 'Cancel Delivery' toggle. Must be done before 6 AM.",
+    "faq2Q": "When is my bill generated?",
+    "faq2A": "Bills are generated on the 1st of every month for the previous month's usage.",
+    "faq3Q": "How to add extra milk?",
+    "faq3A": "Select tomorrow in the calendar and increase the quantity. Admins will confirm your request.",
+    "faq4Q": "Payment hasn't reflected?",
+    "faq4A": "Manual UPI payments are verified by our staff within 12-24 hours. Check back tomorrow!"
   }
 }

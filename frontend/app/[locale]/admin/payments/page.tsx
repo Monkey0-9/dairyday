@@ -18,7 +18,9 @@ import {
   Fingerprint,
 } from "lucide-react"
 import { toast } from "sonner"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
+import { getDateFnsLocale } from "@/lib/i18n-utils"
+import { format as formatDate } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
@@ -31,7 +33,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { adminApi, paymentsApi } from "@/lib/api"
 import { cn, formatApiError } from "@/lib/utils"
@@ -69,8 +79,14 @@ const SettlementStat = ({ icon, label, value, subtext, color, delay = 0 }: { ico
 
 export default function AdminPaymentsPage() {
   const t = useTranslations("Admin.payments")
+  const tCommon = useTranslations("Common")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
   const queryClient = useQueryClient()
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
+  const now = new Date()
+  const [selectedMonth, setSelectedMonth] = useState(now.toISOString().slice(5, 7))
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear().toString())
+  const month = `${selectedYear}-${selectedMonth}`
   const [filterStatus, setFilterStatus] = useState<string>("ALL")
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -116,6 +132,7 @@ export default function AdminPaymentsPage() {
         const matchesStatus = filterStatus === "ALL" || bill.status === filterStatus
         const matchesSearch =
           bill.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (bill as { user_email?: string }).user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           bill.user_id.toLowerCase().includes(searchTerm.toLowerCase())
         return matchesStatus && matchesSearch
       })
@@ -138,14 +155,38 @@ export default function AdminPaymentsPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex items-center gap-3 bg-white/[0.02] border border-white/10 rounded-xl glass-card px-3 py-1.5">
+          <div className="flex items-center gap-3 bg-white/[0.02] border border-white/10 rounded-xl glass-card px-3 py-1.5 min-w-[200px]">
             <Calendar className="h-4 w-4 text-white/20" />
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="bg-transparent border-none focus:ring-0 text-sm font-heading font-black italic uppercase tracking-tight text-white outline-none w-[140px] cursor-pointer"
-            />
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="bg-transparent border-none text-sm font-heading font-black italic uppercase tracking-tight text-white outline-none w-[70px] h-6 p-0">
+                <SelectValue placeholder="MM" />
+              </SelectTrigger>
+              <SelectContent className="bg-obsidian-800 border-white/10 text-white">
+                {Array.from({ length: 12 }, (_, i) => {
+                  const m = (i + 1).toString().padStart(2, '0')
+                  return (
+                    <SelectItem key={m} value={m} className="text-[10px] font-black uppercase italic">
+                      {formatDate(new Date(2024, i, 1), 'MMM', { locale: dateFnsLocale })}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="bg-transparent border-none text-sm font-heading font-black italic uppercase tracking-tight text-white outline-none w-[80px] h-6 p-0">
+                <SelectValue placeholder="YYYY" />
+              </SelectTrigger>
+              <SelectContent className="bg-obsidian-800 border-white/10 text-white">
+                {Array.from({ length: 5 }, (_, i) => {
+                  const y = (new Date().getFullYear() - 2 + i).toString()
+                  return (
+                    <SelectItem key={y} value={y} className="text-[10px] font-black uppercase italic">
+                      {y}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
           </div>
           <Button
             variant="outline"
@@ -200,12 +241,13 @@ export default function AdminPaymentsPage() {
         <div className="flex flex-col lg:flex-row gap-4 justify-between items-center bg-white/[0.02] p-4 rounded-2xl border border-white/5 glass-card shadow-glass-elev">
           <div className="relative group w-full max-w-xl">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/10 group-focus-within:text-primary transition-colors" />
-            <input
+            <Input
               id="payment-search-input"
               placeholder={t('findSettlementNodes')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="h-10 w-full bg-white/[0.02] border border-white/5 rounded-xl pl-10 pr-4 text-[13px] font-heading font-black italic tracking-tight placeholder:text-white/5 outline-none transition-all duration-700 hover:border-white/10 focus:border-primary/40 focus:bg-white/[0.04]"
+              aria-label={tCommon('accessibility.search')}
             />
           </div>
 
@@ -263,7 +305,9 @@ export default function AdminPaymentsPage() {
                     </div>
                     <div className="space-y-0.5">
                       <h3 className="text-lg font-heading font-black italic tracking-tight text-white uppercase group-hover:text-primary transition-colors">{bill.user_name}</h3>
-                      <span className="font-micro text-[9px] text-white/20 tracking-[0.2em] uppercase">{t('nodeId')} {bill.user_id.split("-")[0].toUpperCase()}</span>
+                      <span className="font-mono text-[11px] text-white/70 tracking-wide mt-0.5 block">
+                        {(bill as { user_email?: string }).user_email || t('nodeId') + " " + bill.user_id.split("-")[0].toUpperCase()}
+                      </span>
                     </div>
                   </div>
 
@@ -320,7 +364,7 @@ export default function AdminPaymentsPage() {
 
       {/* Industrial Settlement Modal */}
       <Dialog open={cashModalOpen} onOpenChange={setCashModalOpen}>
-        <DialogContent className="bg-gray-900/90 backdrop-blur-xl border border-gray-800 rounded-2xl w-[95vw] max-w-md fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_100px_rgba(244,63,94,0.1)] glass-card p-0 overflow-hidden">
+        <DialogContent className="bg-obsidian-900/95 backdrop-blur-3xl border border-white/5 rounded-2xl w-[95vw] max-w-md shadow-[0_0_100px_rgba(14,165,168,0.1)] glass-card p-0 overflow-hidden">
           <div className="max-h-[90vh] overflow-y-auto custom-scrollbar p-6">
             <div className="space-y-6 relative">
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] scale-150 rotate-12">

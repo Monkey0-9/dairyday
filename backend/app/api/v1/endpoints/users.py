@@ -20,12 +20,18 @@ from app.core.redis import get_redis
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+from fastapi import Response
+
+
 @router.get("/me", response_model=UserSchema)
 async def read_user_me(
+    response: Response,
     current_user: User = Depends(deps.get_current_active_user),
 ) -> Any:
     """Get current user."""
+    response.headers["Cache-Control"] = "private, max-age=60"
     return current_user
+
 
 @router.patch("/me", response_model=UserSchema)
 async def update_user_me(
@@ -56,7 +62,6 @@ async def update_user_me(
     await db.commit()
     await db.refresh(current_user)
     return current_user
-
 
 
 @router.get("/", response_model=List[UserSchema])
@@ -102,26 +107,24 @@ async def read_users(
         query = (
             select(
                 User,
-                func.coalesce(func.sum(Consumption.quantity), 0).label(
-                    "month_liters"
-                )
+                func.coalesce(func.sum(Consumption.quantity), 0).label("month_liters"),
             )
             .outerjoin(
                 Consumption,
                 and_(
                     Consumption.user_id == User.id,
                     Consumption.date >= start_date,
-                    Consumption.date < end_date
-                )
+                    Consumption.date < end_date,
+                ),
             )
             .group_by(User.id)
             .offset(skip)
             .limit(limit)
         )
-        
+
         result = await db.execute(query)
         rows = result.all()
-        
+
         enriched_users = []
         for user, month_liters in rows:
             user_data = UserSchema.model_validate(user)
@@ -135,15 +138,14 @@ async def read_users(
             await redis.set(
                 cache_key,
                 json.dumps([u.model_dump() for u in enriched_users]),
-                ex=300  # 5 minutes TTL
+                ex=300,  # 5 minutes TTL
             )
 
         return enriched_users
     except Exception as e:
         logger.error(f"Error fetching users: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve users: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve users: {str(e)}"
         ) from e
 
 
@@ -163,7 +165,9 @@ async def create_user(
         result = await db.execute(select(User).where(User.email == user_in.email))
         user = result.scalars().first()
         if user:
-            logger.warning(f"User creation failed: Email already exists - {user_in.email}")
+            logger.warning(
+                f"User creation failed: Email already exists - {user_in.email}"
+            )
             raise HTTPException(
                 status_code=400,
                 detail="A user with this email already exists in the system.",
@@ -183,7 +187,9 @@ async def create_user(
         await db.commit()
         await db.refresh(db_user)
 
-        logger.info(f"Successfully created user: id={db_user.id}, email={db_user.email}")
+        logger.info(
+            f"Successfully created user: id={db_user.id}, email={db_user.email}"
+        )
         return db_user
 
     except HTTPException:
@@ -192,10 +198,7 @@ async def create_user(
     except Exception as e:
         logger.error(f"Error creating user: {str(e)}", exc_info=True)
         await db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create user: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
 
 
 @router.patch("/{user_id}", response_model=UserSchema)
@@ -247,10 +250,17 @@ async def delete_user(
     if not user:
         raise HTTPException(
             status_code=404,
-            detail="The user with this id does not exist in the system",
+            detail="The user with this id does not exist",
+        )
+    if user.role in ("ADMIN", "SUPERADMIN"):
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete admin users",
         )
 
-    # Hard delete (Deactivation is handled via PATCH update)
-    await db.delete(user)
+    # Soft-delete: preserve data integrity
+    user.deleted_at = func.now()
+    user.is_active = False
     await db.commit()
+    await db.refresh(user)
     return user

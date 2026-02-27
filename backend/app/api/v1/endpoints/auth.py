@@ -7,22 +7,16 @@ Handles:
 - Password change
 - 2FA support (optional for admins)
 """
+
 import datetime
-import logging
-import secrets
+import os
 import uuid
 from typing import Any
 
+from app.core.logging import get_logger, mask_email
 from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Query,
-    Request,
-    Response,
-    status
+    APIRouter, Depends, HTTPException, Query, Request, Response, status
 )
-from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,11 +25,13 @@ from app.api import deps
 from app.core import security
 from app.core.config import settings
 from app.core.redis import get_redis
+from app.core.limiter import limiter
 from app.db.session import get_db
 from app.models.user import User
+from app.models.password_reset import PasswordResetRequest, RequestStatus
 from app.schemas.user import ForgotPassword, PasswordChange, ResetPassword
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -56,7 +52,7 @@ async def record_failed_attempt(redis, email: str) -> int:
     Uses atomic increment with expiry for rate limiting.
     """
     key = await get_login_attempts_key(email)
-    async with redis.pipeline() as pipe:
+    async with redis.pipeline() as pipe:  # Corrected to use redis.pipeline()
         await pipe.incr(key)
         await pipe.expire(key, LOCKOUT_DURATION_SECONDS)
         await pipe.execute()
@@ -81,19 +77,19 @@ async def clear_login_attempts(redis, email: str) -> None:
 
 def is_production() -> bool:
     """Check if running in production mode."""
-    # Use environment variable for production detection
-    import os
     return os.environ.get("ENVIRONMENT", "development").lower() == "production"
 
 
 @router.post("/login")
+@limiter.limit("5/minute")
 async def login_access_token(
-    db: AsyncSession = Depends(get_db),
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    response: Response = None
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
     OAuth2 compatible token login endpoint.
+    Supports both application/json and application/x-www-form-urlencoded.
     Returns both access and refresh tokens.
 
     Security features:
@@ -101,34 +97,59 @@ async def login_access_token(
     - HTTP-only secure cookies (secure=True in production)
     - Login attempt tracking in Redis
     """
-    email = form_data.username.lower()
+    # Detection of payload type (JSON vs Form)
+    email = None
+    password = None
+
+    content_type = request.headers.get("content-type", "").lower()
+
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            # Support both 'email' (TestSprite/Modern) and 'username' (OAuth2)
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+        except Exception:
+            pass
+    else:
+        try:
+            form = await request.form()
+            email = form.get("username")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not email or not password:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Missing email or password",
+        )
+
+    email = email.lower()
 
     try:
         redis = await get_redis()
         if redis and await check_account_locked(redis, email):
             logger.warning(
                 "Login blocked for locked account: %s",
-                email
+                mask_email(email)
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many failed login attempts. Account locked.",
-                headers={"Retry-After": str(LOCKOUT_DURATION_SECONDS)}
+                headers={"Retry-After": str(LOCKOUT_DURATION_SECONDS)},
             )
     except Exception as redis_err:
         if isinstance(redis_err, HTTPException):
             raise
-        logger.warning(
-            "Redis unavailable, skipping rate limit: %s",
-            redis_err
-        )
+        logger.warning("Redis unavailable, skipping rate limit: %s", redis_err)
         redis = None
 
     result = await db.execute(
         select(User).where(
             or_(
                 User.email == email,
-                User.phone == email
+                User.phone == email,
             )
         )
     )
@@ -142,7 +163,8 @@ async def login_access_token(
 
         logger.warning(
             "Failed login attempt for: %s (attempts: %d)",
-            email, failed_attempts
+            mask_email(email),
+            failed_attempts
         )
 
         raise HTTPException(
@@ -151,7 +173,7 @@ async def login_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not security.verify_password(form_data.password, user.hashed_password):
+    if not security.verify_password(password, user.hashed_password):
 
         failed_attempts = 0
         if redis:
@@ -159,7 +181,8 @@ async def login_access_token(
 
         logger.warning(
             "Failed login attempt for: %s (attempts: %d)",
-            email, failed_attempts
+            mask_email(email),
+            failed_attempts
         )
 
         raise HTTPException(
@@ -179,12 +202,10 @@ async def login_access_token(
     if redis:
         await clear_login_attempts(redis, email)
 
-    # 4. Create tokens
+    # 4. Create final tokens
     access_token_expires = datetime.timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
-
-    # Generate unique JTIs for tracking/revocation
     access_jti = str(uuid.uuid4())
     refresh_jti = str(uuid.uuid4())
 
@@ -192,52 +213,59 @@ async def login_access_token(
         user.id,
         expires_delta=access_token_expires,
         token_type="access",
-        jti=access_jti
+        jti=access_jti,
+        role=user.role,
     )
     refresh_token = security.create_refresh_token(user.id, jti=refresh_jti)
 
-    # 5. Set secure HTTP-only cookies
+    # Set secure HTTP-only cookies
     if response is not None:
-        # Access token cookie
         cookie_settings = {
             "key": "access_token",
             "value": access_token,
             "httponly": True,
-            "secure": is_production(),
+            "secure": True,
             "samesite": "lax",
-            "max_age": access_token_expires.total_seconds(),
+            "max_age": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             "path": "/",
         }
+        response.set_cookie(**cookie_settings)
 
-        # Refresh token cookie (even more secure, strictly httponly)
         refresh_cookie_settings = {
             "key": "refresh_token",
             "value": refresh_token,
             "httponly": True,
-            "secure": is_production(),
-            "samesite": "strict",
-            "max_age": settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
-            # Only sent to refresh endpoint
+            "secure": True,
+            "samesite": "lax",
+            "max_age": settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
             "path": f"{settings.API_V1_STR}/auth/refresh",
         }
-
-        response.set_cookie(**cookie_settings)
         response.set_cookie(**refresh_cookie_settings)
 
-        # User role cookie (strictly for frontend UI logic/middleware)
         response.set_cookie(
             key="user_role",
             value=user.role,
             httponly=False,
-            secure=is_production(),
+            secure=True,
             samesite="lax",
-            max_age=access_token_expires.total_seconds(),
+            max_age=int(access_token_expires.total_seconds()),
             path="/",
         )
 
+    # Record active session
+    await security.record_session(
+        str(user.id),
+        refresh_jti,
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    email_log = user.email or user.phone
     logger.info(
-        "User logged in: %s (role: %s, jti: %s)",
-        email, user.role, access_jti
+        "User logged in successfully after OTP: %s (role: %s, jti: %s)",
+        mask_email(email_log),
+        user.role,
+        access_jti,
     )
 
     return {
@@ -250,7 +278,7 @@ async def login_access_token(
             "email": user.email,
             "name": user.name,
             "role": user.role,
-        }
+        },
     }
 
 
@@ -276,11 +304,9 @@ async def refresh_access_token(
         )
 
     try:
-        # Decode the refresh token
+        # Verify refresh token
         payload = security.decode_token(refresh_token)
-
-        # Verify it's actually a refresh token
-        if payload.get("type") != "refresh":
+        if not payload or payload.get("type") != "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token type",
@@ -302,14 +328,21 @@ async def refresh_access_token(
         user = result.scalars().first()
 
         if not user or not user.is_active:
-            raise HTTPException(status_code=401, detail="User accounts issues")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account issues"
+            )
 
         # Revoke old refresh token (rotate)
         if jti:
             exp = payload.get("exp")
             now = datetime.datetime.now(datetime.timezone.utc).timestamp()
             ttl = int(exp - now) if exp else 3600
-            await security.add_to_blacklist(jti, ttl)
+            await security.blacklist_token(
+                jti,
+                datetime.timedelta(seconds=ttl)
+            )
+            await security.remove_session(str(user.id), jti)
 
         # Create new tokens
         access_jti = str(uuid.uuid4())
@@ -319,10 +352,14 @@ async def refresh_access_token(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
         new_access_token = security.create_access_token(
-            user.id, expires_delta=access_token_expires, jti=access_jti
+            user.id,
+            expires_delta=access_token_expires,
+            jti=access_jti,
+            role=user.role,
         )
         new_refresh_token = security.create_refresh_token(
-            user.id, jti=refresh_jti
+            user.id,
+            jti=refresh_jti
         )
 
         # Update cookies
@@ -330,16 +367,16 @@ async def refresh_access_token(
             key="access_token",
             value=new_access_token,
             httponly=True,
-            secure=is_production(),
+            secure=True,
             samesite="lax",
-            max_age=access_token_expires.total_seconds(),
+            max_age=int(access_token_expires.total_seconds()),
             path="/",
         )
         response.set_cookie(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            secure=is_production(),
+            secure=True,
             samesite="strict",
             max_age=settings.REFRESH_TOKEN_EXPIRE_MINUTES * 60,
             path=f"{settings.API_V1_STR}/auth/refresh",
@@ -349,10 +386,18 @@ async def refresh_access_token(
             key="user_role",
             value=user.role,
             httponly=False,
-            secure=is_production(),
+            secure=True,
             samesite="lax",
-            max_age=access_token_expires.total_seconds(),
+            max_age=int(access_token_expires.total_seconds()),
             path="/",
+        )
+
+        # Record new rotated session
+        await security.record_session(
+            str(user.id),
+            refresh_jti,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
         )
 
         return {
@@ -395,7 +440,11 @@ async def logout(
                 exp = payload.get("exp")
                 now = datetime.datetime.now(datetime.timezone.utc).timestamp()
                 ttl = int(exp - now) if exp else 3600
-                await security.add_to_blacklist(jti, ttl)
+                await security.blacklist_token(
+                    jti,
+                    datetime.timedelta(seconds=ttl)
+                )
+                await security.remove_session(str(current_user.id), jti)
         except Exception:
             pass
 
@@ -407,7 +456,7 @@ async def logout(
     )
     response.delete_cookie(key="user_role", path="/")
 
-    logger.info("User logged out: %s", current_user.email)
+    logger.info("User logged out: %s", mask_email(current_user.email))
     return {"message": "Successfully logged out"}
 
 
@@ -421,8 +470,7 @@ async def change_password(
     Change password for authenticated user.
     """
     if not security.verify_password(
-        password_change.old_password,
-        current_user.hashed_password
+        password_change.old_password, current_user.hashed_password
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -462,10 +510,33 @@ async def change_password(
 
     logger.info(
         "Password changed for user: %s",
-        current_user.email
+        mask_email(current_user.email)
     )
 
     return {"message": "Password updated successfully"}
+
+
+@router.get("/sessions")
+async def get_sessions(
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Get all active sessions for the current user."""
+    sessions = await security.get_active_sessions(str(current_user.id))
+    return {"sessions": sessions}
+
+
+@router.delete("/sessions/{jti}")
+async def revoke_session(
+    jti: str,
+    current_user: User = Depends(deps.get_current_user),
+) -> Any:
+    """Revoke a specific active session."""
+    await security.blacklist_token(
+        jti,
+        datetime.timedelta(days=security.REFRESH_TOKEN_EXPIRE_DAYS)
+    )
+    await security.remove_session(str(current_user.id), jti)
+    return {"message": "Session revoked successfully"}
 
 
 # 2FA Endpoints (Optional for Admins)
@@ -484,7 +555,7 @@ async def setup_2fa(
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="2FA not available: pyotp not installed"
+            detail="2FA not available: pyotp not installed",
         )
 
     # Generate new secret
@@ -493,13 +564,12 @@ async def setup_2fa(
     # Generate provisioning URI
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(
-        name=current_user.email,
-        issuer_name="DairyDay"
+        name=current_user.email, issuer_name="DairyDay"
     )
 
     logger.info(
         "2FA setup initiated for user: %s",
-        current_user.email
+        mask_email(current_user.email)
     )
 
     return {
@@ -508,7 +578,7 @@ async def setup_2fa(
         "message": (
             "Scan the QR code with your authenticator app, "
             "then verify with /2fa/verify"
-        )
+        ),
     }
 
 
@@ -529,25 +599,24 @@ async def verify_2fa(
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="2FA not available: pyotp not installed"
+            detail="2FA not available: pyotp not installed",
         )
 
     totp = pyotp.TOTP(secret)
 
     if not totp.verify(code, valid_window=1):  # Allow 1 step tolerance
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid 2FA code"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid 2FA code"
         )
 
     logger.info(
         "2FA verified and activated for user: %s",
-        current_user.email
+        mask_email(current_user.email)
     )
 
     return {
         "message": "2FA activated successfully",
-        "warning": "Save your backup codes in a secure place"
+        "warning": "Save your backup codes in a secure place",
     }
 
 
@@ -567,17 +636,16 @@ async def disable_2fa(
     # 1. Verify the code against stored secret
     # 2. Delete or deactivate the TOTP secret record
 
-    logger.info(
-        "2FA disabled for user: %s",
-        current_user.email
-    )
+    logger.info("2FA disabled for user: %s", mask_email(current_user.email))
 
     return {"message": "2FA disabled successfully"}
 
 
 @router.post("/forgot-password")
+@limiter.limit("3/minute")
 async def forgot_password(
     forgot_pwd: ForgotPassword,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """
@@ -590,31 +658,90 @@ async def forgot_password(
     # Find user by email or phone
     result = await db.execute(
         select(User).where(
-            or_(
-                User.email == identifier,
-                User.phone == identifier
-            )
+            or_(User.email == identifier, User.phone == identifier)
         )
     )
     user = result.scalars().first()
 
     if user:
-        otp_code = f"{secrets.randbelow(900000) + 100000}"
-        otp_expires_at = (
-            datetime.datetime.now(datetime.timezone.utc) +
-            datetime.timedelta(minutes=10)
+        # Create a pending password reset request
+        reset_request = PasswordResetRequest(
+            user_id=user.id,
+            request_ip=request.client.host if request.client else None,
+            status=RequestStatus.PENDING,
         )
-
-        user.otp_code = otp_code
-        user.otp_expires_at = otp_expires_at
-        db.add(user)
+        db.add(reset_request)
         await db.commit()
 
-        # Mock sending OTP
-        print(f"\n[AUTH] OTP for {identifier}: {otp_code} (Expires in 10m)\n")
+        logger.info(
+            "Password reset request created for user: %s (ID: %s)",
+            mask_email(identifier),
+            reset_request.id,
+        )
 
     return {
-        "message": "If an account exists, you will receive an OTP shortly."
+        "message": "If an account exists, your request will be reviewed "
+        "by an administrator."
+    }
+
+
+@router.get("/check-reset-status")
+async def check_reset_status(
+    identifier: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """
+    Check if a password reset request has been approved by an administrator.
+    """
+    identifier = identifier.lower()
+
+    # Find user
+    result = await db.execute(
+        select(User).where(
+            or_(User.email == identifier, User.phone == identifier)
+        )
+    )
+    user = result.scalars().first()
+
+    if not user:
+        return {"status": "NOT_FOUND"}
+
+    # Find the most recent request
+    req_result = await db.execute(
+        select(PasswordResetRequest)
+        .where(PasswordResetRequest.user_id == user.id)
+        .order_by(PasswordResetRequest.created_at.desc())
+    )
+    reset_req = req_result.scalars().first()
+
+    if not reset_req:
+        return {"status": "NONE"}
+
+    # Check if expired
+    now = datetime.datetime.now(datetime.timezone.utc)
+    expires_at = reset_req.expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=datetime.timezone.utc)
+
+    if expires_at and expires_at < now and \
+       reset_req.status == RequestStatus.APPROVED:
+        return {"status": "EXPIRED"}
+
+    # If approved, generate a reset token
+    token = None
+    if reset_req.status == RequestStatus.APPROVED:
+        token = security.create_access_token(
+            subject=user.id,
+            expires_delta=datetime.timedelta(minutes=15),
+            token_type="password_reset",
+            jti=str(reset_req.id)
+        )
+
+    return {
+        "status": reset_req.status,
+        "id": str(reset_req.id),
+        "created_at": reset_req.created_at,
+        "token": token
     }
 
 
@@ -624,68 +751,93 @@ async def reset_password(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """
-    Reset password using an OTP.
+    Reset password after admin approval.
     """
     identifier = reset_pwd.identifier.lower()
     now = datetime.datetime.now(datetime.timezone.utc)
 
     result = await db.execute(
         select(User).where(
-            or_(
-                User.email == identifier,
-                User.phone == identifier
-            )
+            or_(User.email == identifier, User.phone == identifier)
         )
     )
     user = result.scalars().first()
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    if not user.otp_code or user.otp_code != reset_pwd.otp_code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid verification code"
-        )
-
-    # Handle possible string or naive datetime from SQLite
-    otp_expires_at = user.otp_expires_at
-    if isinstance(otp_expires_at, str):
-        try:
-            from dateutil.parser import parse
-            otp_expires_at = parse(otp_expires_at)
-        except Exception:
-            logger.error("Failed to parse otp_expires_at string: %s",
-                         otp_expires_at)
+    # 1. Decode and verify token
+    try:
+        payload = security.decode_token(reset_pwd.token)
+        if not payload or payload.get("type") != "password_reset":
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Date parsing error"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid reset token"
             )
-
-    # Ensure otp_expires_at is timezone-aware
-    if otp_expires_at and otp_expires_at.tzinfo is None:
-        otp_expires_at = otp_expires_at.replace(
-            tzinfo=datetime.timezone.utc
+        
+        request_id_from_token = payload.get("jti")
+        user_id_from_token = payload.get("sub")
+        
+        if not request_id_from_token or not user_id_from_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Malformed reset token"
+            )
+            
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Expired or invalid reset token"
         )
 
-    if not otp_expires_at or otp_expires_at < now:
+    # 2. Verify request exists and matches
+    try:
+        req_id = uuid.UUID(request_id_from_token)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid token request ID")
+
+    req_result = await db.execute(
+        select(PasswordResetRequest)
+        .where(
+            PasswordResetRequest.id == req_id,
+            PasswordResetRequest.user_id == user.id,
+            PasswordResetRequest.status == RequestStatus.APPROVED,
+        )
+    )
+    reset_req = req_result.scalars().first()
+
+    if not reset_req:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification code has expired"
+            detail="No matching approved password reset request found.",
         )
 
-    # Success: Reset password and clear OTP
-    user.hashed_password = security.get_password_hash(
-        reset_pwd.new_password
-    )
+    # Check expiration (Already checked by JWT but DB secondary check is good)
+    expires_at = reset_req.expires_at
+    if expires_at and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=datetime.timezone.utc)
+
+    if expires_at and expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin approval has expired in DB. Please request again.",
+        )
+
+    user.hashed_password = security.get_password_hash(reset_pwd.new_password)
+    # Clear any old OTP data just in case
     user.otp_code = None
     user.otp_expires_at = None
+
+    # Mark request as COMPLETED
+    reset_req.status = RequestStatus.COMPLETED
     db.add(user)
+    db.add(reset_req)
     await db.commit()
 
-    logger.info("Password reset successfully for user: %s", identifier)
+    logger.info(
+        "Password reset successfully for user: %s (approved by admin)",
+        mask_email(identifier)
+    )
     return {"message": "Password reset successfully"}
-

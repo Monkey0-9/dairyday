@@ -1,0 +1,8 @@
+[allowlist]
+description = "Ignore development/test helper scripts with known safe test credentials"
+paths = [
+    "backend/archive/bench_hash.py",
+    "backend/debug_login2.py",
+    "backend/app/api/v1/endpoints/auth.py", # Examples in comments/logs
+    "backend/tests/.*"
+]

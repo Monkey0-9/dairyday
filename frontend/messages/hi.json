@@ -41,6 +41,7 @@
     "dashboard": "डैशबोर्ड",
     "settings": "सेटिंग्स",
     "profile": "प्रोफाइल",
+    "support": "सहायता",
     "language": "भाषा",
     "theme": "थीम",
     "loading": "लोड हो रहा है...",
@@ -48,7 +49,11 @@
     "cancel": "रद्द करें",
     "edit": "संपादित करें",
     "delete": "हटाएं",
-    "back": "वापस"
+    "back": "वापस",
+    "active": "Active",
+    "status": "Status",
+    "calendar": "Calendar",
+    "records": "Records"
   },
   "Auth": {
     "email": "ईमेल पता",
@@ -91,7 +96,21 @@
     "failedToSendOtp": "ओटीपी भेजने में विफल",
     "passwordResetFailed": "पासवर्ड रीसेट विफल",
     "redirectingToLogin": "लॉगिन पर पुनर्डायरेक्ट किया जा रहा है...",
-    "backToStep1": "चरण 1 पर वापस"
+    "backToStep1": "चरण 1 पर वापस",
+    "loginWithPhone": "Login with Phone",
+    "loginWithCredentials": "Login with Password",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "+91 XXXXX XXXXX",
+    "otpPlaceholder": "Enter 6-digit OTP",
+    "valPhoneRequired": "Valid phone number required (e.g., +91...)",
+    "invalidOtp": "Invalid OTP code. Please try again.",
+    "resendOtp": "Resend OTP",
+    "requestSent": "Reset request submitted to administrators.",
+    "awaitingApproval": "Awaiting Admin Clearance",
+    "resetAwaitingDesc": "Your password reset request is currently under administrative review. Once authorized, this terminal will unlock for decryption.",
+    "checkingStatus": "Checking authorization status...",
+    "sendRequest": "Request Reset",
+    "failedToSendRequest": "Failed to transmit reset request."
   },
   "Dashboard": {
     "todaysDelivery": "आज की डिलीवरी",
@@ -102,8 +121,12 @@
     "preOrder": "प्री-ऑर्डर",
     "liters": "लीटर",
     "status": "स्थिति",
-    "title": "डैशबोर्ड",
-    "subtitle": "आपके डेयरी उपभोग का रणनीतिक अवलोकन",
+    "title": "मेरा डैशबोर्ड",
+    "vitalOverview": "प्रमुख अवलोकन",
+    "protocolVersion": "वाइटल_स्ट्रीम_v4.2",
+    "previousMonth": "पिछला महीना",
+    "nextMonth": "अगला महीना",
+    "subtitle": "आपके दैनिक दूध उपयोग का अवलोकन",
     "currentBalance": "वर्तमान शेष",
     "statusSkipped": "छोड़ा गया",
     "awaitingVerification": "व्यवस्थापक सत्यापन की प्रतीक्षा है",
@@ -122,8 +145,12 @@
     "awaitSettle": "बकाया_प्रतीक्षा",
     "executeSettlement": "बकाया_चुकाएं",
     "settlementFinalized": "बकाया_पूर्ण",
-    "vitalStream": "महत्वपूर्ण_धारा",
+    "reconId": "आरईसीओएन_आईडी",
+    "vitalStream": "वाइटल_स्ट्रीम",
     "efficiencyMean": "दक्षता_औसत",
+    "vol": "वीओएल",
+    "litersLabel": "लीटर",
+    "unitLiters": "लीटर",
     "dailyYieldAvg": "दैनिक_उपज_औसत",
     "protocolSteady": "प्रोटोकॉल_स्थिर",
     "health": "स्वास्थ्य",
@@ -135,7 +162,14 @@
     "dailySales": "दैनिक बिक्री",
     "monthlySales": "मासिक बिक्री",
     "customerGrowth": "ग्राहक वृद्धि",
-    "viewAll": "सभी देखें"
+    "viewAll": "सभी देखें",
+    "notifications": "Personal Alerts",
+    "noNotifications": "All Systems Nominal",
+    "billAlert": "Unpaid bill for {month}",
+    "requestApproved": "Request for {date} APPROVED",
+    "requestRejected": "Request for {date} REJECTED",
+    "requestPending": "Request for {date} PENDING",
+    "authLevel": "AUTH_L3"
   },
   "Settings": {
     "appearance": "उपस्थिति",
@@ -180,7 +214,16 @@
     "oldPassword": "पुराना पासवर्ड",
     "newPassword": "नया पासवर्ड",
     "confirmPassword": "पासवर्ड की पुष्टि करें",
-    "updatePassword": "पासवर्ड अपडेट करें"
+    "updatePassword": "पासवर्ड अपडेट करें",
+    "adminVault": "Admin Workspace",
+    "clearanceGranted": "Access: Confirmed",
+    "localeNode": "Location Hub",
+    "atmos": "Visual Theme",
+    "scale": "UI Scaling",
+    "operatorClearance": "Admin Clearance level",
+    "abortChanges": "Abort Changes",
+    "syncingNode": "Synchronizing...",
+    "saveProtocol": "Save Changes"
   },
   "Nav": {
     "overview": "अवलोकन",
@@ -202,7 +245,8 @@
       "registrations": "पंजीकरण",
       "bills": "बिल",
       "payments": "भुगतान",
-      "support": "सहायता"
+      "support": "सहायता",
+      "passwordRequests": "Password Requests"
     },
     "roles": {
       "admin": "सिस्टम एडमिन",
@@ -260,7 +304,9 @@
           "desc": "सेवन मात्रा और ग्राहक खपत पैटर्न का गहरा विश्लेषण।",
           "cta": "एनालिटिक्स नोड"
         }
-      }
+      },
+      "viewAll": "View All",
+      "noNotifications": "No new notifications"
     },
     "dailyEntry": {
       "title": "दैनिक दुग्ध प्रविष्टि",
@@ -284,7 +330,8 @@
       "criticalFault": "गंभीर त्रुटि: {error}",
       "scanResultNull": "कोई पिछला डेटा नहीं मिला।",
       "patternSync": "पैटर्न सिंक: {count} नोड्स बहाल।",
-      "faultYesterdayScan": "कल का डेटा स्कैन करने में विफल"
+      "faultYesterdayScan": "कल का डेटा स्कैन करने में विफल",
+      "enterLiters": "Enter Liters"
     },
     "approvals": {
       "title": "पंजीकरण",
@@ -379,7 +426,13 @@
       "authorizeSettlement": "निपटान_अधिकृत_करें",
       "logPdf": "लॉग_पीडीएफ",
       "encrypting": "एन्क्रिप्ट_किया_जा_रहा_है",
-      "draftState": "ड्राफ्ट_स्थिति"
+      "draftState": "ड्राफ्ट_स्थिति",
+      "realizedGrowth": "Collected",
+      "outstandingRisk": "Outstanding",
+      "totalExposure": "Total Bills",
+      "activeLiabilities": "Total Due",
+      "efficiencyIndex": "Collection %",
+      "liquidityRatio": "Efficiency"
     },
     "payments": {
       "title": "वॉल्ट नियंत्रण",
@@ -479,7 +532,12 @@
       "updateSuccess": "ग्राहक सफलतापूर्वक अपडेट किया गया!",
       "saveChanges": "परिवर्तन सहेजें",
       "statusActive": "सक्रिय",
-      "statusInactive": "निष्क्रिय"
+      "statusInactive": "निष्क्रिय",
+      "registry": "Registry",
+      "activeNode": "Active",
+      "deactivated": "Deactivated",
+      "provisionNode": "Add Customer",
+      "updateNode": "Update Customer"
     },
     "registrations": {
       "title": "पंजीकरण",
@@ -499,7 +557,20 @@
       "joinProtocolActive": "पंजीकरण_प्रोटोकॉल_सक्रिय",
       "networkClean": "नेटवर्क_साफ़",
       "protocolNode": "प्रोटोकॉल_नोड",
-      "noRequests": "कोई लंबित अनुरोध नहीं।"
+      "noRequests": "कोई लंबित अनुरोध नहीं।",
+      "registrations": "Pending Approval",
+      "description": "Approve or decline new registration requests.",
+      "filterByIdentity": "Search...",
+      "fetchingData": "Loading...",
+      "sectorUnknown": "Unknown",
+      "pendingGate": "Pending",
+      "authorize": "Approve",
+      "networkIntegrity": "Verified",
+      "activeShield": "Protected",
+      "requestVelocity": "Frequency",
+      "protocolSteady": "Stable",
+      "pendingClearance": "Awaiting Review",
+      "awaitingAction": "Action Required"
     },
     "consumption": {
       "title": "खपत लेजर",
@@ -517,7 +588,34 @@
       "totals": "कुल योग",
       "delivered": "वितरित",
       "empty": "खाली",
-      "locked": "लॉक (7+ दिन)"
+      "locked": "लॉक (7+ दिन)",
+      "syncComplete": "Synchronization complete"
+    },
+    "registry": "Registry",
+    "passwordRequests": {
+      "title": "Password Reset",
+      "titleHighlight": "Requests",
+      "subtitle": "Security oversight and access recovery management.",
+      "refresh": "Refresh",
+      "totalRequests": "Total Volume",
+      "pendingApproval": "Awaiting Review",
+      "successRate": "Recovery Rate",
+      "filterPlaceholder": "Filter by identity...",
+      "tableUser": "Customer Name",
+      "tableEmail": "Email Identity",
+      "tablePhone": "Contact Phone",
+      "tableRequestedUser": "User Details",
+      "tableRequestDate": "Timestamp",
+      "tableStatus": "Integrity Status",
+      "tableActions": "Management",
+      "noRequests": "No active recovery requests.",
+      "statusPending": "PENDING",
+      "statusApproved": "APPROVED",
+      "statusRejected": "REJECTED",
+      "statusCompleted": "COMPLETED",
+      "reject": "Reject",
+      "approve": "Authorize",
+      "waitingForUser": "Verified: Active"
     }
   },
   "Records": {
@@ -533,7 +631,17 @@
     "auditState": "ऑडिट_स्थिति",
     "ledgerTimeline": "लेजर_समयरेखा",
     "nullEvent": "शून्य_घटना",
-    "zeroYieldEvent": "शून्य_उपज_घटना"
+    "zeroYieldEvent": "शून्य_उपज_घटना",
+    "consumptionTab": "Consumption",
+    "billingTab": "Settlements",
+    "billingSubtitle": "Financial reconciliation history",
+    "consumptionLedger": "CONSUMPTION_LEDGER_v4.2",
+    "yieldRecords": "Yield Records",
+    "nominalSecure": "NOMINAL_SECURE",
+    "settlementComplete": "SETTLEMENT_COMPLETE",
+    "awaitSettlement": "AWAIT_SETTLEMENT",
+    "zeroLedgerEvent": "ZERO_LEDGER_EVENT",
+    "download": "Download PDF"
   },
   "Payment": {
     "title": "भुगतान",
@@ -562,7 +670,24 @@
     "gatewayNotLoaded": "पेमेंट गेटवे लोड नहीं हुआ। कृपया रिफ्रेश करें।",
     "billPaymentDesc": "बिल भुगतान - {month}",
     "customerName": "डेयरी ग्राहक",
-    "securePayment": "{gateway} द्वारा सुरक्षित • यूपीआई / कार्ड / नेटबैंकिंग"
+    "securePayment": "{gateway} द्वारा सुरक्षित • यूपीआई / कार्ड / नेटबैंकिंग",
+    "portal": "Payment Portal",
+    "description": "Manage your subscriptions and payments",
+    "upiId": "UPI ID",
+    "upiCopied": "UPI ID Copied!",
+    "utrRequired": "Please enter a valid UTR reference",
+    "utrInvalid": "Invalid UTR. Please enter the 12-digit transaction number.",
+    "utrSuccess": "UTR submitted for verification!",
+    "utrFailed": "Failed to submit UTR.",
+    "verifying": "Verifying",
+    "verificationInProgress": "Verification in Progress",
+    "scanToPay": "Scan to Pay",
+    "upiIdLabel": "UPI ID",
+    "enterUtr": "Enter UTR",
+    "utrPlaceholder": "12-digit Reference Number",
+    "verifyPayment": "Verify Payment",
+    "paid": "Paid",
+    "unpaid": "Unpaid"
   },
   "Calendar": {
     "title": "खपत कैलेंडर",
@@ -589,134 +714,178 @@
     "updateSuccess": "ऑर्डर सफलतापूर्वक अपडेट किया गया।",
     "requestSubmitted": "मात्रा परिवर्तन अनुरोध व्यवस्थापक की स्वीकृति के लिए प्रस्तुत किया गया है।",
     "updateError": "ऑर्डर अपडेट करने में विफल।",
-    "legendPending": "स्वीकृति लंबित"
+    "legendPending": "स्वीकृति लंबित",
+    "viewOnly": "View Only",
+    "editable": "Editable",
+    "modificationLimit": "This day is view-only. Modifications allowed for Today and Tomorrow only.",
+    "manage": "Manage",
+    "statusPending": "Pending",
+    "statusDelivered": "Delivered",
+    "statusCancelled": "Cancelled",
+    "statusSkipped": "Skipped",
+    "modifyOrder": "Modify Your Order",
+    "standardQtyDesc": "Standard: 1.0 L",
+    "extraQtyLabel": "Extra Quantity (L)",
+    "optional": "Optional",
+    "immutableLock": "IMMUTABLE_LOCK: Archive finalization complete.",
+    "handoffSuccess": "Handoff Successful: Awaiting Admin Sync",
+    "commError": "COMMUNICATION_ERROR",
+    "temporalGrid": "TEMPORAL_GRID_v4",
+    "authSecure": "Auth_Secure",
+    "node": "Node",
+    "pendingVerify": "PENDING_VERIFY",
+    "lockedNode": "LOCKED_NODE",
+    "syncActive": "Real-time sync active :: Ghost protocols operational",
+    "selectNode": "SELECT_NODE",
+    "awaitingVerification": "AWAITING_VERIFICATION",
+    "unitVolume": "UNIT_VOLUME",
+    "target": "TARGET",
+    "reserveVar": "RESERVE_VAR",
+    "statusVector": "STATUS_VECTOR",
+    "initializeGhost": "INITIALIZE_GHOST_EDIT",
+    "idleState": "IDLE_STATE",
+    "ghost": "Ghost",
+    "mode": "Mode",
+    "temporalMod": "Temporal Modification // Node",
+    "pauseSession": "Pause Session",
+    "suspendDelivery": "SUSPEND_UNIT_DELIVERY",
+    "standardVal": "STANDARD_VAL",
+    "reduceAmount": "REDUCE_AMOUNT",
+    "netYield": "NET_YIELD",
+    "preOrderLabel": "PRE-ORDER / EXTRA",
+    "preOrderDesc": "Additional unit request for this node only",
+    "synchronizing": "SYNCHRONIZING...",
+    "executeUpdate": "EXECUTE_UPDATE",
+    "abortChanges": "ABORT_CHANGES"
   },
   "Landing": {
     "nav": {
-      "features": "विशेषताएं",
-      "market": "बाज़ार",
-      "security": "सुरक्षा",
-      "protocol": "प्रोटोकॉल",
-      "infrastructure": "इन्फ्रास्ट्रक्चर",
-      "revenue": "राजस्व",
+      "features": "हस्ताक्षर संग्रह",
+      "market": "हमारा फार्म",
+      "security": "गुणवत्ता नियंत्रण",
+      "protocol": "विरासत",
+      "infrastructure": "स्थापना 1982",
+      "revenue": "उपज",
       "network": "नेटवर्क",
-      "authorize": "सत्र अधिकृत करें",
-      "dairyOs": "DairyDay"
+      "authorize": "ग्राहक पोर्टल",
+      "dairyOs": "DairyDays"
     },
     "hero": {
-      "version": "v2.0.0",
-      "maximum": "अधिकतम",
-      "efficiency": "दक्षता",
-      "subtitle": "आपके स्थानीय डेयरी व्यवसाय के लिए व्यावसायिक प्रबंधन और बिलिंग। सरल, तेज़ और विश्वसनीय।",
-      "initialize": "शुरू करें",
-      "status": "सिस्टम स्थिति"
+      "version": "विरासत संग्रह v2.0",
+      "title": "अटल",
+      "titleHighlight": "शुद्धता",
+      "efficiency": "शुद्ध। ताज़ा। अतुलनीय।",
+      "subtitle": "ताज़ा डेयरी में पूर्ण स्वर्ण मानक। हमारे विरासत फार्मों से सीधे आपके दरवाजे तक कुछ ही घंटों में वितरित।",
+      "initialize": "अपनी दैनिक आपूर्ति सुरक्षित करें",
+      "status": "प्रकारों का अन्वेषण करें",
+      "tagline": "स्थापना 1982 • प्रीमियम विरासत"
     },
-    "trustedBy": "उद्योग जगत के नेताओं द्वारा विश्वसनीय",
+    "trustedBy": "डेयरी में स्वर्ण मानक",
     "features": {
-      "realtimeTitle": "वास्तविक समय समक्रमण",
-      "realtimeDesc": "सभी उपकरणों पर त्वरित डेटा समक्रमण।",
-      "securityTitle": "सुरक्षित डेटा",
-      "securityDesc": "आपके व्यावसायिक डेटा के लिए एंटरप्राइज-ग्रेड सुरक्षा।",
-      "dashboardTitle": "स्मार्ट डैशबोर्ड",
-      "dashboardDesc": "आपके दैनिक कार्यों में व्यापक अंतर्दृष्टि।",
-      "subtitle": "आपके डेयरी परिचालन बुनियादी ढांचे में क्रांति लाने के लिए डिज़ाइन किए गए उच्च-निष्ठा उपकरणों का एक सूट।",
-      "core": "ऑपरेशन कोर",
-      "mainTitle": "एकीकृत खुफिया प्रोटोकॉल",
-      "mainDesc": "कलेक्शन हब और केंद्रीय प्रसंस्करण इकाइयों के बीच वास्तविक समय समक्रमण।",
-      "title": "के लिए इंजीनियर",
-      "titleHighlight": "प्रदर्शन",
+      "realtimeTitle": "परफेक्शन तक ठंडा",
+      "realtimeDesc": "हमारी अत्याधुनिक रसद सुनिश्चित करती है कि दूध दुहने के कुछ ही मिनटों के भीतर ठंडा हो जाए और चरम ताजगी पर आप तक पहुंचे।",
+      "securityTitle": "पशु चिकित्सा प्रमाणित",
+      "securityDesc": "हमारे विरासत झुंड में प्रत्येक गाय के लिए दैनिक स्वास्थ्य जांच हर बूंद की जैविक शुद्धता की गारंटी देती है।",
+      "dashboardTitle": "निर्बाध प्रबंधन",
+      "dashboardDesc": "हमारे प्रीमियम डिजिटल पोर्टल के माध्यम से अपनी दैनिक डिलीवरी, सदस्यता रोक और मासिक निपटान प्रबंधित करें।",
+      "subtitle": "पारंपरिक कृषि विरासत और आधुनिक वितरण उत्कृष्टता के संगम का अनुभव करें।",
+      "core": "हमारी प्रतिबद्धता",
+      "mainTitle": "वैश्विक मानक। स्थानीय जड़ें।",
+      "mainDesc": "हम क्षेत्र में बेहतरीन दूध देने के लिए अत्याधुनिक गुणवत्ता नियंत्रण के साथ चार दशकों के कृषि ज्ञान को जोड़ते हैं।",
+      "title": "के लिए चयनित",
+      "titleHighlight": "शुद्धता",
       "intelligentEntry": {
-        "title": "बुद्धिमान प्रवेश",
-        "desc": "हमारे अनुकूलित प्रोटोकॉल के साथ 60 सेकंड के भीतर 100+ विषयों के लिए थ्रूपुट रिकॉर्ड करें।"
+        "title": "हस्ताक्षर A2",
+        "desc": "अतुलनीय पाचन और पोषण मूल्य के लिए स्थानीय विरासत नस्लों से प्राप्त।"
       },
       "mobileSecure": {
-        "title": "मोबाइल सुरक्षित",
-        "desc": "किसी भी डिवाइस पर एंड-टू-एंड एन्क्रिप्टेड एक्सेस।"
+        "title": "फार्म से मेज तक",
+        "desc": "बिना किसी बिचौलिये के हमारे चारागाहों से सीधे आपके दरवाजे तक डिलीवरी।"
       },
       "globalAnalytics": {
-        "title": "वैश्विक विश्लेषण",
-        "desc": "खपत पैटर्न और उपज मेट्रिक्स में गहरी अंतर्दृष्टि।"
+        "title": "शुद्धता परीक्षण",
+        "desc": "आपूर्ति श्रृंखला में हर बिंदु पर कठोर बहु-चरणीय गुणवत्ता जांच।"
       },
       "autoSettlement": {
-        "title": "स्वचालित निपटान",
-        "desc": "त्वरित यूपीआई सुलह और स्वचालित खाता बही अपडेट के साथ स्मार्ट बिलिंग चक्र।"
+        "title": "दैनिक वितरण",
+        "desc": "मौसम की परवाह किए बिना साल में 365 दिन विश्वसनीय, निरंतर वितरण।"
       }
     },
     "strategic": {
-      "badge": "रणनीतिक निगरानी",
-      "title": "वास्तविक समय अवसंरचना",
-      "titleHighlight": "निगरानी",
-      "desc": "हमारी उन्नत टेलीमेट्री डेयरी मालिकों को वास्तविक समय में उत्पादन थ्रूपुट और ग्राहक जुड़ाव की निगरानी करने की अनुमति देती है, जिससे आपूर्ति श्रृंखला में शून्य रिसाव सुनिश्चित होता है।",
+      "badge": "विरासत गुणवत्ता",
+      "title": "प्राचीन",
+      "titleHighlight": "ज्ञान",
+      "desc": "पीढ़ियों से संजोई गई उन्हीं पारंपरिक विधियों से हमारे झुंड की देखभाल करना।",
       "list": {
-        "yield": "स्वचालित उपज गणना",
-        "sync": "लाइव डेटा सिंक्रोनाइज़ेशन",
-        "anomaly": "विसंगति का पता लगाना"
+        "yield": "उच्च वसा मात्रा",
+        "sync": "प्राकृतिक आहार",
+        "anomaly": "तनाव मुक्त वातावरण"
       }
     },
     "settlement": {
-      "badge": "बुद्धिमान निपटान",
-      "title": "स्वचालित",
-      "titleHighlight": "वित्तीय चक्र",
-      "desc": "मैनुअल सुलह को अलविदा कहें। हमारा स्मार्ट निपटान इंजन बिलिंग, भुगतान अनुरोध और खाता बही अपडेट को स्वचालित रूप से संभालता है।",
-      "learnMore": "और जानें",
-      "streamActive": "निपटान स्ट्रीम सक्रिय"
+      "badge": "प्रीमियम सेवा",
+      "title": "विशिष्ट",
+      "titleHighlight": "पहुंच",
+      "desc": "उन विशिष्ट परिवारों के समूह में शामिल हों जो अपनी दैनिक डेयरी की शुद्धता से समझौता करने से इनकार करते हैं।",
+      "learnMore": "हमारी कहानी",
+      "streamActive": "फार्म सक्रिय"
     },
     "pricing": {
-      "title": "के लिए अनुकूलित",
-      "titleHighlight": "वृद्धि",
-      "subtitle": "सभी परिमाणों के उद्यमों के लिए पारदर्शी मूल्य निर्धारण।",
+      "title": "आपके लिए",
+      "titleHighlight": "तैयार",
+      "subtitle": "आपके परिवार के लिए पारदर्शी सदस्यता योजनाएं।",
       "month": "/ महीना",
-      "initialize": "सक्रियण प्रारंभ करें",
-      "mostStrategic": "प्रोटोकॉल विकल्प: सबसे रणनीतिक",
+      "initialize": "सब्सक्रिप्शन शुरू करें",
+      "mostStrategic": "सबसे लोकप्रिय चयन",
       "plans": {
         "entry": {
-          "name": "प्रवेश",
+          "name": "दैनिक आवश्यकताएं",
           "features": {
-            "f1": "10 ग्राहकों तक",
-            "f2": "बुनियादी विश्लेषण",
-            "f3": "मैनुअल बिलिंग"
+            "f1": "ताज़ा गाय का दूध",
+            "f2": "डोरस्टेप डिलीवरी",
+            "f3": "मासिक बिलिंग"
           }
         },
         "pro": {
-          "name": "डेयरी प्रो",
+          "name": "विरासत स्वर्ण",
           "features": {
-            "f1": "असीमित ग्राहक",
-            "f2": "बेंटो डैशबोर्ड",
-            "f3": "स्वचालित यूपीआई",
-            "f4": "प्राथमिकता समर्थन"
+            "f1": "A2 प्रीमियम दूध",
+            "f2": "प्राथमिकता डिलीवरी स्लॉट",
+            "f3": "डिजिटल प्रबंधन",
+            "f4": "फार्म का दौरा"
           }
         },
         "enterprise": {
-          "name": "एंटरप्राइज़",
+          "name": "ऑर्गेनिक रिजर्व",
           "features": {
-            "f1": "मल्टी-यूनिट प्रबंधन",
-            "f2": "कस्टम प्रोटोकॉल",
-            "f3": "L3 सुरक्षा",
-            "f4": "समर्पित वास्तुकार"
+            "f1": "पूर्ण ऑर्गेनिक श्रेणी",
+            "f2": "व्यक्तिगत ऑर्डर",
+            "f3": "कंसीयज सपोर्ट",
+            "f4": "त्रैमासिक डेयरी बॉक्स"
           }
         }
       }
     },
     "faq": {
-      "title": "खुफिया एफएक्यू",
-      "q1": "क्या परिचालन डेटा मालिकाना है?",
-      "a1": "हाँ। प्रत्येक बाइट को हमारे सैन्य-ग्रेड बुनियादी ढांचे के भीतर साइलो किया गया है, प्रत्येक डेयरी इकाई के लिए समर्पित एन्क्रिप्शन कुंजियों के साथ।",
-      "q2": "प्रवासन समयरेखा?",
-      "a2": "तैनाती तत्काल है। हमारा प्रोटोकॉल शून्य परिचालन डाउनटाइम के साथ 5 मिनट के भीतर विरासत डेटा को पाटता है।",
-      "q3": "मल्टी-लोकेशन ऑर्केस्ट्रेशन?",
-      "a3": "हमारा एंटरप्राइज़ ढांचा टियर प्रशासनिक पहुंच के साथ असीमित डेयरी इकाइयों के लिए केंद्रीकृत कमांड का समर्थन करता है।"
+      "title": "सामान्य प्रश्न",
+      "q1": "दूध कितना ताज़ा है?",
+      "a1": "हमारा दूध दुहने के 4-6 घंटों के भीतर वितरित किया जाता है। हम फार्म से आपके दरवाजे तक एक सख्त कोल्ड चेन बनाए रखते हैं।",
+      "q2": "A2 दूध में क्या खास है?",
+      "a2": "A2 दूध विशिष्ट गाय की नस्लों से आता है और इसमें केवल A2 बीटा-केसीन प्रोटीन होता है, जिसे कई लोग पचाने में आसान पाते हैं।",
+      "q3": "क्या मैं अपनी सदस्यता रोक सकता हूँ?",
+      "a3": "हाँ, आप हमारे ग्राहक पोर्टल के माध्यम से केवल 24 घंटे के नोटिस के साथ किसी भी समय अपनी डिलीवरी रोक या संशोधित कर सकते हैं।"
     },
     "cta": {
-      "scale": "अपने",
-      "infrastructure": "इन्फ्रास्ट्रक्चर को स्केल करें",
-      "desc": "डेयरीओएस के साथ अपने व्यवसाय को बढ़ाने वाले शीर्ष स्तरीय डेयरी ऑपरेटरों के नेटवर्क में शामिल हों।",
-      "button": "खाता पहुंच अधिकृत करें"
+      "scale": "सुरक्षित करें अपने",
+      "infrastructure": "परिवार का स्वास्थ्य",
+      "desc": "आज ही विरासत संग्रह में शामिल हों और सच्ची शुद्धता के स्वाद का अनुभव करें।",
+      "button": "शुरू करें"
     },
     "footer": {
-      "copyright": "© 2026 डेयरी प्रबंधन बुनियादी ढांचा",
+      "copyright": "© 2026 DairyDays Heritage. सर्वाधिकार सुरक्षित।",
       "privacy": "गोपनीयता",
-      "legal": "कानूनी",
-      "infrastructure": "बुनियादी ढांचा",
+      "legal": "शर्तें",
+      "infrastructure": "फार्म",
       "status": "सिस्टम स्थिति: सामान्य"
     }
   },
@@ -763,6 +932,15 @@
     "opsRun247": "हमारा संचालन वितरण के लिए 24/7 चलता है",
     "criticalSupport": "गंभीर सहायता",
     "availableNow": "अभी उपलब्ध",
-    "billingHours": "बिलिंग घंटे"
+    "billingHours": "बिलिंग घंटे",
+    "sendEmail": "ईमेल भेजें",
+    "faq1Q": "आज के लिए रद्द कैसे करें?",
+    "faq1A": "कैलेंडर पर जाएं, आज की तारीख पर क्लिक करें और 'डिलीवरी रद्द करें' टॉगल का उपयोग करें। यह सुबह 6 बजे से पहले किया जाना चाहिए।",
+    "faq2Q": "मेरा बिल कब जेनरेट होता है?",
+    "faq2A": "पिछले महीने के उपयोग के लिए हर महीने की 1 तारीख को बिल जेनरेट किए जाते हैं।",
+    "faq3Q": "अतिरिक्त दूध कैसे जोड़ें?",
+    "faq3A": "कैलेंडर में कल चुनें और मात्रा बढ़ाएँ। व्यवस्थापक आपके अनुरोध की पुष्टि करेंगे।",
+    "faq4Q": "भुगतान दिखाई नहीं दे रहा है?",
+    "faq4A": "मैनुअल यूपीआई भुगतानों को हमारे कर्मचारियों द्वारा 12-24 घंटों के भीतर सत्यापित किया जाता है। कल फिर से जांचें!"
   }
 }

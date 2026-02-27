@@ -10,16 +10,22 @@ These context variables are used for:
 - Distributed tracing across services
 - Request ID propagation to background tasks
 """
+
 import contextvars
 from typing import Optional
 import uuid
 
-
 # Context variables
 # Using contextvars for async-safe storage that propagates across awaited calls
-request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="")
-user_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("user_id", default=None)
-task_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar("task_id", default=None)
+request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "request_id", default=""
+)
+user_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "user_id", default=None
+)
+task_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "task_id", default=None
+)
 
 
 def generate_request_id() -> str:
@@ -174,4 +180,3 @@ def restore_context(context: dict) -> None:
         set_user_id(context["user_id"])
     if "task_id" in context:
         set_task_id(context["task_id"])
-

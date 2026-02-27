@@ -19,11 +19,12 @@ from app.core.money import (
     calculate_amount,
     LITER_PRECISION,
     DEFAULT_ROUNDING,
-    Money as MoneyObj
+    Money as MoneyObj,
 )
 from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
+
 
 class BillingService:
     def __init__(self, db: AsyncSession):
@@ -45,7 +46,7 @@ class BillingService:
     ) -> Optional[Bill]:
         """Generate or update a bill for a user for a specific month."""
         start_date, end_date = self.calculate_month_range(month)
-        
+
         # 1. Fetch User (for price_per_liter)
         user_result = await self.db.execute(select(User).where(User.id == user_id))
         user = user_result.scalars().first()
@@ -53,18 +54,15 @@ class BillingService:
             logger.error(f"Bill generation failed: User {user_id} not found")
             return None
 
-        price = Decimal(str(user.price_per_liter or 0)).quantize(
-            Decimal("0.001")
-        )
+        price = Decimal(str(user.price_per_liter or 0)).quantize(Decimal("0.001"))
 
         # 2. Calculate totals from consumption
         consumption_result = await self.db.execute(
-            select(func.coalesce(func.sum(Consumption.quantity), 0))
-            .where(
+            select(func.coalesce(func.sum(Consumption.quantity), 0)).where(
                 and_(
                     Consumption.user_id == user_id,
                     Consumption.date >= start_date,
-                    Consumption.date <= end_date
+                    Consumption.date <= end_date,
                 )
             )
         )
@@ -72,11 +70,13 @@ class BillingService:
         total_liters = Decimal(str(total_liters_raw)).quantize(
             LITER_PRECISION, rounding=DEFAULT_ROUNDING
         )
-        
+
         money_obj = calculate_amount(total_liters, price)
         total_amount = money_obj.amount
 
-        logger.info(f"Processing {month} for {user.name}: {total_liters}L, total {total_amount}")
+        logger.info(
+            f"Processing {month} for {user.name}: {total_liters}L, total {total_amount}"
+        )
 
         # 3. Upsert Bill
         bill_result = await self.db.execute(
@@ -88,7 +88,7 @@ class BillingService:
             if existing_bill.status == "PAID":
                 logger.info(f"Bill {existing_bill.id} is PAID. Skipping update.")
                 return existing_bill
-            
+
             existing_bill.total_liters = total_liters
             existing_bill.total_amount = total_amount
             existing_bill.updated_at = datetime.datetime.now(datetime.timezone.utc)
@@ -105,7 +105,7 @@ class BillingService:
                     total_liters=total_liters,
                     total_amount=total_amount,
                     status="UNPAID",
-                    is_locked=False
+                    is_locked=False,
                 )
                 self.db.add(bill)
                 await self.db.commit()
@@ -130,15 +130,15 @@ class BillingService:
                 User.id,
                 User.name,
                 User.price_per_liter,
-                func.coalesce(func.sum(Consumption.quantity), 0).label("total_qty")
+                func.coalesce(func.sum(Consumption.quantity), 0).label("total_qty"),
             )
             .outerjoin(
                 Consumption,
                 and_(
                     User.id == Consumption.user_id,
                     Consumption.date >= start_date,
-                    Consumption.date <= end_date
-                )
+                    Consumption.date <= end_date,
+                ),
             )
             .where(User.role == "USER", User.is_active)
             .group_by(User.id, User.name, User.price_per_liter)
@@ -173,7 +173,7 @@ class BillingService:
                 "total_amount": total_amount,
                 "status": existing.status if existing else "UNPAID",
                 "updated_at": datetime.datetime.now(datetime.timezone.utc),
-                "version": (existing.version or 0) + 1 if existing else 1
+                "version": (existing.version or 0) + 1 if existing else 1,
             }
             bills_to_upsert.append(bill_data)
 
@@ -192,9 +192,9 @@ class BillingService:
                 else:
                     new_bill = Bill(**data)
                     self.db.add(new_bill)
-            
+
             await self.db.commit()
-            
+
             # Enqueue PDF tasks for all processed bills
             for data in bills_to_upsert:
                 self._enqueue_pdf_task(data["id"])
@@ -206,6 +206,7 @@ class BillingService:
         """Helper to enqueue Celery task for PDF generation."""
         try:
             from app.workers.tasks import generate_and_upload_pdf
+
             generate_and_upload_pdf.delay(str(bill_id))
         except Exception as e:
             logger.warning(f"Failed to enqueue PDF task for bill {bill_id}: {e}")
@@ -219,6 +220,7 @@ class BillingService:
         if bill.pdf_url and not bill.pdf_url.startswith("http"):
             from app.core.config import settings
             from app.services.s3_uploader import generate_presigned_url
+
             bucket = settings.AWS_BUCKET_NAME or "dairy-bills"
             bill.pdf_url = generate_presigned_url(bucket, bill.pdf_url)
 
