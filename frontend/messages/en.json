@@ -100,7 +100,8 @@
     "securityAuth": "Security Authentication",
     "identifierKey": "Identifier Key",
     "passwordRequired": "Password is required",
-    "criticalAuthFailure": "Critical authentication failure. Please contact support."
+    "criticalAuthFailure": "Critical authentication failure. Please contact support.",
+    "forgotPassword": "Forgot Password?"
   },
   "Dashboard": {
     "title": "My Dashboard",

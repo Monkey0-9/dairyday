@@ -33,12 +33,18 @@ class Settings(BaseSettings):
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Generate async database URI."""
-        if self.DATABASE_URL:
-            # Handle both postgres:// and postgresql:// and inject asyncpg
-            uri = self.DATABASE_URL
+        if not self.DATABASE_URL:
+            return (
+                f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
+            )
+
+        uri = self.DATABASE_URL
+        # Only process postgres-specific logic
+        if "postgresql" in uri or uri.startswith("postgres://"):
             if uri.startswith("postgres://"):
                 uri = uri.replace("postgres://", "postgresql+asyncpg://", 1)
-            elif uri.startswith("postgresql://"):
+            elif uri.startswith("postgresql://") and "+asyncpg" not in uri:
                 uri = uri.replace("postgresql://", "postgresql+asyncpg://", 1)
 
             # Strip unsupported parameters from the URI for asyncpg
@@ -50,12 +56,8 @@ class Settings(BaseSettings):
             q.pop("channel_binding", None)
             # Reconstruct the URI without the unsupported parameters
             uri = urlunparse(u._replace(query=urlencode(q, doseq=True)))
-            return uri
-
-        return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_SERVER}:5432/{self.POSTGRES_DB}"
-        )
+        
+        return uri
 
     # Security settings
     SECRET_KEY: str = Field(
