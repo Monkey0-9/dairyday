@@ -96,7 +96,7 @@ async def _call_model(model: str, message: str) -> str:
             "HTTP-Referer": settings.BASE_URL,
             "X-Title": settings.PROJECT_NAME,
         },
-        extra_body={},
+        extra_body={"reasoning": {"enabled": True}},
         model=model,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},

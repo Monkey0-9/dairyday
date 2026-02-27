@@ -115,7 +115,7 @@ class Settings(BaseSettings):
 
     # AI Logic (OpenRouter)
     AI_API_KEY: Optional[str] = None
-    AI_MODEL: str = "qwen/qwen3-next-80b-a3b-instruct:free"
+    AI_MODEL: str = "nvidia/nemotron-3-nano-30b-a3b:free"
 
     # Root directory of the project
     _ROOT_DIR: Path = Path(__file__).resolve().parent.parent.parent
