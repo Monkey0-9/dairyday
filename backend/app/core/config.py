@@ -41,14 +41,15 @@ class Settings(BaseSettings):
             elif uri.startswith("postgresql://"):
                 uri = uri.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-            # Strip sslmode from the URI as asyncpg doesn't support it in the query string
-            if "sslmode=" in uri:
-                from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+            # Strip unsupported parameters from the URI for asyncpg
+            from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
-                u = urlparse(uri)
-                q = parse_qs(u.query)
-                q.pop("sslmode", None)
-                uri = urlunparse(u._replace(query=urlencode(q, doseq=True)))
+            u = urlparse(uri)
+            q = parse_qs(u.query)
+            q.pop("sslmode", None)
+            q.pop("channel_binding", None)
+            # Reconstruct the URI without the unsupported parameters
+            uri = urlunparse(u._replace(query=urlencode(q, doseq=True)))
             return uri
 
         return (

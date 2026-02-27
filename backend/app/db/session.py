@@ -20,11 +20,9 @@ if "sqlite" in settings.SQLALCHEMY_DATABASE_URI:
 else:
     engine_args["pool_size"] = settings.DB_POOL_SIZE
     engine_args["max_overflow"] = settings.DB_MAX_OVERFLOW
-    
-    # Render provides connection urls with sslmode=require.
-    # asyncpg expects the argument named 'ssl' or None.
-    # By passing empty dict or strict True/False (but not string "require") it will work.
-    engine_args["connect_args"] = {}
+    # Render and Neon provide connection urls that require SSL.
+    # We stripped the query parameters in config.py, so we explicitly enable ssl here.
+    engine_args["connect_args"] = {"ssl": True} if "postgresql" in settings.SQLALCHEMY_DATABASE_URI else {}
 
 engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI,
