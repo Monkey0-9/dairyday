@@ -20,7 +20,11 @@ if "sqlite" in settings.SQLALCHEMY_DATABASE_URI:
 else:
     engine_args["pool_size"] = settings.DB_POOL_SIZE
     engine_args["max_overflow"] = settings.DB_MAX_OVERFLOW
-    engine_args["connect_args"] = {"ssl": "require"} if "postgresql" in settings.SQLALCHEMY_DATABASE_URI else {}
+    
+    # Render provides connection urls with sslmode=require.
+    # asyncpg expects the argument named 'ssl' or None.
+    # By passing empty dict or strict True/False (but not string "require") it will work.
+    engine_args["connect_args"] = {}
 
 engine = create_async_engine(
     settings.SQLALCHEMY_DATABASE_URI,
