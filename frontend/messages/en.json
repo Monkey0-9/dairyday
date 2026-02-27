@@ -98,7 +98,9 @@
     "systemUptime": "System Uptime",
     "operatorCodePlaceholder": "Operator Code",
     "securityAuth": "Security Authentication",
-    "identifierKey": "Identifier Key"
+    "identifierKey": "Identifier Key",
+    "passwordRequired": "Password is required",
+    "criticalAuthFailure": "Critical authentication failure. Please contact support."
   },
   "Dashboard": {
     "title": "My Dashboard",
