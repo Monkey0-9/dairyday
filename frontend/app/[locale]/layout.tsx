@@ -7,7 +7,7 @@ import { routing } from '@/i18n/routing';
 import '../globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Providers } from '@/components/providers';
-import { Toaster } from 'sonner';
+import { ToastProvider } from '@/components/ui/toast-provider';
 import { FontSizeProvider } from '@/components/font-size-provider';
 import { LazyAIAssistant } from '@/components/lazy-ai-assistant';
 
@@ -119,28 +119,18 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <Providers>
-              <FontSizeProvider>
-                <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
-                  <div className="absolute inset-0 bg-background" />
-                  <div className="absolute inset-0 ground-grid opacity-[0.03]" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background" />
-                </div>
-                {children}
-                <LazyAIAssistant />
-                <Toaster
-                  position="bottom-right"
-                  closeButton
-                  richColors
-                  visibleToasts={5}
-                  toastOptions={{
-                    classNames: {
-                      toast: "glass-card border-border/10 backdrop-blur-3xl shadow-glass-elev font-sans",
-                      title: "font-heading font-black italic uppercase tracking-tight text-sm",
-                      description: "font-micro text-foreground/40 text-[10px]",
-                    }
-                  }}
-                />
-              </FontSizeProvider>
+              <ToastProvider>
+                <FontSizeProvider>
+                  <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
+                    <div className="absolute inset-0 bg-background" />
+                    <div className="absolute -top-[40%] -left-[20%] w-[140%] h-[140%] bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_50%)]" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-primary/5 blur-[150px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background" />
+                  </div>
+                  {children}
+                  <LazyAIAssistant />
+                </FontSizeProvider>
+              </ToastProvider>
             </Providers>
           </ThemeProvider>
         </NextIntlClientProvider>

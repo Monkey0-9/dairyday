@@ -113,6 +113,7 @@ async def ai_chat(
     request: ChatRequest, current_user: User = Depends(deps.get_current_active_user)
 ) -> Any:
     """Relay chat request to an AI provider with auto-fallback."""
+    logger.info(f"AI Chat request. Key detected: {bool(settings.AI_API_KEY)}")
     if not settings.AI_API_KEY:
         return {
             "response": (

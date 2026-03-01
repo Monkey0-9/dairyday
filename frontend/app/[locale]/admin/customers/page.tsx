@@ -29,14 +29,8 @@ import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { DialogFooter } from "@/components/ui/dialog"
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -426,19 +420,24 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-obsidian-900 border-white/5 text-white shadow-2xl backdrop-blur-3xl rounded-2xl p-4 sm:max-w-[440px]">
-        <DialogHeader className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-glow-primary/10">
-              <Plus size={18} />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-black italic font-heading tracking-tight uppercase leading-none">{t('addNewCustomer')}</DialogTitle>
-              <DialogDescription className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1">{t('createDescription')}</DialogDescription>
-            </div>
+    <ResponsiveDialog
+      isOpen={open}
+      setIsOpen={onOpenChange}
+      className="bg-obsidian-900 border-white/5 text-white shadow-2xl backdrop-blur-3xl rounded-2xl p-4 sm:max-w-[440px]"
+      title={
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-glow-primary/10">
+            <Plus size={18} />
           </div>
-        </DialogHeader>
+          <div>
+            <span className="text-lg font-black italic font-heading tracking-tight uppercase leading-none">{t('addNewCustomer')}</span>
+          </div>
+        </div>
+      }
+      description={
+        <span className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1 block">{t('createDescription')}</span>
+      }
+    >
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-1">
@@ -507,8 +506,7 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }
 
@@ -568,19 +566,24 @@ function EditCustomerDialog({ customer, open, onOpenChange, onSuccess }: { custo
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-obsidian-900 border-white/5 text-white shadow-2xl backdrop-blur-3xl rounded-2xl p-4 sm:max-w-[440px]">
-        <DialogHeader className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-glow-amber/10">
-              <Pencil size={18} />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-black italic font-heading tracking-tight uppercase leading-none">{t('editCustomer')}</DialogTitle>
-              <DialogDescription className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1">{t('updateDescription', { name: customer.name || 'User' })}</DialogDescription>
-            </div>
+    <ResponsiveDialog
+      isOpen={open}
+      setIsOpen={onOpenChange}
+      className="bg-obsidian-900 border-white/5 text-white shadow-2xl backdrop-blur-3xl rounded-2xl p-4 sm:max-w-[440px]"
+      title={
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-glow-amber/10">
+            <Pencil size={18} />
           </div>
-        </DialogHeader>
+          <div>
+            <span className="text-lg font-black italic font-heading tracking-tight uppercase leading-none">{t('editCustomer')}</span>
+          </div>
+        </div>
+      }
+      description={
+        <span className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1 block">{t('updateDescription', { name: customer.name || 'User' })}</span>
+      }
+    >
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-1">
@@ -648,7 +651,6 @@ function EditCustomerDialog({ customer, open, onOpenChange, onSuccess }: { custo
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

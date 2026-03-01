@@ -1,83 +1,87 @@
-"use client"
+'use client'
 
-import { useState, useEffect, useMemo } from "react"
-import { useQuery } from "@tanstack/react-query"
-import { format, isSameMonth } from "date-fns"
-import { useTranslations, useLocale } from "next-intl"
-import { formatCurrency, getDateFnsLocale } from "@/lib/i18n-utils"
-import {
-  ChevronLeft,
-  ChevronRight,
-  Flame,
-  Droplets,
-  Calendar,
-  TrendingUp,
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { format, isSameMonth } from 'date-fns'
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Flame, 
+  Droplets, 
+  Calendar, 
+  TrendingUp, 
+  Wallet, 
+  Settings,
+  FileText,
+  Receipt,
   CheckCircle2,
-  ArrowRight,
-  Wallet,
-  Zap,
-  Activity,
-  Fingerprint,
-} from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import Link from "next/link"
+  AlertCircle,
+  Milk
+} from 'lucide-react'
 
-import { consumptionApi, billsApi, authApi, paymentsApi } from "@/lib/api"
-import { PremiumLoadingState } from "@/components/ui/state-displays"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { GlassCard, StatCard } from '@/components/ui/glass-card'
+import { MasterButton } from '@/components/ui/master-button'
+import { IconButton } from '@/components/ui/master-button'
+import { SkeletonCard, SkeletonStats } from '@/components/ui/glass-card'
+import { useToast } from '@/components/ui/toast-provider'
+import { consumptionApi, billsApi, authApi, paymentsApi } from '@/lib/api'
 
-/* ─── Premium Components ─── */
-
-const MetricCard = ({ icon, label, value, subtext, color, delay = 0, className }: { icon: React.ReactNode; label: string; value: React.ReactNode; subtext?: string; color: "primary" | "amber" | "emerald" | "neutral"; delay?: number; className?: string }) => {
-  const colors = {
-    primary: "text-primary border-primary/20 bg-primary/5 shadow-glow-primary/5",
-    amber: "text-amber-500 border-amber-500/20 bg-amber-500/5 shadow-glow-amber/5",
-    emerald: "text-emerald-500 border-emerald-500/20 bg-emerald-500/5 shadow-glow-emerald/5",
-    neutral: "text-foreground/40 border-border/10 bg-foreground/[0.02] shadow-glass-elev",
+// Quick action component
+const QuickAction = ({ href, icon: Icon, label, color }: any) => {
+  const colorClasses = {
+    indigo: 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20',
+    emerald: 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20',
+    amber: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
+    purple: 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20',
   }
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-      className={cn(
-        "p-6 rounded-[2rem] glass-card flex flex-col justify-between group hover:border-primary/40 hover:bg-primary/[0.02] transition-all duration-1000 relative overflow-hidden",
-        className
-      )}
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-      <div className="flex justify-between items-start relative z-10">
-        <div className={cn("p-3 rounded-xl border transition-all duration-1000 group-hover:scale-110 shadow-glass-elev", colors[color as keyof typeof colors])}>
-          {icon}
+      <Link
+        href={href}
+        className={`flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] transition-all duration-300 hover:bg-white/[0.06] hover:border-white/[0.12] group`}
+      >
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 ${colorClasses[color]}`}>
+          <Icon className="w-6 h-6" />
         </div>
-        <div className="text-right">
-          <p className="font-micro tracking-[0.4em] text-foreground/20 uppercase italic text-[8px] group-hover:text-primary transition-colors duration-1000">{label}</p>
-        </div>
-      </div>
-      <div className="mt-8 relative z-10">
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-black font-heading tracking-tighter italic text-foreground group-hover:text-primary transition-all duration-1000 leading-none">{value}</span>
-        </div>
-        {subtext && <p className="font-micro text-foreground/10 mt-1.5 uppercase tracking-[0.2em] italic text-[8px] group-hover:text-foreground/30 transition-colors duration-1000">{subtext}</p>}
-      </div>
+        <span className="text-sm text-foreground/60 text-center">{label}</span>
+      </Link>
     </motion.div>
   )
 }
 
-export default function CustomerOverview() {
-  const t = useTranslations("Dashboard")
-  const tCommon = useTranslations("Common")
-  const locale = useLocale()
-  const dateFnsLocale = getDateFnsLocale(locale)
-  const [mounted, setMounted] = useState(false)
+// Streak bars component
+const StreakBars = ({ streak }: { streak: number }) => (
+  <div className="flex gap-1 items-end h-10">
+    {Array.from({ length: 7 }).map((_, i) => {
+      const isActive = i < (streak % 7 || 7)
+      return (
+        <motion.div
+          key={i}
+          initial={{ height: 0 }}
+          animate={{ height: isActive ? 40 : 16 }}
+          transition={{ delay: i * 0.05, duration: 0.3 }}
+          className={`w-3 rounded-full transition-all duration-500 ${
+            isActive 
+              ? 'bg-gradient-to-t from-amber-500 to-amber-300 shadow-lg shadow-amber-500/30' 
+              : 'bg-white/10'
+          }`}
+        />
+      )
+    })}
+  </div>
+)
+
+export default function CustomerDashboard() {
+  const { showToast } = useToast()
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
-
-  const monthStr = useMemo(() =>
-    selectedMonth ? format(selectedMonth, "yyyy-MM") : format(new Date(), "yyyy-MM"),
-    [selectedMonth]
-  )
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setUserId(authApi.getUserId())
@@ -85,277 +89,296 @@ export default function CustomerOverview() {
     setMounted(true)
   }, [])
 
-  const { data: consumption } = useQuery({
-    queryKey: ["my-consumption", monthStr],
-    queryFn: () => consumptionApi.getMine(monthStr).then((r) => r.data),
+  const monthStr = selectedMonth 
+    ? format(selectedMonth, 'yyyy-MM')
+    : format(new Date(), 'yyyy-MM')
+
+  const { data: consumption, isLoading: isLoadingConsumption } = useQuery({
+    queryKey: ['my-consumption', monthStr],
+    queryFn: () => consumptionApi.getMine(monthStr).then(r => r.data),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
-  const { data: bill, isLoading: isBillLoading } = useQuery({
-    queryKey: ["my-bill", monthStr],
-    queryFn: () => billsApi.get(userId!, monthStr).then((r) => r.data),
+  const { data: bill, isLoading: isLoadingBill } = useQuery({
+    queryKey: ['my-bill', monthStr],
+    queryFn: () => billsApi.get(userId!, monthStr).then(r => r.data),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
-  const totalLiters = useMemo(
-    () =>
-      consumption?.reduce(
-        (s: number, d: { quantity?: number; liters?: number }) => s + Number(d.quantity ?? d.liters ?? 0),
-        0
-      ) ?? 0,
-    [consumption]
-  )
+  // Calculate stats
+  const totalLiters = consumption?.reduce(
+    (acc: number, day: any) => acc + (day.quantity || day.liters || 0),
+    0
+  ) || 0
 
-  const streak = useMemo(() => {
-    if (!consumption?.length) return 0
-    const sorted = [...consumption].sort(
-      (a: { date: string }, b: { date: string }) => b.date.localeCompare(a.date)
-    )
-    let count = 0
-    for (const d of sorted) {
-      if (Number(d.quantity ?? d.liters ?? 0) > 0) count++
-      else break
-    }
+  const streak = consumption?.reduce((count: number, day: any, index: number, arr: any[]) => {
+    if (arr[index].quantity > 0) return count + 1
     return count
-  }, [consumption])
+  }, 0) || 0
 
-  const avgDaily = useMemo(() => {
-    const active = consumption?.filter((d: { quantity?: number; liters?: number }) => Number(d.quantity ?? d.liters ?? 0) > 0).length || 0
-    return active > 0 ? totalLiters / active : 0
-  }, [consumption, totalLiters])
+  const activeDays = consumption?.filter((d: any) => (d.quantity || d.liters) > 0).length || 0
+  const avgDaily = activeDays > 0 ? totalLiters / activeDays : 0
 
-  const billAmount = Number(bill?.total_amount ?? bill?.amount ?? 0)
-  const isPaid = bill?.status === "PAID" || bill?.status === "paid"
-
-  const handlePrev = () =>
-    setSelectedMonth((p) => { const d = new Date(p!); d.setMonth(d.getMonth() - 1); return d })
-  const handleNext = () =>
-    setSelectedMonth((p) => { const d = new Date(p!); d.setMonth(d.getMonth() + 1); return d })
+  const billAmount = Number(bill?.total_amount || bill?.amount || 0)
+  const isPaid = bill?.status === 'PAID' || bill?.status === 'paid'
 
   const handlePayment = async () => {
     if (!bill?.id) return
     try {
       const res = await paymentsApi.createOrder(bill.id)
-      window.location.href = res.data?.payment_url || "/customer/payment"
-    } catch { /* interceptor handles error toast */ }
+      window.location.href = res.data?.payment_url || '/customer/payment'
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Payment failed',
+        description: error.response?.data?.detail || 'Unable to process payment'
+      })
+    }
   }
-  if (isBillLoading && !mounted) {
-    return <PremiumLoadingState />
+
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    if (!selectedMonth) return
+    const newDate = new Date(selectedMonth)
+    newDate.setMonth(newDate.getMonth() + (direction === 'prev' ? -1 : 1))
+    if (direction === 'next' && isSameMonth(newDate, new Date())) return
+    setSelectedMonth(newDate)
   }
+
+  if (!mounted) return null
 
   return (
-    <div className="min-h-screen bg-transparent text-foreground selection:bg-primary/40 relative">
-      <div className="container mx-auto px-4 py-6 relative z-10 space-y-12">
-        {/* Header Protocol */}
-        <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-10 border-b border-border/10 pb-10">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-glow-primary animate-pulse" />
-              <span className="font-micro text-primary tracking-[0.6em] uppercase text-[10px]">{t('protocolVersion')}</span>
-            </div>
-            <h1 className="font-big text-foreground italic uppercase">{t('vitalStream')}_ <span className="text-gradient">{t('vitalOverview')}</span></h1>
+    <div className="min-h-screen pb-24 md:pb-8">
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8"
+        >
+          <div>
+            <h1 className="text-heading-1 text-foreground">Dashboard</h1>
+            <p className="text-body text-foreground/60 mt-1">Welcome back to DairyDay</p>
           </div>
 
-          <div className="flex items-center gap-1.5 p-1.5 bg-foreground/[0.02] border border-border/10 rounded-xl glass-card">
-            <button
-              onClick={handlePrev}
-              title={t('previousMonth')}
-              aria-label={t('previousMonth')}
-              className="p-2 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all active:scale-95"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <div className="px-6 py-1 min-w-[150px] text-center">
-              <span className="text-lg font-heading font-black uppercase tracking-tighter text-foreground italic">
-                {selectedMonth ? format(selectedMonth, "MMMM yyyy", { locale: dateFnsLocale }) : tCommon('loading')}
-              </span>
-            </div>
-            <button
-              onClick={handleNext}
-              disabled={!selectedMonth || isSameMonth(selectedMonth, new Date())}
-              title={t('nextMonth')}
-              aria-label={t('nextMonth')}
-              className="p-2 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-5 active:scale-95"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </header>
-
-        {/* Global Hub Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-          {/* Main Reconciliation Node */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="lg:col-span-8 p-6 rounded-[1.5rem] glass-card flex flex-col justify-between group overflow-hidden relative"
-          >
-            <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none opacity-50" />
-
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-4">
-              <div className="space-y-1">
-                <p className="font-micro tracking-[0.3em] text-foreground/20 uppercase italic text-[8px]">
-                  {t('currentSettleDue')}
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-primary font-heading mt-2 italic">₹</span>
-                  <h2 className="text-5xl lg:text-7xl font-black font-heading tracking-tight leading-none text-foreground italic">
-                    {mounted ? formatCurrency(billAmount, locale) : "--"}
-                  </h2>
-                </div>
-              </div>
-
-              <div className="flex flex-row md:flex-col items-center md:items-end gap-4 h-full justify-between">
-                <AnimatePresence mode="wait">
-                  {isPaid ? (
-                    <motion.div
-                      key="p" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full font-micro tracking-[0.3em] italic text-[8px] shadow-glow-emerald/5"
-                    >
-                      <CheckCircle2 size={12} aria-hidden="true" /> {tCommon('status.PAID').toUpperCase()}
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="u" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center gap-2 bg-primary/10 border border-primary/20 text-primary px-3 py-1.5 rounded-full font-micro tracking-[0.3em] italic text-[8px] shadow-glow-primary/5 animate-pulse"
-                    >
-                      <Activity size={12} aria-hidden="true" /> {tCommon('status.UNPAID').toUpperCase()}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="text-right">
-                  <p className="font-micro text-foreground/10 uppercase tracking-[0.3em] italic text-[8px]">{t('reconId')}</p>
-                  <p className="text-xl font-black italic text-foreground/40 uppercase tracking-tighter font-heading">
-                    {selectedMonth ? format(selectedMonth, "MMM_yyyy", { locale: dateFnsLocale }) : "--"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-6 relative z-10">
-              <div className="flex flex-wrap gap-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-foreground/[0.03] border border-border/10 rounded-xl shadow-glass-elev">
-                    <Droplets className="text-primary" size={20} />
-                  </div>
-                  <div>
-                    <p className="font-micro text-foreground/20 uppercase mb-0.5 text-[8px]">{t('volume')}</p>
-                    <p className="text-2xl font-black font-heading italic tracking-tighter">{mounted ? totalLiters.toFixed(1) : "--"} <span className="font-sans text-[8px] italic opacity-20 font-normal">{t('unitLiters')}</span></p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-foreground/[0.03] border border-border/10 rounded-xl shadow-glass-elev">
-                    <Zap className="text-yellow-600 dark:text-yellow-400" size={20} />
-                  </div>
-                  <div>
-                    <p className="font-micro text-foreground/20 uppercase mb-0.5 text-[8px]">{t('continuity')}</p>
-                    <p className="text-2xl font-black font-heading italic tracking-tighter">{streak} <span className="font-sans text-[8px] italic opacity-20 font-normal">{t('nodes')}</span></p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handlePayment}
-                  disabled={!bill || isPaid || isBillLoading}
-                  className="h-14 flex-1 rounded-xl bg-foreground text-background hover:bg-primary hover:text-white font-heading font-black tracking-tighter italic text-xl gap-3 transition-all duration-700 disabled:opacity-10 group shadow-2xl"
-                >
-                  {isPaid ? t('settlementFinalized') : t('executeSettlement')}
-                  {!isPaid && <ArrowRight className="h-6 w-6 group-hover:translate-x-2 transition-all duration-1000" />}
-                </Button>
-
-                {!isPaid && (
-                  <div className="hidden md:flex flex-col items-center justify-center h-14 w-16 glass-card border-border/10 rounded-xl italic shadow-glass-elev">
-                    <Fingerprint className="text-foreground/20 mb-0.5" size={18} />
-                    <span className="font-micro text-[6px] text-foreground/10 tracking-[0.4em]">{t('authLevel')}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Tactical Analytics Rails */}
-          <div className="lg:col-span-4 grid grid-cols-1 gap-10">
-            <MetricCard
-              icon={<TrendingUp size={28} />}
-              label={t('efficiencyMean')}
-              value={`${avgDaily.toFixed(1)} ${tCommon('unitL')}`}
-              subtext={t('dailyYieldAvg')}
-              color="emerald"
-              delay={0.1}
+          {/* Month selector */}
+          <GlassCard padding="sm" className="flex items-center gap-2">
+            <IconButton
+              icon={<ChevronLeft className="w-5 h-5" />}
+              label="Previous month"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleMonthChange('prev')}
             />
+            
+            <span className="px-4 py-2 text-lg font-semibold min-w-[140px] text-center">
+              {mounted && selectedMonth 
+                ? format(selectedMonth, 'MMMM yyyy')
+                : '--'
+              }
+            </span>
+            <IconButton
+              icon={<ChevronRight className="w-5 h-5" />}
+              label="Next month"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleMonthChange('next')}
+              disabled={selectedMonth && isSameMonth(selectedMonth, new Date())}
+            />
+          </GlassCard>
+        </motion.div>
 
+        {/* Main content */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left column - Bill and stats */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Bill card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="p-8 rounded-[2rem] glass-card flex flex-col justify-between group overflow-hidden relative shadow-glow-amber/5"
+              transition={{ delay: 0.1 }}
             >
-              <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-500/5 rounded-full blur-[80px] pointer-events-none group-hover:scale-150 transition-all duration-1000" />
+              <GlassCard padding="lg" variant="elevated">
+                {isLoadingBill ? (
+                  <SkeletonCard />
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between mb-6">
+                      <div>
+                        <p className="text-sm text-foreground/60 uppercase tracking-wider">Amount Due</p>
+                        <div className="flex items-baseline gap-2 mt-2">
+                          <span className="text-sm text-primary"></span>
+                          <span className="text-display text-foreground">
+                            ₹{billAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      </div>
 
-              <div className="flex justify-between items-start relative z-10">
-                <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-600 dark:text-yellow-400">
-                  <Flame size={24} />
-                </div>
-                <div className="text-right">
-                  <p className="font-micro text-foreground/20 uppercase italic tracking-[0.3em] text-[10px]">{t('deliveryStreak')}</p>
-                </div>
-              </div>
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+                          isPaid
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-primary/20 text-primary border border-primary/30'
+                        }`}
+                      >
+                        {isPaid ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Paid
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Pending
+                          </>
+                        )}
+                      </motion.div>
+                    </div>
 
-              <div className="mt-6 relative z-10 flex items-end justify-between">
-                <span className="text-7xl lg:text-[7rem] font-black font-heading tracking-tighter italic text-foreground group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors duration-1000 leading-none">{streak}</span>
-                <div className="flex gap-2 pb-4">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <motion.div
-                      key={i}
-                      initial={{ height: 0 }}
-                      animate={{ height: i <= (streak % 5 || 5) ? 30 : 8 }}
-                      className={cn(
-                        "w-2 rounded-full transition-all duration-1000",
-                        i <= (streak % 5 || 5) ? "bg-yellow-600 dark:bg-yellow-400 shadow-glow-amber/40" : "bg-foreground/5"
-                      )}
-                    />
-                  ))}
+                    <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="p-4 rounded-xl bg-white/[0.03]">
+                        <div className="flex items-center gap-2 text-foreground/60 mb-1">
+                          <Droplets className="w-4 h-4 text-primary" />
+                          <span className="text-sm">Total Volume</span>
+                        </div>
+                        <span className="text-2xl font-bold text-foreground">
+                          {totalLiters.toFixed(1)}
+                          <span className="text-sm text-foreground/40 ml-1">L</span>
+                        </span>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-white/[0.03]">
+                        <div className="flex items-center gap-2 text-foreground/60 mb-1">
+                          <TrendingUp className="w-4 h-4 text-emerald-400" />
+                          <span className="text-sm">Daily Average</span>
+                        </div>
+                        <span className="text-2xl font-bold text-foreground">
+                          {avgDaily.toFixed(1)}
+                          <span className="text-sm text-foreground/40 ml-1">L</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <MasterButton
+                      onClick={handlePayment}
+                      disabled={isPaid || !bill}
+                      loading={false}
+                      fullWidth
+                    >
+                      {isPaid ? 'Payment Complete' : 'Pay Now'}
+                      {!isPaid && <ArrowRight className="w-5 h-5" />}
+                    </MasterButton>
+                  </>
+                )}
+              </GlassCard>
+            </motion.div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {isLoadingConsumption ? (
+                <SkeletonStats count={2} />
+              ) : (
+                <>
+                  <StatCard
+                    icon={<TrendingUp className="w-5 h-5" />}
+                    label="Daily Average"
+                    value={`${avgDaily.toFixed(1)} L`}
+                    subtext="Based on active days"
+                    color="primary"
+                    delay={0.2}
+                  />
+                  
+                  <StatCard
+                    icon={<Calendar className="w-5 h-5" />}
+                    label="Active Days"
+                    value={activeDays}
+                    subtext="This month"
+                    color="success"
+                    delay={0.3}
+                  />
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right column - Streak and quick actions */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Streak card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <GlassCard padding="lg" className="relative overflow-hidden">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl" />
+                
+                <div className="relative">
+                  <div className="flex items-center justify-between">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                      <Flame className="w-7 h-7" />
+                    </div>
+                    <span className="text-sm text-foreground/60">Current Streak</span>
+                  </div>
+
+                  <div className="mt-6 flex items-end justify-between">
+                    <span className="text-6xl font-black text-foreground italic">
+                      {streak}
+                    </span>
+                    <StreakBars streak={streak} />
+                  </div>
+                  
+                  <p className="text-sm text-foreground/40 mt-4">Keep going! You're doing great.</p>
                 </div>
-              </div>
+              </GlassCard>
+            </motion.div>
+
+            {/* Quick actions */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="grid grid-cols-2 gap-3"
+            >
+              <QuickAction
+                href="/customer/calendar"
+                icon={Calendar}
+                label="Calendar"
+                color="indigo"
+              />
+              <QuickAction
+                href="/customer/records"
+                icon={Wallet}
+                label="Records"
+                color="emerald"
+              />
+              <QuickAction
+                href="/customer/payment"
+                icon={Receipt}
+                label="Payments"
+                color="amber"
+              />
+              <QuickAction
+                href="/customer/settings"
+                icon={Settings}
+                label="Settings"
+                color="purple"
+              />
             </motion.div>
           </div>
         </div>
-
-        {/* Operational Grid Nodes */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { href: "/customer/calendar", icon: <Calendar size={20} />, label: tCommon('calendar'), border: "border-primary/20", hover: "hover:bg-primary/5 hover:border-primary/40", text: "text-primary" },
-            { href: "/customer/records", icon: <Wallet size={20} />, label: tCommon('records'), border: "border-emerald-500/20", hover: "hover:bg-emerald-500/5 hover:border-emerald-500/40", text: "text-emerald-600 dark:text-emerald-400" },
-            { href: "/customer/profile", icon: <Fingerprint size={20} />, label: t('security'), border: "border-border/10", hover: "hover:bg-foreground/5 hover:border-border/30", text: "text-foreground/40" },
-            { href: "/customer/support", icon: <Activity size={20} />, label: t('health'), border: "border-border/10", hover: "hover:bg-foreground/5 hover:border-border/30", text: "text-foreground/40" }
-          ].map((node, i) => (
-            <motion.div
-              key={node.label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3 + i * 0.1 }}
-            >
-              <Link href={node.href} className="block group">
-                <div className={cn(
-                  "h-24 p-4 rounded-[1.5rem] glass-card border flex flex-col items-center justify-center gap-2 transition-all duration-700 shadow-glass-elev",
-                  node.border, node.hover
-                )}>
-                  <div className={cn("transition-all duration-700 group-hover:scale-110 group-hover:-translate-y-0.5", node.text)}>
-                    {node.icon}
-                  </div>
-                  <span className="font-micro text-[8px] text-foreground/20 group-hover:text-foreground transition-colors duration-700 uppercase tracking-[0.3em]">{node.label}</span>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
       </div>
     </div>
+  )
+}
+
+// Arrow icon
+function ArrowRight({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+    </svg>
   )
 }

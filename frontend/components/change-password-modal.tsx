@@ -7,14 +7,7 @@ import { authApi } from "@/lib/api"
 import { toast } from "sonner"
 import { Loader2, KeyRound } from "lucide-react"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog"
 import {
   Form,
   FormControl,
@@ -70,26 +63,28 @@ export function ChangePasswordModal({ children }: { children: React.ReactNode })
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
+    <ResponsiveDialog
+      isOpen={isOpen}
+      setIsOpen={(open) => {
         setIsOpen(open)
         if (!open) { form.reset(); setErrorMsg("") }
-    }}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-background/95 backdrop-blur-3xl border-border/10">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl font-heading font-black italic uppercase">
-            <KeyRound className="w-5 h-5 text-primary" />
-            Change Password
-          </DialogTitle>
-          <DialogDescription className="font-micro text-xs tracking-widest uppercase">
-            Update your account security credentials.
-          </DialogDescription>
-        </DialogHeader>
-
+      }}
+      trigger={children}
+      className="sm:max-w-md bg-background/95 backdrop-blur-3xl border-border/10"
+      title={
+        <span className="flex items-center gap-2 text-xl font-heading font-black italic uppercase">
+          <KeyRound className="w-5 h-5 text-primary" />
+          Change Password
+        </span>
+      }
+      description={
+        <span className="font-micro text-xs tracking-widest uppercase mt-1 block">
+          Update your account security credentials.
+        </span>
+      }
+    >
         {errorMsg && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold font-micro">
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-bold font-micro">
             {errorMsg}
           </div>
         )}
@@ -146,7 +141,6 @@ export function ChangePasswordModal({ children }: { children: React.ReactNode })
             </div>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

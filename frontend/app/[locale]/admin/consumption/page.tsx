@@ -16,9 +16,12 @@ import {
     ChevronLeft,
     ChevronRight,
     Lock,
+    LockOpen,
     Search,
     Trash2,
     Activity,
+    ShieldCheck,
+    ShieldX,
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -27,7 +30,7 @@ import { Input } from "@/components/ui/input"
 import { EmptyGridState } from "@/components/ui/empty-state"
 import { GridSkeleton } from "@/components/skeletons"
 import { PremiumErrorState } from "@/components/ui/state-displays"
-import { consumptionApi, usersApi } from "@/lib/api"
+import { consumptionApi, usersApi, adminApi } from "@/lib/api"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -54,6 +57,7 @@ interface ConsumptionRecord {
     phone: string
     daily_liters: Record<string, number>
     audits?: Record<number, unknown>
+    is_locked?: boolean
 }
 
 // ----------------------------------------------------------------------
@@ -62,7 +66,6 @@ interface ConsumptionRecord {
 
 export default function ConsumptionGridPage() {
     const t = useTranslations("Admin.consumption")
-    const tCommon = useTranslations("Common")
     const queryClient = useQueryClient()
     const [selectedMonth, setSelectedMonth] = useState(new Date())
     const [searchQuery, setSearchQuery] = useState("")
@@ -77,16 +80,29 @@ export default function ConsumptionGridPage() {
     })
 
     // --- MUTATIONS ---
+    const lockMutation = useMutation({
+        mutationFn: (userId: string) => adminApi.lock(monthStr, userId),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ["consumption", monthStr] })
+            toast.success(res.data.message || "Locked successfully")
+        },
+        onError: () => toast.error("Failed to lock records")
+    })
+
+    const unlockMutation = useMutation({
+        mutationFn: (userId: string) => adminApi.unlock(monthStr, userId),
+        onSuccess: (res) => {
+            queryClient.invalidateQueries({ queryKey: ["consumption", monthStr] })
+            toast.success(res.data.message || "Unlocked successfully")
+        },
+        onError: () => toast.error("Failed to unlock records")
+    })
+
     const updateMutation = useMutation({
         mutationFn: (data: { user_id: string; date: string; quantity: number; extra_qty?: number; status?: string; note?: string }) => consumptionApi.upsert(data),
         onMutate: async (newData) => {
-            // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
             await queryClient.cancelQueries({ queryKey: ["consumption", monthStr] })
-
-            // Snapshot the previous value
             const previousGridData = queryClient.getQueryData<ConsumptionRecord[]>(["consumption", monthStr])
-
-            // Optimistically update to the new value
             queryClient.setQueryData<ConsumptionRecord[]>(["consumption", monthStr], (old) => {
                 if (!old) return []
                 return old.map(record => {
@@ -102,22 +118,15 @@ export default function ConsumptionGridPage() {
                     return record
                 })
             })
-
-            // Return a context object with the snapshotted value
             return { previousGridData }
         },
-        onError: (err: Error & { response?: { data?: { detail?: string } } }, _newData, context) => {
+        onError: (err: any, _newData, context) => {
             queryClient.setQueryData(["consumption", monthStr], context?.previousGridData)
             const msg = err.response?.data?.detail || "Failed to update record"
             toast.error(msg)
-            console.error(err)
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["consumption", monthStr] })
-            queryClient.invalidateQueries({ queryKey: ["daily-entry"] })
-            queryClient.invalidateQueries({ queryKey: ["admin-bills"] })
-            queryClient.invalidateQueries({ queryKey: ["my-bill"] })
-            queryClient.invalidateQueries({ queryKey: ["my-bills"] })
         },
         onSuccess: () => {
             toast.success(t('syncComplete'))
@@ -187,20 +196,16 @@ export default function ConsumptionGridPage() {
         })
     }
 
-    // --- RENDER HELPERS ---
+    // --- RENDER ---
 
     return (
         <div className="min-h-screen bg-[#000000] text-slate-200 font-sans selection:bg-indigo-500/30 pb-20">
-
-            {/* CINEMATIC BACKGROUND GLOW */}
             <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
                 <div className="absolute top-[-20%] left-[20%] w-[60%] h-[50%] bg-indigo-900/10 blur-[150px] rounded-full opacity-40 animate-pulse-glow" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-900/10 blur-[120px] rounded-full opacity-30" />
             </div>
 
             <div className="relative z-10 p-2 lg:p-4 space-y-2 lg:space-y-4 max-w-[1600px] mx-auto">
-
-                {/* HEADER SECTION */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -217,32 +222,26 @@ export default function ConsumptionGridPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        {/* MONTH SELECTOR */}
                         <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full p-1 pl-3 backdrop-blur-md">
                             <span className="font-mono text-[10px] text-indigo-300 font-bold uppercase tracking-widest mr-1">
                                 {format(selectedMonth, "MMM yyyy")}
                             </span>
                             <div className="flex gap-0.5">
-                                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white" aria-label={tCommon('accessibility.previous')}>
-                                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white">
+                                    <ChevronLeft className="h-3.5 w-3.5" />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white" aria-label={tCommon('accessibility.next')}>
-                                    <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-7 w-7 rounded-full hover:bg-white/10 text-white/60 hover:text-white">
+                                    <ChevronRight className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
                         </div>
-
-                        <Button
-                            onClick={handleExport}
-                            className="h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full px-4 text-xs font-bold transition-all active:scale-95"
-                        >
+                        <Button onClick={handleExport} className="h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full px-4 text-xs font-bold transition-all active:scale-95">
                             <Download className="h-3.5 w-3.5 mr-1.5 text-indigo-400" />
                             {t('export')}
                         </Button>
                     </div>
                 </div>
 
-                {/* CONTROLS BAR */}
                 <div className="flex flex-col md:flex-row gap-3">
                     <div className="relative flex-1 max-w-sm group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20 group-focus-within:text-indigo-400 transition-colors" />
@@ -251,15 +250,12 @@ export default function ConsumptionGridPage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9 h-9 bg-white/5 border-white/5 focus:border-indigo-500/50 rounded-xl text-[13px] text-white placeholder:text-white/20 transition-all font-medium"
-                            aria-label={tCommon('accessibility.search')}
                         />
                     </div>
                 </div>
 
-                {/* MAIN DATA GRID - GLASSMORPHISM */}
                 <div className="rounded-3xl border border-white/5 bg-black/40 backdrop-blur-xl shadow-2xl overflow-hidden relative group">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-violet-500/5 opacity-50 pointer-events-none" />
-
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse">
                             <thead>
@@ -304,7 +300,6 @@ export default function ConsumptionGridPage() {
                                             animate={{ opacity: 1 }}
                                             className="border-b border-white/5 hover:bg-white/[0.02] transition-colors group/row"
                                         >
-                                            {/* CUSTOMER NAME COLUMN */}
                                             <td className="sticky left-0 z-10 bg-[#0a0a0e] p-2 lg:p-3 border-r border-white/5 group-hover/row:bg-[#0f0f13] transition-colors shadow-[4px_0_12px_rgba(0,0,0,0.5)]">
                                                 <div className="flex flex-col">
                                                     <span className="font-bold text-white text-[13px] truncate max-w-[140px] uppercase italic tracking-tight">{row.name}</span>
@@ -313,11 +308,10 @@ export default function ConsumptionGridPage() {
                                                 </div>
                                             </td>
 
-                                            {/* DAILY CELLS */}
                                             {daysInMonth.map(day => {
                                                 const dateStr = format(day, "yyyy-MM-dd")
                                                 const qty = row.daily_liters[dateStr] || 0
-                                                const locked = false
+                                                const locked = row.is_locked
 
                                                 return (
                                                     <td key={dateStr} className={cn(
@@ -325,7 +319,6 @@ export default function ConsumptionGridPage() {
                                                         locked ? "bg-white/[0.01]" : ""
                                                     )}>
                                                         {locked ? (
-                                                            // LOCKED STATE
                                                             <div className="flex items-center justify-center h-10 w-full opacity-20">
                                                                 {qty > 0 ? (
                                                                     <span className="font-mono text-white font-bold">{qty}</span>
@@ -334,7 +327,6 @@ export default function ConsumptionGridPage() {
                                                                 )}
                                                             </div>
                                                         ) : (
-                                                            // EDITABLE STATE
                                                             <div className={cn(
                                                                 "h-8 w-full rounded-md flex items-center justify-center transition-all cursor-pointer",
                                                                 qty > 0 ? "bg-indigo-500/10 text-indigo-300 font-bold border border-indigo-500/20" : "text-white/5 hover:bg-white/10"
@@ -354,58 +346,76 @@ export default function ConsumptionGridPage() {
                                                                         if (e.key === 'Enter') e.currentTarget.blur()
                                                                     }}
                                                                 />
-                                                                {/* Pencil Hint on Hover (Optional CSS could do this, but keeping clean) */}
                                                             </div>
                                                         )}
                                                     </td>
                                                 )
                                             })}
 
-                                            {/* ACTIONS COLUMN */}
                                             <td className="sticky right-0 z-10 bg-[#0a0a0e] p-2 border-l border-white/5 text-center group-hover/row:bg-[#0f0f13] shadow-[-4px_0_24px_rgba(0,0,0,0.5)]">
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-full h-8 w-8">
-                                                            <Trash2 className="h-4 w-4" />
+                                                <div className="flex items-center justify-center gap-1">
+                                                    {row.is_locked ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => unlockMutation.mutate(row.user_id)}
+                                                            className="text-amber-500/40 hover:text-amber-500 hover:bg-amber-500/10 rounded-full h-8 w-8"
+                                                            title="Unlock"
+                                                        >
+                                                            <LockOpen className="h-4 w-4" />
                                                         </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent className="bg-zinc-950 border border-white/10 text-white">
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-white/60">
-                                                                {t('deleteDesc', { name: row.name })}
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel className="bg-white/5 text-white border-white/10 hover:bg-white/10">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction
-                                                                onClick={() => deleteUserMutation.mutate(row.user_id)}
-                                                                className="bg-red-600 hover:bg-red-700 text-white"
-                                                            >
-                                                                {t('deleteConfirm')}
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
+                                                    ) : (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => lockMutation.mutate(row.user_id)}
+                                                            className="text-indigo-500/40 hover:text-indigo-500 hover:bg-indigo-500/10 rounded-full h-8 w-8"
+                                                            title="Lock"
+                                                        >
+                                                            <Lock className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="text-red-500/40 hover:text-red-500 hover:bg-red-500/10 rounded-full h-8 w-8">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </AlertDialogTrigger>
+                                                        <AlertDialogContent className="bg-zinc-950 border border-white/10 text-white">
+                                                            <AlertDialogHeader>
+                                                                <AlertDialogTitle>{t('deleteTitle')}</AlertDialogTitle>
+                                                                <AlertDialogDescription className="text-white/60">
+                                                                    {t('deleteDesc', { name: row.name })}
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter>
+                                                                <AlertDialogCancel className="bg-white/5 text-white border-white/10 hover:bg-white/10">Cancel</AlertDialogCancel>
+                                                                <AlertDialogAction
+                                                                    onClick={() => deleteUserMutation.mutate(row.user_id)}
+                                                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                                                >
+                                                                    {t('deleteConfirm')}
+                                                                </AlertDialogAction>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
                                             </td>
                                         </motion.tr>
                                     ))
                                 )}
                             </tbody>
 
-                            {/* FOOTER TOTALS */}
                             <tfoot className="sticky bottom-0 z-30 bg-[#0a0a0e] border-t border-indigo-500/20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
                                 <tr>
                                     <td className="p-2 lg:p-3 font-black text-indigo-400 text-[10px] uppercase tracking-widest sticky left-0 bg-[#0a0a0e] border-r border-white/5">
                                         {t('totals')}
                                     </td>
                                     {daysInMonth.map(day => {
-                                        // Calculate Column Total
                                         const dateStr = format(day, "yyyy-MM-dd")
                                         const total = filteredData.reduce((sum: number, row: ConsumptionRecord) => {
                                             return sum + (row.daily_liters[dateStr] || 0)
                                         }, 0)
-
                                         return (
                                             <td key={dateStr} className="p-2 text-center border-r border-white/5">
                                                 <span className={cn(
@@ -424,7 +434,6 @@ export default function ConsumptionGridPage() {
                     </div>
                 </div>
 
-                {/* LEGEND */}
                 <div className="flex items-center gap-6 justify-center text-[10px] uppercase font-bold tracking-widest text-white/40">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
@@ -434,12 +443,11 @@ export default function ConsumptionGridPage() {
                         <div className="w-3 h-3 rounded-full border border-white/20 bg-transparent" />
                         <span>{t('empty')}</span>
                     </div>
-                    {/* Conditional return for error state */}
                     {isError && (
-                        <PremiumErrorState
-                            message={t('fetchError')}
-                            onRetry={() => refetch()}
-                        />
+                         <PremiumErrorState
+                             message={t('fetchError')}
+                             onRetry={() => refetch()}
+                         />
                     )}
                     <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center w-3 h-3">
@@ -448,9 +456,7 @@ export default function ConsumptionGridPage() {
                         <span>{t('locked')}</span>
                     </div>
                 </div>
-
             </div>
         </div>
     )
 }
-

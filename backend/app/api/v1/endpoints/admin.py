@@ -481,7 +481,67 @@ async def lock_consumption_period(
         db.add(c)
 
     await db.commit()
+
+    # Invalidate Cache
+    try:
+        from app.core.redis import get_redis
+        redis = await get_redis()
+        if redis:
+            await redis.delete(f"grid:{month}")
+    except Exception:
+        pass
+
+    msg = f"Locked {len(consumptions)} records for {month}"
+    if user_id:
+        msg += f" (User: {user_id})"
     return {
         "status": "success",
-        "message": f"Locked {len(consumptions)} records for {month}",
+        "message": msg,
+    }
+
+
+@router.post("/unlock", response_model=StatusResponse)
+async def unlock_consumption_period(
+    month: Annotated[str, Query(pattern=r"^\d{4}-\d{2}$")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(deps.get_current_active_admin)],
+    user_id: UUID | None = None,
+) -> Any:
+    """Explicitly unlock consumption for a month."""
+    year, month_num = map(int, month.split("-"))
+    start_date = date(year, month_num, 1)
+    _, last_day = monthrange(year, month_num)
+    end_date = date(year, month_num, last_day)
+
+    query = select(Consumption).where(
+        and_(Consumption.date >= start_date, Consumption.date <= end_date)
+    )
+
+    if user_id:
+        query = query.where(Consumption.user_id == user_id)
+
+    result = await db.execute(query)
+    consumptions = result.scalars().all()
+
+    for c in consumptions:
+        c.locked = False
+        db.add(c)
+
+    await db.commit()
+
+    # Invalidate Cache
+    try:
+        from app.core.redis import get_redis
+        redis = await get_redis()
+        if redis:
+            await redis.delete(f"grid:{month}")
+    except Exception:
+        pass
+
+    msg = f"Unlocked {len(consumptions)} records for {month}"
+    if user_id:
+        msg += f" (User: {user_id})"
+    return {
+        "status": "success",
+        "message": msg,
     }

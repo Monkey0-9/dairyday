@@ -35,13 +35,7 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog"
 import { PageHeader } from "@/components/page-header"
 import { PremiumLoadingState } from "@/components/ui/state-displays"
 import { TableSkeleton } from "@/components/skeletons"
@@ -342,14 +336,13 @@ export default function PaymentPage() {
         )}
       </div>
 
-      <Dialog open={isUpiModalOpen} onOpenChange={setIsUpiModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white text-black border-none rounded-[2rem] p-8">
-          <DialogHeader>
-            <DialogTitle className="text-center font-heading font-black italic text-3xl uppercase tracking-tighter">{t('scanToPay')}</DialogTitle>
-            <DialogDescription className="text-center font-micro uppercase tracking-widest text-black/40">
-              {t('scanWithUpi')}
-            </DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog 
+        isOpen={isUpiModalOpen} 
+        setIsOpen={setIsUpiModalOpen}
+        title={t('scanToPay')}
+        description={t('scanWithUpi')}
+        className="sm:max-w-md bg-white text-black border-none rounded-[2rem] p-8"
+      >
           <div className="flex flex-col items-center justify-center space-y-6 pt-4">
             <div className="p-4 bg-white rounded-[2rem] shadow-xl border border-gray-100">
               {qrCode && <Image src={qrCode} alt="QR" width={250} height={250} className="rounded-xl" unoptimized />}
@@ -390,8 +383,7 @@ export default function PaymentPage() {
               </div>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   )
 }

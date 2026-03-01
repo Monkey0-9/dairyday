@@ -24,14 +24,8 @@ import { format as formatDate } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { DialogFooter } from "@/components/ui/dialog"
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -363,23 +357,27 @@ export default function AdminPaymentsPage() {
       </div>
 
       {/* Industrial Settlement Modal */}
-      <Dialog open={cashModalOpen} onOpenChange={setCashModalOpen}>
-        <DialogContent className="bg-obsidian-900/95 backdrop-blur-3xl border border-white/5 rounded-2xl w-[95vw] max-w-md shadow-[0_0_100px_rgba(14,165,168,0.1)] glass-card p-0 overflow-hidden">
-          <div className="max-h-[90vh] overflow-y-auto custom-scrollbar p-6">
+      <ResponsiveDialog
+        isOpen={cashModalOpen}
+        setIsOpen={setCashModalOpen}
+        className="bg-obsidian-900/95 backdrop-blur-3xl border border-white/5 rounded-2xl w-[95vw] max-w-md shadow-[0_0_100px_rgba(14,165,168,0.1)] glass-card p-0 overflow-hidden"
+        title={
+          <div className="space-y-3 relative z-10">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-glow-primary/10 mb-3">
+              <Fingerprint size={24} />
+            </div>
+            <span className="text-2xl font-black font-heading tracking-tight italic uppercase block">{t('settlementHandoff')}</span>
+          </div>
+        }
+        description={
+          <span className="font-micro text-[10px] text-white/30 tracking-[0.2em] uppercase mt-1 block">{t('manualAuthProto')}</span>
+        }
+      >
+          <div className="max-h-[90vh] overflow-y-auto custom-scrollbar p-6 pt-0">
             <div className="space-y-6 relative">
               <div className="absolute top-0 right-0 p-8 opacity-[0.03] scale-150 rotate-12">
                 <Banknote size={100} />
               </div>
-
-              <DialogHeader className="space-y-3 relative z-10">
-                <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-glow-primary/10">
-                  <Fingerprint size={24} />
-                </div>
-                <div className="space-y-1">
-                  <DialogTitle className="text-2xl font-black font-heading tracking-tight italic uppercase">{t('settlementHandoff')}</DialogTitle>
-                  <DialogDescription className="font-micro text-[10px] text-white/30 tracking-[0.2em] uppercase">{t('manualAuthProto')}</DialogDescription>
-                </div>
-              </DialogHeader>
 
               {selectedBill && (
                 <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/[0.05] relative z-10">
@@ -422,8 +420,7 @@ export default function AdminPaymentsPage() {
               </DialogFooter>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   )
 }

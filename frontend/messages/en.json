@@ -286,7 +286,9 @@
       "totals": "Daily Totals",
       "delivered": "Delivered",
       "empty": "Empty",
-      "locked": "Locked"
+      "locked": "Locked",
+      "lock": "Lock",
+      "unlock": "Unlock"
     },
     "approvals": {
       "title": "Pending Requests",

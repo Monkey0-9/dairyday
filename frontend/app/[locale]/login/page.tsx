@@ -1,255 +1,251 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Eye, EyeOff, Loader2, ArrowRight, ShieldCheck, Lock } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { Lock, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import * as z from 'zod'
 
-import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { toast } from "sonner"
-import { authApi } from "@/lib/api"
-import { useTranslations } from "next-intl"
+import { MasterButton } from '@/components/ui/master-button'
+import { PremiumInput } from '@/components/ui/premium-input'
+import { GlassCard } from '@/components/ui/glass-card'
+import { useToast } from '@/components/ui/toast-provider'
+import { authApi } from '@/lib/api'
+
+// Floating particles component
+const FloatingParticles = () => (
+  <div className="fixed inset-0 overflow-hidden pointer-events-none">
+    {/* Large blurred orbs */}
+    <motion.div
+      animate={{ 
+        scale: [1, 1.2, 1],
+        opacity: [0.3, 0.5, 0.3]
+      }}
+      transition={{ duration: 8, repeat: Infinity }}
+      className="absolute -top-20 -left-20 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[150px]"
+    />
+    
+    <motion.div
+      animate={{ 
+        scale: [1, 1.3, 1],
+        opacity: [0.2, 0.4, 0.2]
+      }}
+      transition={{ duration: 10, repeat: Infinity, delay: 2 }}
+      className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[150px]"
+    />
+
+    {/* Floating particles */}
+    {Array.from({ length: 20 }).map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute w-1 h-1 bg-white/20 rounded-full"
+        style={{
+          left: `${Math.random() * 100}%`,
+          top: `${Math.random() * 100}%`,
+        }}
+        animate={{
+          y: [0, -30, 0],
+          opacity: [0.2, 0.5, 0.2],
+        }}
+        transition={{
+          duration: 3 + Math.random() * 2,
+          repeat: Infinity,
+          delay: Math.random() * 2,
+        }}
+      />
+    ))}
+  </div>
+)
+
+// Login form schema
+const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+type LoginFormData = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const t = useTranslations('Auth')
-  const tLanding = useTranslations('Landing')
   const router = useRouter()
-
+  const { showToast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const loginSchema = z.object({
-    username: z.string().min(1, t('identifierRequired')),
-    password: z.string().min(1, t('passwordRequired')),
-  })
-
-  const form = useForm<z.infer<typeof loginSchema>>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
   })
 
-  async function onSubmit(values: z.infer<typeof loginSchema>) {
+  const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
-      const response = await authApi.login({ 
-        username: values.username, 
-        password: values.password 
+      const response = await authApi.login({
+        username: data.username,
+        password: data.password,
       })
-      
-      handleSuccessfulLogin(response.data)
-    } catch (error: unknown) {
-      const axiosErr = error as { response?: { data?: { detail?: string } }; message?: string }
-      const detail = axiosErr.response?.data?.detail || axiosErr.message || t('criticalAuthFailure')
-      toast.error(detail)
+
+      const { access_token, refresh_token, user } = response.data
+      authApi.setTokens(access_token, refresh_token)
+      authApi.setUserData(user?.id, user?.role)
+
+      showToast({
+        type: 'success',
+        title: 'Welcome back!',
+        description: `Logged in as ${user?.role}`,
+      })
+
+      // Redirect based on role
+      if (user?.role?.toLowerCase() === 'admin') {
+        router.push('/admin/dashboard')
+      } else {
+        router.push('/customer/dashboard')
+      }
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Login failed',
+        description: error.response?.data?.detail || 'Invalid credentials',
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function handleSuccessfulLogin(data: any) {
-    const { access_token, refresh_token, user } = data
-    authApi.setTokens(access_token, refresh_token)
-    authApi.setUserData(user?.id, user?.role)
-    toast.success(t('securityClearanceGranted'))
-
-    if (user?.role?.toLowerCase() === "admin") {
-      router.push("/admin/daily-entry")
-    } else {
-      router.push("/customer/dashboard")
-    }
-  }
-
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative bg-background overflow-hidden selection:bg-primary/30 text-foreground">
-      {/* atmospheric lighting */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[200px] animate-pulse-glow opacity-30" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[200px] animate-pulse-glow opacity-20 animation-delay-2000" />
-      </div>
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden">
+      {/* Background */}
+      <FloatingParticles />
 
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-background/90" />
+
+      {/* Content */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20, filter: "blur(10px)" }}
-        animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full max-w-[480px] p-6 relative z-10"
+        initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-md px-4 relative z-10"
       >
-        <div className="p-10 md:p-14 rounded-[3.5rem] glass-card relative overflow-hidden group">
-          {/* Top Scanline */}
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent animate-shimmer-sweep" />
-
-          <div className="flex flex-col items-center">
+        <GlassCard padding="lg" className="shadow-2xl">
+          {/* Header */}
+          <div className="text-center mb-8">
             <motion.div
-              initial={{ rotate: -15, scale: 0.5, opacity: 0 }}
-              animate={{ rotate: 0, scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 100 }}
-              className="relative mb-8"
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6"
             >
-              <div className="absolute inset-0 bg-primary/20 blur-[50px] animate-pulse" />
-              <div className="relative p-5 rounded-2xl bg-primary shadow-glow-primary">
-                <Lock className="w-8 h-8 text-white" />
-              </div>
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+              >
+                <Lock className="w-8 h-8 text-primary" />
+              </motion.div>
             </motion.div>
 
-            <div className="text-center mb-10">
-              <h1 className="text-4xl font-black tracking-tighter text-white font-heading italic uppercase leading-none mb-3">
-                {tLanding('nav.authorize')}
-              </h1>
-              <p className="font-micro text-[10px] tracking-[0.4em] text-white/30 uppercase">
-                {t('initializeData')}
-              </p>
+            <h1 className="text-2xl font-bold text-foreground mb-2">
+              Welcome back
+            </h1>
+            <p className="text-sm text-foreground/60">
+              Sign in to your DairyDay account
+            </p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <PremiumInput
+              label="Username"
+              placeholder="Enter your username"
+              icon={Lock}
+              error={errors.username?.message}
+              {...register('username')}
+            />
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground/60 uppercase tracking-wider">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  className="w-full pl-4 pr-12 py-4 rounded-xl bg-white/[0.03] border border-white/[0.08] text-foreground placeholder:text-foreground/30 focus:outline-none focus:bg-white/[0.06] focus:border-primary/50 transition-all duration-300 hover:bg-white/[0.05] hover:border-white/[0.12]"
+                  {...register('password')}
+                />
+                <motion.button
+                  type="button"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </motion.button>
+              </div>
+              {errors.password && (
+                <p className="text-xs text-red-400">{errors.password.message}</p>
+              )}
             </div>
 
-            <div className="w-full">
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="w-full space-y-6">
-                  <div className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem className="space-y-2">
-                          <FormLabel className="font-micro ml-1">{t('identifierKey')}</FormLabel>
-                          <FormControl>
-                            <div className="relative group/input">
-                              <Input
-                                placeholder={t('operatorCodePlaceholder')}
-                                className="h-14 bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] rounded-xl transition-all duration-500 pl-6 text-white font-bold tracking-tight text-base"
-                                {...field}
-                              />
-                              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent scale-x-0 group-focus-within/input:scale-x-100 transition-transform duration-700" />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="font-micro text-destructive" />
-                        </FormItem>
-                      )}
-                    />
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded bg-white/5 border-white/10 text-primary focus:ring-primary" />
+                <span className="text-sm text-foreground/60">Remember me</span>
+              </label>
+              
+              <Link
+                href="/forgot-password"
+                className="text-sm text-primary hover:text-primary/80 transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
-                    <FormField
-                      control={form.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem className="space-y-2">
-                          <FormLabel className="font-micro ml-1">{t('securityAuth')}</FormLabel>
-                          <FormControl>
-                            <div className="relative group/input">
-                              <Input
-                                type={showPassword ? "text" : "password"}
-                                placeholder="••••••••"
-                                className="h-14 bg-white/[0.02] border-white/5 focus:border-primary/40 focus:bg-white/[0.04] rounded-xl transition-all duration-500 pl-6 pr-12 text-white font-bold tracking-tight text-base"
-                                {...field}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-primary transition-colors p-2"
-                              >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                              </button>
-                              <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent scale-x-0 group-focus-within/input:scale-x-100 transition-transform duration-700" />
-                            </div>
-                          </FormControl>
-                          <FormMessage className="font-micro text-destructive" />
-                        </FormItem>
-                      )}
-                    />
+            <MasterButton
+              type="submit"
+              loading={isLoading}
+              fullWidth
+              className="mt-6"
+            >
+              Sign In
+              <ArrowRight className="w-5 h-5" />
+            </MasterButton>
+          </form>
 
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2 group cursor-pointer">
-                        <div className="w-3.5 h-3.5 rounded border border-white/10 group-hover:border-primary transition-colors bg-white/[0.02]" />
-                        <span className="font-micro opacity-40 group-hover:opacity-100">{t('stayPersistent')}</span>
-                      </div>
-                      <Link href="/forgot-password" className="font-micro text-primary/60 hover:text-primary transition-colors italic text-xs">
-                        {t('forgotPassword')}
-                      </Link>
-                    </div>
-                  </div>
+          {/* Sign up link */}
+          <p className="text-center mt-6 text-sm text-foreground/60">
+            Don't have an account?{' '}
+            <Link href="/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
+              Sign up
+            </Link>
+          </p>
 
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full h-16 rounded-2xl bg-white text-black hover:bg-primary hover:text-white text-lg font-heading font-black italic tracking-tight transition-all duration-700 group relative overflow-hidden mt-6"
-                  >
-                    <AnimatePresence mode="wait">
-                      {isLoading ? (
-                        <motion.div
-                          key="loading"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="flex items-center justify-center gap-3"
-                        >
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>{t('verifying').toUpperCase()}</span>
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="ready"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="flex items-center justify-center gap-3"
-                        >
-                          <span>{tLanding('nav.authorize').toUpperCase()}</span>
-                          <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform duration-500" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Button>
-                </form>
-              </Form>
+          {/* Footer */}
+          <div className="mt-8 pt-6 border-t border-white/[0.08]">
+            <div className="flex items-center justify-center gap-2 text-xs text-foreground/40">
+              <Shield className="w-4 h-4" />
+              <span>256-bit TLS encryption</span>
             </div>
           </div>
-        </div>
+        </GlassCard>
 
+        {/* Brand */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-8 flex items-center justify-center gap-4"
+          transition={{ delay: 0.5 }}
+          className="text-center mt-8"
         >
-          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-          <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/5 bg-white/[0.01] backdrop-blur-md">
-            <ShieldCheck className="w-3.5 h-3.5 text-primary opacity-50" />
-            <span className="font-micro text-[8px] tracking-[0.4em] opacity-30">{t('encryptedAuthBridge')}</span>
-          </div>
-          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/5 to-transparent" />
+          <p className="text-xl font-bold text-foreground mb-1">DairyDay</p>
+          <p className="text-xs text-foreground/40">Premium milk delivery platform</p>
         </motion.div>
       </motion.div>
-
-      {/* Cyber Diagnostics Footer */}
-      <div className="absolute bottom-8 left-0 right-0 px-10 flex justify-between items-center pointer-events-none opacity-20">
-        <div className="flex gap-12">
-          <div className="flex flex-col">
-            <span className="font-micro text-[8px] mb-1">{t('regionLabel')}</span>
-            <span className="font-heading font-black italic text-lg tracking-tighter">IN-WEST-1</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-micro text-[8px] mb-1">{t('encryptionLabel')}</span>
-            <span className="font-heading font-black italic text-lg tracking-tighter">ECDSA_384</span>
-          </div>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="font-micro text-[8px] mb-1">{t('systemUptime')}</span>
-          <span className="font-heading font-black italic text-lg tracking-tighter">99.999%</span>
-        </div>
-      </div>
     </div>
   )
 }

@@ -1,108 +1,137 @@
-"use client";
+'use client'
 
-import { usePathname } from "next/navigation";
-import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { cn } from '@/lib/utils'
 import { 
   Home, 
-  Droplets, 
-  Receipt, 
-  Users, 
+  Calendar, 
+  Wallet, 
   Settings,
-  LayoutDashboard,
-  QrCode,
-  FileText
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  ClipboardList,
+  Users,
+  Receipt,
+  BarChart3,
+  Milk
+} from 'lucide-react'
+
+/**
+ * Mobile Bottom Navigation
+ * Premium bottom navigation for mobile users
+ */
 
 interface NavItem {
-  href: string;
-  icon: React.ElementType;
-  label: string;
-  adminOnly?: boolean;
+  icon: typeof Home
+  label: string
+  href: string
 }
-
-const adminNavItems: NavItem[] = [
-  { href: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/daily-entry", icon: Droplets, label: "Entry" },
-  { href: "/admin/bills", icon: Receipt, label: "Bills" },
-  { href: "/admin/users", icon: Users, label: "Users" },
-];
-
-const customerNavItems: NavItem[] = [
-  { href: "/customer/dashboard", icon: Home, label: "Home" },
-  { href: "/customer/bills", icon: FileText, label: "Bills" },
-  { href: "/customer/pay", icon: QrCode, label: "Pay" },
-  { href: "/customer/settings", icon: Settings, label: "Settings" },
-];
 
 interface BottomNavProps {
-  role: "admin" | "customer";
+  items: NavItem[]
 }
 
-export function BottomNav({ role }: BottomNavProps) {
-  const pathname = usePathname();
-  const navItems = role === "admin" ? adminNavItems : customerNavItems;
+// Customer navigation
+export const customerNavItems: NavItem[] = [
+  { icon: Home, label: 'Home', href: '/customer/dashboard' },
+  { icon: Calendar, label: 'Calendar', href: '/customer/calendar' },
+  { icon: Milk, label: 'Records', href: '/customer/records' },
+  { icon: Receipt, label: 'Payment', href: '/customer/payment' },
+  { icon: Settings, label: 'Settings', href: '/customer/settings' },
+]
 
-  // Don't show on login/signup pages
-  if (pathname.includes("/login") || pathname.includes("/signup")) {
-    return null;
-  }
+// Admin navigation
+export const adminNavItems: NavItem[] = [
+  { icon: Home, label: 'Dashboard', href: '/admin/dashboard' },
+  { icon: ClipboardList, label: 'Entry', href: '/admin/daily-entry' },
+  { icon: Users, label: 'Customers', href: '/admin/customers' },
+  { icon: Receipt, label: 'Bills', href: '/admin/bills' },
+  { icon: BarChart3, label: 'Analytics', href: '/admin/consumption' },
+]
+
+export function BottomNav({ items }: BottomNavProps) {
+  const pathname = usePathname()
+  const activeIndex = items.findIndex(item => 
+    pathname.startsWith(item.href)
+  )
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-      {/* Glassmorphism container with safe area padding */}
-      <div className="glass-card mx-4 mb-4 rounded-2xl pb-[env(safe-area-inset-bottom)] border-white/10">
-        <div className="flex justify-around items-center h-16 px-2">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
+    <motion.nav
+      initial={{ y: 100 }}
+      animate={{ y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30, delay: 0.2 }}
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden pb-safe"
+    >
+      {/* Glass background */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl border-t border-white/[0.08]" />
+
+      {/* Navigation items */}
+      <div className="relative flex items-center justify-around px-2 py-3 max-w-lg mx-auto">
+        {items.map((item, index) => {
+          const Icon = item.icon
+          const isActive = activeIndex === index
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="relative flex flex-col items-center min-w-[64px] py-2"
+            >
+              {/* Active indicator */}
+              <AnimatePresence>
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-pill"
+                    className="absolute -top-1 inset-x-4 h-1 rounded-full bg-primary"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Icon */}
+              <motion.div
+                animate={{
+                  scale: isActive ? 1.1 : 1,
+                  y: isActive ? -4 : 0,
+                }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 className={cn(
-                  "relative flex flex-col items-center justify-center w-16 h-14 rounded-xl transition-all duration-200",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                  'w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300',
+                  isActive 
+                    ? 'bg-primary/20 text-primary' 
+                    : 'text-foreground/40'
                 )}
               >
-                {/* Active indicator glow */}
+                <Icon className="w-5 h-5" />
+                
                 {isActive && (
                   <motion.div
-                    layoutId="bottomNavIndicator"
-                    className="absolute inset-0 bg-primary/10 rounded-xl"
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    layoutId="nav-glow"
+                    className="absolute inset-0 rounded-2xl bg-primary/20 blur-xl"
                   />
                 )}
-                
-                <item.icon 
-                  className={cn(
-                    "w-5 h-5 mb-1 transition-all duration-200",
-                    isActive ? "stroke-[2.5px]" : "stroke-[1.5px]"
-                  )} 
-                />
-                <span className={cn(
-                  "text-[10px] font-medium transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
-                )}>
-                  {item.label}
-                </span>
-                
-                {/* Active dot */}
-                {isActive && (
-                  <motion.div
-                    layoutId="bottomNavDot"
-                    className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-primary"
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                )}
-              </Link>
-            );
-          })}
-        </div>
+              </motion.div>
+
+              {/* Label */}
+              <motion.span
+                animate={{
+                  opacity: isActive ? 1 : 0.7,
+                  color: isActive ? '#6366f1' : 'rgba(255,255,255,0.4)',
+                }}
+                className="text-[10px] font-medium mt-1"
+              >
+                {item.label}
+              </motion.span>
+            </Link>
+          )
+        })}
       </div>
-    </nav>
-  );
+    </motion.nav>
+  )
 }
+
+// For importing
+import { AnimatePresence } from 'framer-motion'

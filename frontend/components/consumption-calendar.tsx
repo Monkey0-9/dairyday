@@ -7,14 +7,8 @@ import { Loader2, Milk, Lock, ShieldCheck, Activity, Sparkles } from "lucide-rea
 import { toast } from "sonner"
 
 import { Calendar } from "@/components/ui/calendar"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { DialogFooter } from "@/components/ui/dialog"
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -358,17 +352,15 @@ export default function ConsumptionCalendar() {
         </AnimatePresence>
       </motion.div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="p-0 sm:max-w-[440px] border-border/10 bg-background/95 dark:bg-black/95 text-foreground rounded-[2.5rem] overflow-hidden shadow-2xl">
+      <ResponsiveDialog
+        isOpen={isDialogOpen}
+        setIsOpen={setIsDialogOpen}
+        className="p-0 sm:max-w-[440px] border-border/10 bg-background/95 dark:bg-black/95 text-foreground rounded-[2.5rem] overflow-hidden shadow-2xl"
+        title={<span className="text-3xl font-black font-heading italic uppercase tracking-tighter text-foreground">{t('ghost')} <span className="text-primary italic">{t('mode')}</span></span>}
+        description={<span className="font-micro text-foreground/20 tracking-[0.2em] uppercase text-[10px] block mt-2">{t('temporalMod')} {date && format(date, 'yyyy.MM.dd')}</span>}
+      >
           <div className="max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-foreground/10 scrollbar-track-transparent">
             <div className="p-8 sm:p-10 space-y-8">
-              <DialogHeader className="space-y-2">
-                <DialogTitle className="text-3xl font-black font-heading italic uppercase tracking-tighter text-foreground">{t('ghost')} <span className="text-primary italic">{t('mode')}</span></DialogTitle>
-                <DialogDescription className="font-micro text-foreground/20 tracking-[0.2em] uppercase text-[10px]">
-                  {t('temporalMod')} {date && format(date, 'yyyy.MM.dd')}
-                </DialogDescription>
-              </DialogHeader>
-
               <div className="space-y-8">
                 <div className="flex items-center justify-between p-6 bg-foreground/[0.03] rounded-2xl border border-border/5">
                   <div className="space-y-1">
@@ -445,8 +437,7 @@ export default function ConsumptionCalendar() {
               </DialogFooter>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   )
 }

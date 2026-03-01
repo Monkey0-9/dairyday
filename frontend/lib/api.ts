@@ -294,6 +294,10 @@ export const adminApi = {
   },
   sendReminder: (billId: string) => api.post(`/admin/payments/remind/${billId}`),
   getAuditLogs: () => api.get('/admin/audit-logs'),
+  lock: (month: string, userId?: string) =>
+    api.post(`/admin/lock?month=${month}${userId ? `&user_id=${userId}` : ""}`),
+  unlock: (month: string, userId?: string) =>
+    api.post(`/admin/unlock?month=${month}${userId ? `&user_id=${userId}` : ""}`),
 };
 
 // Admin Auth API

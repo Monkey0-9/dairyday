@@ -43,14 +43,8 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { billsApi, paymentsApi, adminApi } from "@/lib/api"
 import { cn, formatApiError } from "@/lib/utils"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { DialogFooter } from "@/components/ui/dialog"
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog"
 import {
   Select,
   SelectContent,
@@ -593,23 +587,25 @@ export default function AdminBillsPage() {
       </section>
 
       {/* Settlement Protocol Modal */}
-      <Dialog open={isCashModalOpen} onOpenChange={setIsCashModalOpen}>
-        <DialogContent className="max-w-[440px] bg-obsidian-900 border-white/5 text-white rounded-2xl p-0 flex flex-col fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[calc(100%-2rem)] shadow-2xl overflow-hidden focus:outline-none focus:ring-0 border-0">
-          <div className="flex flex-col h-full overflow-hidden">
-            {/* Modal Header - Fixed */}
-            <div className="p-6 pb-2">
-              <DialogHeader className="space-y-4">
-                <div className="h-12 w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-glow-emerald/10">
-                  <Fingerprint size={24} />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl lg:text-2xl font-black font-heading italic tracking-tight uppercase leading-none">{t('settlementProto')}</DialogTitle>
-                  <DialogDescription className="text-white/30 tracking-[0.2em] uppercase mt-1 text-[8px] font-bold">
-                    {t('finalizingReconciliation')} {selectedBill?.user_id?.split('-')[0].toUpperCase()}
-                  </DialogDescription>
-                </div>
-              </DialogHeader>
+      <ResponsiveDialog
+        isOpen={isCashModalOpen}
+        setIsOpen={setIsCashModalOpen}
+        className="max-w-[440px] bg-obsidian-900 border-white/5 text-white p-0 overflow-hidden"
+        title={
+          <div className="space-y-4">
+            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-glow-emerald/10 mb-3">
+              <Fingerprint size={24} />
             </div>
+            <span className="text-xl lg:text-2xl font-black font-heading italic tracking-tight uppercase leading-none block">{t('settlementProto')}</span>
+          </div>
+        }
+        description={
+          <span className="text-white/30 tracking-[0.2em] uppercase mt-1 text-[8px] font-bold block">
+            {t('finalizingReconciliation')} {selectedBill?.user_id?.split('-')[0].toUpperCase()}
+          </span>
+        }
+      >
+          <div className="flex flex-col h-full overflow-hidden">
 
             {/* Scrollable Body Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2 space-y-4">
@@ -686,8 +682,7 @@ export default function AdminBillsPage() {
               </Button>
             </DialogFooter>
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   )
 }

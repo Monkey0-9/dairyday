@@ -33,13 +33,13 @@ const FeatureCard = ({ title, desc, icon, delay = 0 }: { title: string, desc: st
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
     transition={{ delay, duration: 0.8 }}
-    className="group relative p-10 rounded-[2.5rem] bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/5 hover:border-amber-500/30 transition-all duration-500 shadow-xl hover:shadow-amber-500/10"
+    className="group relative p-10 rounded-[2.5rem] glass-card"
   >
-    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/20 dark:to-amber-800/20 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-8 group-hover:scale-110 transition-transform duration-500 shadow-inner">
+    <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-glow-primary hover:shadow-glow-intense">
       {icon}
     </div>
-    <h3 className="text-2xl font-heading font-black tracking-tight mb-4 text-slate-900 dark:text-white uppercase italic">{title}</h3>
-    <p className="text-slate-600 dark:text-slate-400 font-medium leading-relaxed">{desc}</p>
+    <h3 className="text-2xl font-heading font-black tracking-tight mb-4 text-foreground uppercase italic">{title}</h3>
+    <p className="text-muted-foreground font-medium leading-relaxed">{desc}</p>
   </motion.div>
 );
 
@@ -58,18 +58,18 @@ export default function LandingPage() {
   const textY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-[#FFFDF0] dark:bg-slate-950 selection:bg-amber-100 overflow-x-hidden">
+    <div ref={containerRef} className="min-h-screen bg-transparent selection:bg-primary/20 overflow-x-hidden">
       {/* Premium Header */}
       <header className="fixed top-0 left-0 right-0 z-[100] h-24 flex items-center">
-        <div className="absolute inset-0 bg-white/40 dark:bg-slate-950/40 backdrop-blur-2xl border-b border-white/10" />
-        <div className="container mx-auto px-6 flex items-center justify-between relative z-10">
+        <div className="absolute inset-0 bg-background/40 backdrop-blur-2xl border-b border-border/50" />
+        <div className="container mx-auto px-6 flex items-center justify-between relative z-10 touch-target-auto">
           <Link href="/" className="flex items-center gap-4 group">
-            <div className="p-2.5 rounded-2xl bg-amber-500 shadow-lg shadow-amber-500/20 group-hover:rotate-12 transition-transform duration-500">
+            <div className="p-2.5 rounded-2xl bg-primary shadow-glow-primary group-hover:rotate-12 transition-transform duration-500">
               <Milk className="h-6 w-6 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="font-heading font-black text-2xl tracking-tighter text-slate-900 dark:text-white italic uppercase leading-none">DairyDays</span>
-              <span className="text-[10px] font-bold tracking-[0.3em] text-amber-600 uppercase mt-1">Heritage Quality</span>
+              <span className="font-heading font-black text-2xl tracking-tighter text-foreground italic uppercase leading-none">DairyDays</span>
+              <span className="text-[10px] font-bold tracking-[0.3em] text-primary uppercase mt-1">Heritage Quality</span>
             </div>
           </Link>
 
@@ -86,7 +86,7 @@ export default function LandingPage() {
                 <LanguageSwitcher />
                 <ThemeToggle />
               </div>
-              <Button asChild className="h-12 px-8 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-amber-500 hover:text-white transition-all duration-500 font-bold italic shadow-xl shadow-black/5">
+              <Button asChild variant="glow" size="lg" className="h-12 px-8 rounded-full font-bold italic">
                 <Link href="/login">Customer Portal</Link>
               </Button>
             </div>
@@ -129,7 +129,7 @@ export default function LandingPage() {
               priority
               className="object-cover scale-110 brightness-[0.85] dark:brightness-[0.6]"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#FFFDF0] dark:to-slate-950" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
           </motion.div>
 
           <div className="container px-6 mx-auto relative z-10 text-center mt-20">
@@ -143,19 +143,19 @@ export default function LandingPage() {
                 {tHero('tagline')}
               </span>
               <h1 className="text-7xl md:text-[10rem] font-heading font-black text-white italic leading-[0.8] mb-12 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                {tHero('title')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-200">{tHero('titleHighlight')}</span>
+                {tHero('title')} <span className="text-gradient">{tHero('titleHighlight')}</span>
               </h1>
               <p className="max-w-2xl mx-auto text-white/80 text-lg md:text-2xl font-medium tracking-wide mb-16 drop-shadow-lg">
                 {tHero('subtitle')}
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
-                <Button asChild size="lg" className="h-20 px-12 rounded-3xl bg-amber-500 hover:bg-white hover:text-amber-600 text-white text-2xl font-heading font-black italic shadow-2xl shadow-amber-500/40 transition-all duration-700 group relative overflow-hidden">
-                  <Link href="/login" className="flex items-center gap-4 relative z-10">
+                <Button asChild variant="glow" size="xl" className="rounded-3xl hover-lift group relative overflow-hidden">
+                  <Link href="/login" className="flex items-center gap-4 relative z-10 w-full justify-center">
                     {tHero('initialize')} <ArrowRight className="w-6 h-6 group-hover:translate-x-3 transition-transform duration-500" />
                   </Link>
                 </Button>
-                <Button variant="outline" size="lg" className="h-20 px-12 rounded-3xl border-2 border-white/30 text-white hover:bg-white hover:text-slate-900 text-2xl font-heading font-black italic backdrop-blur-xl transition-all duration-700">
-                  <Link href="#collection">{tHero('status')}</Link>
+                <Button variant="glass" size="xl" asChild className="rounded-3xl hover-lift">
+                  <Link href="#collection" className="w-full justify-center">{tHero('status')}</Link>
                 </Button>
               </div>
             </motion.div>
@@ -192,8 +192,8 @@ export default function LandingPage() {
               </motion.div>
               
               <div>
-                <span className="text-amber-600 text-sm font-black tracking-[0.4em] uppercase mb-6 block">{tFeatures('core')}</span>
-                <h2 className="text-5xl md:text-7xl font-heading font-black text-slate-900 dark:text-white uppercase italic leading-[0.9] mb-12">
+                <span className="text-primary text-sm font-black tracking-[0.4em] uppercase mb-6 block">{tFeatures('core')}</span>
+                <h2 className="text-5xl md:text-7xl font-heading font-black text-foreground uppercase italic leading-[0.9] mb-12">
                   {tFeatures('mainTitle')}
                 </h2>
                 <div className="space-y-12">
@@ -222,12 +222,12 @@ export default function LandingPage() {
                       transition={{ delay: idx * 0.2 }}
                       className="flex gap-8 group"
                     >
-                      <div className="flex-shrink-0 w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 flex items-center justify-center text-amber-600 shadow-xl group-hover:bg-amber-500 group-hover:text-white transition-all duration-500">
+                      <div className="flex-shrink-0 w-16 h-16 rounded-[1.5rem] bg-card border border-border flex items-center justify-center text-primary shadow-glow-sm hover:shadow-glow-intense group-hover:bg-primary group-hover:text-white transition-all duration-500 outline outline-transparent outline-offset-2 focus-visible:outline-primary touch-target-auto">
                         {item.icon}
                       </div>
                       <div>
-                        <h4 className="text-xl font-heading font-black text-slate-900 dark:text-white uppercase italic mb-2 tracking-tight">{item.title}</h4>
-                        <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{item.desc}</p>
+                        <h4 className="text-xl font-heading font-black text-foreground uppercase italic mb-2 tracking-tight">{item.title}</h4>
+                        <p className="text-muted-foreground font-medium leading-relaxed">{item.desc}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -238,17 +238,17 @@ export default function LandingPage() {
         </section>
 
         {/* Feature Grid */}
-        <section className="py-40 bg-slate-50 dark:bg-slate-900/40 relative">
+        <section className="py-40 bg-card/10 relative">
           <div className="container px-6 mx-auto text-center mb-24">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-6xl md:text-8xl font-heading font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-8">
+              <h2 className="text-6xl md:text-8xl font-heading font-black text-foreground uppercase italic tracking-tighter mb-8">
                 {tFeatures('titleHighlight')}
               </h2>
-              <div className="w-24 h-1.5 bg-amber-500 mx-auto rounded-full" />
+              <div className="w-24 h-1.5 bg-primary mx-auto rounded-full shadow-glow-primary" />
             </motion.div>
           </div>
 
@@ -287,21 +287,21 @@ export default function LandingPage() {
                <h2 className="text-5xl md:text-7xl font-heading font-black text-white uppercase italic leading-none mb-12">
                  THE FINEST SELECTION<br />FOR YOUR FAMILY
                </h2>
-               <Button asChild size="lg" className="h-20 px-12 rounded-[2rem] bg-white text-slate-900 hover:bg-amber-500 hover:text-white text-2xl font-heading font-black italic shadow-2xl transition-all duration-700">
+                <Button variant="glow" asChild size="xl" className="rounded-[2rem] hover-lift">
                   <Link href="/login">Secure Your Daily Supply</Link>
-               </Button>
+                </Button>
             </motion.div>
           </div>
         </section>
       </main>
 
       {/* Premium Footer */}
-      <footer className="pt-40 pb-20 border-t border-slate-200 dark:border-white/5 bg-white dark:bg-slate-950">
+      <footer className="pt-40 pb-20 border-t border-border/50 bg-background/80 backdrop-blur-3xl">
         <div className="container px-6 mx-auto">
           <div className="flex flex-col lg:flex-row justify-between items-start gap-20 mb-32">
             <div className="max-w-sm">
               <div className="flex items-center gap-4 mb-8">
-                <div className="p-2 rounded-xl bg-amber-500">
+                <div className="p-2 rounded-xl bg-primary shadow-glow-primary">
                   <Milk className="h-6 w-6 text-white" />
                 </div>
                 <span className="font-heading font-black text-3xl tracking-tighter italic uppercase">DairyDays</span>
@@ -311,7 +311,7 @@ export default function LandingPage() {
               </p>
               <div className="flex gap-4">
                  {[1,2,3,4].map(idx => (
-                   <div key={idx} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:border-amber-500 transition-colors" />
+                   <div key={idx} className="w-10 h-10 rounded-xl bg-card border border-border hover:border-primary transition-colors hover:shadow-glow-sm" />
                  ))}
               </div>
             </div>
@@ -327,7 +327,7 @@ export default function LandingPage() {
                   <ul className="space-y-4">
                     {group.links.map(link => (
                       <li key={link}>
-                        <Link href="#" className="font-bold text-sm text-slate-600 dark:text-slate-400 hover:text-amber-600 transition-colors uppercase italic tracking-tight">{link}</Link>
+                        <Link href="#" className="font-bold text-sm text-muted-foreground hover:text-primary transition-colors uppercase italic tracking-tight">{link}</Link>
                       </li>
                     ))}
                   </ul>

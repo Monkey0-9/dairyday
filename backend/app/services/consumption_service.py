@@ -121,6 +121,13 @@ class ConsumptionService:
 
             grid.append(row)
 
+        # 5. Add locking status
+        for row in grid:
+            u_id = row["user_id"]
+            # Check if any record for this user is locked
+            u_cons = [c for c in consumptions if str(c.user_id) == u_id]
+            row["is_locked"] = any(c.locked for c in u_cons)
+
         return grid
 
     async def upsert_admin(
@@ -134,8 +141,6 @@ class ConsumptionService:
         admin_id: UUID,
     ):
         """Admin upsert with audit logging."""
-        if LockService.is_date_locked(date_val):
-            raise ValueError("Date is locked")
 
         existing = await self.consumption_repo.get_by_user_and_date(user_id, date_val)
 
