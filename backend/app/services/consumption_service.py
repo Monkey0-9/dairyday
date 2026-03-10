@@ -5,7 +5,7 @@ Elite Standard: Centralized business logic for consumption tracking.
 
 import logging
 import datetime
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from uuid import UUID
 from calendar import monthrange
 
@@ -17,7 +17,7 @@ from app.models.consumption import Consumption
 from app.models.consumption_audit import ConsumptionAudit
 from app.repositories.consumption_repository import ConsumptionRepository
 from app.repositories.user_repository import UserRepository
-from app.services.lock_service import LockService
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +141,14 @@ class ConsumptionService:
         admin_id: UUID,
     ):
         """Admin upsert with audit logging."""
+
+        # 7-day lock: prevent editing entries older than LOCK_DAYS
+        cutoff_date = datetime.date.today() - datetime.timedelta(days=settings.LOCK_DAYS)
+        if date_val < cutoff_date:
+            raise ValueError(
+                f"Cannot edit consumption entries older than {settings.LOCK_DAYS} days. "
+                f"Entry date {date_val} is before the lock cutoff {cutoff_date}."
+            )
 
         existing = await self.consumption_repo.get_by_user_and_date(user_id, date_val)
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Loader2, Milk } from 'lucide-react';
+import { Milk } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -148,15 +148,17 @@ export function InlineLoader({ size = 'md', text, className }: InlineLoaderProps
 // Skeleton loading states
 interface SkeletonProps {
   className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Skeleton({ className }: SkeletonProps) {
+export function Skeleton({ className, style }: SkeletonProps) {
   return (
     <div
       className={cn(
         'relative overflow-hidden rounded bg-white/[0.05]',
         className
       )}
+      style={style}
     >
       <motion.div
         className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"

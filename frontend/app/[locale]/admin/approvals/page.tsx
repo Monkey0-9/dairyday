@@ -78,7 +78,7 @@ interface PendingRequest {
 }
 
 export default function ApprovalsPage() {
-  const t = useTranslations('Admin.dailyEntry')
+  const t = useTranslations('Admin.approvals')
   const tCommon = useTranslations('Common')
   const locale = useLocale()
   const dateFnsLocale = getDateFnsLocale(locale)

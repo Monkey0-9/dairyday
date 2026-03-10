@@ -1,5 +1,8 @@
+"use client";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 /* ─── Premium Skeleton Components ─── */
 
@@ -144,4 +147,38 @@ export const StatsSkeleton = ({ count = 3 }: { count?: number }) => (
 
 export const DailyEntrySkeleton = ({ count = 8 }: { count?: number }) => (
     <TimelineSkeleton count={count} />
+);
+
+export const MilkPourSkeleton = () => (
+    <div className="relative overflow-hidden rounded-[2rem] bg-white/[0.01] border border-white/5 h-40 flex items-end justify-center glass-card">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
+        <motion.div 
+            initial={{ height: "0%" }}
+            animate={{ height: ["0%", "100%", "100%", "0%"] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            className="w-full bg-white/10 relative"
+        >
+            <div className="absolute top-0 left-0 right-0 h-4 bg-white/20 blur-sm mix-blend-screen" />
+            <div className="absolute inset-x-0 bottom-0 h-full bg-gradient-to-t from-white/5 to-transparent blur-md" />
+        </motion.div>
+        {/* Simulated Drops */}
+        <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: [0, 160], opacity: [0, 1, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: 0.2, ease: "easeIn" }}
+            className="absolute top-0 left-[40%] w-1.5 h-4 rounded-full bg-white/40 blur-[1px]"
+        />
+        <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: [0, 160], opacity: [0, 1, 0] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.8, ease: "easeIn" }}
+            className="absolute top-0 right-[35%] w-2 h-5 rounded-full bg-white/30 blur-[1px]"
+        />
+        <div className="absolute z-20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-glow-sm">
+                <Skeleton className="h-6 w-16 bg-white/20 rounded-lg animate-pulse" />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/30 italic drop-shadow-md">Synthesizing...</span>
+        </div>
+    </div>
 );

@@ -14,11 +14,10 @@ import {
   TrendingUp, 
   Wallet, 
   Settings,
-  FileText,
   Receipt,
   CheckCircle2,
   AlertCircle,
-  Milk
+  LucideIcon
 } from 'lucide-react'
 
 import { GlassCard, StatCard } from '@/components/ui/glass-card'
@@ -29,8 +28,8 @@ import { useToast } from '@/components/ui/toast-provider'
 import { consumptionApi, billsApi, authApi, paymentsApi } from '@/lib/api'
 
 // Quick action component
-const QuickAction = ({ href, icon: Icon, label, color }: any) => {
-  const colorClasses = {
+const QuickAction = ({ href, icon: Icon, label, color }: { href: string; icon: LucideIcon; label: string; color: 'indigo' | 'emerald' | 'amber' | 'purple' }) => {
+  const colorClasses: Record<string, string> = {
     indigo: 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20',
     emerald: 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20',
     amber: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20',
@@ -95,30 +94,33 @@ export default function CustomerDashboard() {
 
   const { data: consumption, isLoading: isLoadingConsumption } = useQuery({
     queryKey: ['my-consumption', monthStr],
-    queryFn: () => consumptionApi.getMine(monthStr).then(r => r.data),
+    queryFn: () => consumptionApi.getMine(monthStr).then(r => Array.isArray(r.data) ? r.data : (r.data.bills || r.data.items || r.data.data || [])).catch(() => []),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
   const { data: bill, isLoading: isLoadingBill } = useQuery({
     queryKey: ['my-bill', monthStr],
-    queryFn: () => billsApi.get(userId!, monthStr).then(r => r.data),
+    queryFn: () => billsApi.get(userId!, monthStr).then(r => {
+      const b = Array.isArray(r.data) ? r.data : (r.data.bills || r.data.items || r.data.data || []);
+      return b.length > 0 ? b[0] : null;
+    }).catch(() => null),
     enabled: !!userId,
     staleTime: 60_000,
   })
 
   // Calculate stats
-  const totalLiters = consumption?.reduce(
-    (acc: number, day: any) => acc + (day.quantity || day.liters || 0),
+  const totalLiters = Number(consumption?.reduce(
+    (acc: number, day: { quantity?: string | number; liters?: string | number }) => acc + Number(day.quantity || day.liters || 0),
     0
-  ) || 0
+  )) || 0
 
-  const streak = consumption?.reduce((count: number, day: any, index: number, arr: any[]) => {
-    if (arr[index].quantity > 0) return count + 1
+  const streak = consumption?.reduce((count: number, day: { quantity?: string | number }) => {
+    if (Number(day.quantity) > 0) return count + 1
     return count
   }, 0) || 0
 
-  const activeDays = consumption?.filter((d: any) => (d.quantity || d.liters) > 0).length || 0
+  const activeDays = consumption?.filter((d: { quantity?: string | number; liters?: string | number }) => Number(d.quantity || d.liters || 0) > 0).length || 0
   const avgDaily = activeDays > 0 ? totalLiters / activeDays : 0
 
   const billAmount = Number(bill?.total_amount || bill?.amount || 0)
@@ -129,11 +131,12 @@ export default function CustomerDashboard() {
     try {
       const res = await paymentsApi.createOrder(bill.id)
       window.location.href = res.data?.payment_url || '/customer/payment'
-    } catch (error: any) {
+    } catch (error: { response?: { data?: { detail?: string } } } | unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
       showToast({
         type: 'error',
         title: 'Payment failed',
-        description: error.response?.data?.detail || 'Unable to process payment'
+        description: err.response?.data?.detail || 'Unable to process payment'
       })
     }
   }
@@ -184,7 +187,7 @@ export default function CustomerDashboard() {
               variant="ghost"
               size="sm"
               onClick={() => handleMonthChange('next')}
-              disabled={selectedMonth && isSameMonth(selectedMonth, new Date())}
+              disabled={selectedMonth ? isSameMonth(selectedMonth, new Date()) : undefined}
             />
           </GlassCard>
         </motion.div>
@@ -330,7 +333,7 @@ export default function CustomerDashboard() {
                     <StreakBars streak={streak} />
                   </div>
                   
-                  <p className="text-sm text-foreground/40 mt-4">Keep going! You're doing great.</p>
+                  <p className="text-sm text-foreground/40 mt-4">Keep going! You&apos;re doing great.</p>
                 </div>
               </GlassCard>
             </motion.div>

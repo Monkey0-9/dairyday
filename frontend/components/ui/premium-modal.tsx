@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Info, Milk } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { createPortal } from 'react-dom';
@@ -380,8 +380,7 @@ export function QRModal({
   );
 }
 
-// Import Milk icon for QR modal
-import { Milk } from 'lucide-react';
+
 
 // Drawer for mobile
 interface DrawerProps extends Omit<ModalProps, 'size'> {

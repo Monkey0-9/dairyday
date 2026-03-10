@@ -1,10 +1,12 @@
-import { StatsSkeleton, TableSkeleton } from "@/components/skeletons"
+import { MilkPourSkeleton } from "@/components/skeletons"
 
 export default function Loading() {
     return (
-        <div className="p-6 space-y-8 animate-liquid-entrance">
-            <StatsSkeleton count={3} />
-            <TableSkeleton rows={6} cols={4} />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 animate-in fade-in zoom-in-95 duration-700">
+            <div className="w-full max-w-sm">
+                <MilkPourSkeleton />
+            </div>
+            <p className="mt-8 font-micro text-[10px] uppercase tracking-[0.4em] text-foreground/40 italic">Retrieving secure data...</p>
         </div>
     )
 }

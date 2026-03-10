@@ -20,8 +20,6 @@ import {
     Search,
     Trash2,
     Activity,
-    ShieldCheck,
-    ShieldX,
 } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -120,7 +118,7 @@ export default function ConsumptionGridPage() {
             })
             return { previousGridData }
         },
-        onError: (err: any, _newData, context) => {
+        onError: (err: { response?: { data?: { detail?: string } } }, _newData, context) => {
             queryClient.setQueryData(["consumption", monthStr], context?.previousGridData)
             const msg = err.response?.data?.detail || "Failed to update record"
             toast.error(msg)

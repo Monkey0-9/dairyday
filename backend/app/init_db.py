@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from app.db.base import Base
 from app.models.user import User
 from app.core.security import get_password_hash
+from app.core.config import settings
 from sqlalchemy import select
 
 
@@ -43,14 +44,15 @@ async def create_initial_data(engine=None):
         async with session.begin():
             # 1. Create/Verify Admin
             admin_email = "admin@dairy.com"
-            admin_pwd = os.getenv("ADMIN_PASSWORD")
-            if not admin_pwd:
+            admin_pwd = settings.ADMIN_PASSWORD
+            force_seed = settings.FORCE_ADMIN_SEED
+
+            if admin_pwd == "admin_dev_only_123":
                 if os.getenv("ENVIRONMENT") == "production":
                     raise RuntimeError(
                         "CRITICAL: ADMIN_PASSWORD environment variable "
                         "not set in production!"
                     )
-                admin_pwd = "admin_dev_only_123"  # Secure-ish dev fallback
                 print(
                     "WARNING: Using dev fallback for ADMIN_PASSWORD. "
                     "Set this in .env!"
@@ -74,7 +76,7 @@ async def create_initial_data(engine=None):
                 session.add(admin)
             else:
                 # Elite Standard: Force update admin settings in development/seeding
-                if os.getenv("FORCE_ADMIN_SEED", "false").lower() == "true":
+                if force_seed:
                     from app.core.security import verify_password
 
                     if not verify_password(admin_pwd, admin.hashed_password):

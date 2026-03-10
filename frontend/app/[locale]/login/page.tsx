@@ -106,11 +106,12 @@ export default function LoginPage() {
       } else {
         router.push('/customer/dashboard')
       }
-    } catch (error: any) {
+    } catch (error: { response?: { data?: { detail?: string } } } | unknown) {
+      const err = error as { response?: { data?: { detail?: string } } }
       showToast({
         type: 'error',
         title: 'Login failed',
-        description: error.response?.data?.detail || 'Invalid credentials',
+        description: err.response?.data?.detail || 'Invalid credentials',
       })
     } finally {
       setIsLoading(false)
@@ -220,7 +221,7 @@ export default function LoginPage() {
 
           {/* Sign up link */}
           <p className="text-center mt-6 text-sm text-foreground/60">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
               Sign up
             </Link>

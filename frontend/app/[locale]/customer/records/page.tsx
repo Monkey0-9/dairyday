@@ -1,377 +1,208 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import React, { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { format, isSameMonth } from "date-fns"
+import { useTranslations, useLocale } from "next-intl"
+import { format, subMonths, addMonths } from "date-fns"
+import { formatCurrency, getDateFnsLocale } from "@/lib/i18n-utils"
+import { consumptionApi, billsApi, usersApi } from "@/lib/api"
+import { motion } from "framer-motion"
 import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Calendar,
-  Zap,
-  Activity,
-  Fingerprint,
+  Milk, ChevronLeft, ChevronRight, CheckCircle2, XCircle,
+  Clock, BarChart3, FileText, CalendarDays
 } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
-import CountUp from "react-countup"
-import { useTranslations } from "next-intl"
-
-import { consumptionApi, authApi, billsApi } from "@/lib/api"
-import { cn } from "@/lib/utils"
-import { EmptyBillState, EmptyState } from "@/components/ui/empty-state"
-import { TimelineSkeleton } from "@/components/skeletons"
-import { PremiumErrorState } from "@/components/ui/state-displays"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
-interface ConsumptionDay {
+interface ConsumptionRecord {
+  id?: string
   date: string
-  quantity?: number | string
-  liters?: number | string
+  quantity: number
+  extra_qty?: number
+  status: string
 }
 
 interface Bill {
-  id: string;
-  month: string;
-  total_amount: number;
-  total_liters: number;
-  status: "PAID" | "UNPAID";
-  pdf_url?: string;
-  is_locked?: boolean;
+  id: string
+  month: string
+  total_liters: number
+  amount: number
+  status: string
 }
 
-export default function MilkRecordsPage() {
+export default function RecordsPage() {
   const t = useTranslations("Records")
   const tCommon = useTranslations("Common")
+  const locale = useLocale()
+  const dateFnsLocale = getDateFnsLocale(locale)
   const [selectedMonth, setSelectedMonth] = useState(new Date())
-  const [userId, setUserId] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"consumption" | "billing">("consumption")
-  const [mounted, setMounted] = useState(false)
   const monthStr = format(selectedMonth, "yyyy-MM")
 
-  useEffect(() => {
-    setUserId(authApi.getUserId())
-    setMounted(true)
-  }, [])
-
-  const {
-    data: consumption,
-    isLoading,
-    isError,
-    refetch
-  } = useQuery({
-    queryKey: ["my-consumption", monthStr],
-    queryFn: () => consumptionApi.getMine(monthStr).then((res: { data: ConsumptionDay[] }) => res.data),
-    enabled: !!userId,
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => usersApi.getMe().then(r => r.data) })
+  const { data: consumption = [], isLoading: loadingC } = useQuery<ConsumptionRecord[]>({
+    queryKey: ["consumption-mine", monthStr],
+    queryFn: async () => {
+      const res = await consumptionApi.getMine(monthStr)
+      const d = res.data
+      return Array.isArray(d) ? d : (d.records || d.items || d.data || [])
+    },
+    staleTime: 60_000,
   })
-
-  const {
-    data: bills,
-    isLoading: isBillsLoading,
-    isError: isBillsError,
-    refetch: refetchBills
-  } = useQuery({
+  const { data: bills = [], isLoading: loadingB } = useQuery<Bill[]>({
     queryKey: ["my-bills"],
-    queryFn: () => billsApi.list().then((r) => r.data),
-    enabled: !!userId,
+    queryFn: async () => {
+      const res = await billsApi.list()
+      const d = res.data
+      return Array.isArray(d) ? d : (d.bills || d.items || d.data || [])
+    },
+    staleTime: 120_000,
   })
 
+  const totalLiters = consumption.reduce((s, c) => s + Number(c.quantity || 0) + Number(c.extra_qty || 0), 0)
+  const delivered = consumption.filter(c => c.status === "DELIVERED" || c.quantity > 0).length
 
-  const totalLiters = useMemo(
-    () =>
-      consumption?.reduce(
-        (s: number, d: ConsumptionDay) => s + Number(d.quantity ?? d.liters ?? 0),
-        0
-      ) ?? 0,
-    [consumption]
-  )
-
-  const sortedRecords = useMemo(
-    () =>
-      consumption
-        ? [...consumption].sort(
-          (a: ConsumptionDay, b: ConsumptionDay) => b.date.localeCompare(a.date)
-        )
-        : [],
-    [consumption]
-  )
-
-  if (isError || isBillsError) {
-    return (
-      <div className="container mx-auto px-4 py-20 bg-background min-h-screen">
-        <PremiumErrorState
-          message={t('loadError') || "Failed to load records"}
-          onRetry={() => { refetch(); refetchBills(); }}
-        />
-      </div>
-    )
-  }
-
-  const handlePrev = () =>
-    setSelectedMonth((p) => { const d = new Date(p); d.setMonth(d.getMonth() - 1); return d })
-  const handleNext = () =>
-    setSelectedMonth((p) => { const d = new Date(p); d.setMonth(d.getMonth() + 1); return d })
-
-  const handleExport = async () => {
-    try {
-      const res = await consumptionApi.export(monthStr)
-      const url = window.URL.createObjectURL(new Blob([res.data]))
-      const link = document.createElement("a")
-      link.href = url
-      link.setAttribute("download", `milk_records_${monthStr}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-    } catch (e) {
-      console.error("Export failed", e)
-    }
+  const statusStyle: Record<string, string> = {
+    DELIVERED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    CANCELLED: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    SKIPPED: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    PENDING: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   }
 
   return (
-    <div className="min-h-screen bg-transparent text-foreground selection:bg-primary/40 relative">
-      {/* High-Fidelity Atmosphere */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/5 blur-[180px] rounded-full opacity-40 animate-pulse-glow" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/5 blur-[150px] rounded-full opacity-30 animate-pulse-glow animation-delay-3000" />
+    <div className="space-y-6 pb-20">
+      {/* Header */}
+      <header className="border-b border-white/[0.03] pb-4 flex items-end justify-between">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-white/[0.05] bg-white/[0.02] mb-2">
+            <Milk className="h-1.5 w-1.5 text-primary" />
+            <span className="text-[7px] font-black uppercase tracking-[0.3em] text-primary italic">YIELD_RECORDS</span>
+          </div>
+          <h1 className="text-2xl md:text-4xl font-black font-heading tracking-tight text-white italic uppercase">
+            <span className="opacity-10 block">My</span>
+            <span className="text-gradient -mt-1 block italic lowercase">{t("title")}</span>
+          </h1>
+          {me && <p className="text-[10px] font-bold text-white/30 font-mono uppercase tracking-widest mt-1">{me.name} — {me.email}</p>}
+        </div>
+        <div className="flex items-center gap-1 p-0.5 bg-obsidian-700/40 border border-white/5 rounded-lg backdrop-blur-3xl">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-white/40 hover:text-white" onClick={() => setSelectedMonth(prev => subMonths(prev, 1))} aria-label={tCommon("accessibility.previousMonth")}>
+            <ChevronLeft size={12} />
+          </Button>
+          <div className="px-3 py-0.5 min-w-[110px] text-center text-[10px] font-black uppercase tracking-widest text-white italic">
+            {format(selectedMonth, "MMM yyyy", { locale: dateFnsLocale })}
+          </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-white/40 hover:text-white" onClick={() => setSelectedMonth(prev => addMonths(prev, 1))} aria-label={tCommon("accessibility.nextMonth")}>
+            <ChevronRight size={12} />
+          </Button>
+        </div>
+      </header>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: t("volumeAgg"), value: loadingC ? null : `${totalLiters.toFixed(1)}L`, icon: <Milk size={14} /> },
+          { label: t("nodeCount"), value: loadingC ? null : delivered, icon: <CalendarDays size={14} /> },
+          { label: t("auditState"), value: loadingC ? null : t("nominalSecure"), icon: <CheckCircle2 size={14} /> },
+        ].map((s) => (
+          <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            className="glass-card rounded-xl p-3 bg-white/[0.02] border border-white/5 relative overflow-hidden">
+            <div className="flex items-center gap-1.5 text-white/30 mb-2">{s.icon}<span className="text-[8px] font-black uppercase tracking-widest">{s.label}</span></div>
+            {s.value === null ? <Skeleton className="h-5 w-14 bg-white/5" /> : <p className="text-base font-black text-white italic truncate">{s.value}</p>}
+          </motion.div>
+        ))}
       </div>
 
-      <div className="container max-w-5xl mx-auto px-6 py-12 relative z-10 space-y-16">
+      {/* Tabs */}
+      <Tabs defaultValue="consumption" className="space-y-4">
+        <TabsList className="bg-white/[0.02] border border-white/5 rounded-xl p-1 h-auto gap-1">
+          <TabsTrigger value="consumption" className="rounded-lg text-[9px] font-black uppercase tracking-widest px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <BarChart3 size={10} className="mr-1" />{t("consumptionTab")}
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="rounded-lg text-[9px] font-black uppercase tracking-widest px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-white">
+            <FileText size={10} className="mr-1" />{t("billingTab")}
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Header Protocol */}
-        <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-12 border-b border-border/10 pb-16">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-glow-primary animate-pulse" />
-              <span className="font-micro text-primary tracking-[0.6em] uppercase">{t('consumptionLedger')}</span>
+        <TabsContent value="consumption">
+          {loadingC ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full bg-white/5 rounded-xl" />)}</div>
+          ) : consumption.length === 0 ? (
+            <div className="py-16 text-center">
+              <Milk className="mx-auto h-10 w-10 text-white/10 mb-3" />
+              <p className="font-black italic text-white/20 uppercase tracking-widest text-sm">{t("zeroYieldEvent")}</p>
             </div>
-            <h1 className="font-big text-foreground italic uppercase">{t('yieldRecords').split(' ')[0]} <span className="text-gradient">{t('yieldRecords').split(' ')[1]}</span></h1>
-          </div>
-
-          <div className="flex bg-white/[0.03] border border-white/10 p-1.5 rounded-[2rem] glass-card shadow-glass-elev">
-            <button
-              onClick={() => setActiveTab("consumption")}
-              className={cn(
-                "px-10 py-3 rounded-[1.5rem] font-micro text-xs tracking-[0.2em] uppercase transition-all duration-700",
-                activeTab === "consumption"
-                  ? "bg-primary text-primary-foreground shadow-glow-primary/40"
-                  : "text-foreground/40 hover:text-foreground hover:bg-white/5"
-              )}
-            >
-              {t("consumptionTab")}
-            </button>
-            <button
-              onClick={() => setActiveTab("billing")}
-              className={cn(
-                "px-10 py-3 rounded-[1.5rem] font-micro text-xs tracking-[0.2em] uppercase transition-all duration-700",
-                activeTab === "billing"
-                  ? "bg-primary text-primary-foreground shadow-glow-primary/40"
-                  : "text-foreground/40 hover:text-foreground hover:bg-white/5"
-              )}
-            >
-              {t("billingTab")}
-            </button>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="flex items-center gap-2 p-2 bg-foreground/[0.02] border border-border/10 rounded-[2rem] glass-card">
-              <button onClick={handlePrev} className="p-3 rounded-xl text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all" aria-label="Previous Month">
-                <ChevronLeft size={24} />
-              </button>
-              <div className="px-10 py-2 min-w-[200px] text-center">
-                <span className="text-xl font-heading font-black uppercase tracking-tighter text-foreground italic">
-                  {mounted ? format(selectedMonth, "MMMM yyyy") : "----------"}
-                </span>
-              </div>
-              <button onClick={handleNext} disabled={isSameMonth(selectedMonth, new Date())} className="p-3 rounded-xl text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-all disabled:opacity-5" aria-label="Next Month">
-                <ChevronRight size={24} />
-              </button>
-            </div>
-            <Button
-              onClick={handleExport}
-              className="h-16 px-10 rounded-2xl bg-foreground text-background hover:bg-primary hover:text-white font-heading font-black italic text-lg tracking-tight transition-all duration-700 shadow-glow-primary/10 gap-3"
-            >
-              <Download size={20} />
-              {t('export').toUpperCase()}
-            </Button>
-          </div>
-        </header>
-
-        {/* Aggregate Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="p-10 rounded-[2.5rem] glass-card border-emerald-500/20 bg-emerald-500/5 flex items-center justify-between">
-            <div className="space-y-2">
-              <p className="font-micro text-foreground/20 uppercase tracking-[0.4em]">{t('volumeAgg')}</p>
-              <h2 className="text-7xl font-black font-heading tracking-tighter italic text-foreground leading-none">
-                {mounted ? <><CountUp end={totalLiters} decimals={totalLiters % 1 !== 0 ? 2 : 0} duration={1} /> <span className="text-xs font-sans font-normal opacity-20">{t('liters').toUpperCase()[0]}</span></> : `${Number(totalLiters).toFixed(2).replace(/\.00$/, '')} ${t('liters').toUpperCase()[0]}`}
-              </h2>
-            </div>
-            <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-              <Activity size={32} />
-            </div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="p-10 rounded-[2.5rem] glass-card border-primary/20 bg-primary/5 flex items-center justify-between">
-            <div className="space-y-2">
-              <p className="font-micro text-foreground/20 uppercase tracking-[0.4em]">{t('nodeCount')}</p>
-              <h2 className="text-7xl font-black font-heading tracking-tighter italic text-foreground leading-none">
-                {consumption?.length || 0}
-              </h2>
-            </div>
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-              <Calendar size={32} />
-            </div>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="p-10 rounded-[2.5rem] glass-card border-border/5 bg-foreground/[0.02] flex items-center justify-between">
-            <div className="space-y-2">
-              <p className="font-micro text-foreground/20 uppercase tracking-[0.4em]">{t('auditState')}</p>
-              <h2 className="text-2xl font-black font-heading tracking-tight italic text-foreground/60 leading-tight uppercase">
-                {t('nominalSecure')}
-              </h2>
-            </div>
-            <div className="h-16 w-16 rounded-2xl bg-foreground/[0.05] border border-border/10 flex items-center justify-center text-foreground/20">
-              <Fingerprint size={32} />
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Historical Timeline */}
-        <div className="space-y-8">
-          <div className="flex items-center gap-6 px-10 py-4 bg-foreground/[0.02] rounded-2xl border border-border/5">
-            <span className="font-micro text-foreground/20 uppercase tracking-[0.4em]">{t('ledgerTimeline')}</span>
-            <div className="h-[1px] flex-1 bg-foreground/5" />
-          </div>
-
-          <div className="space-y-6">
-            <AnimatePresence mode="popLayout">
-              {activeTab === "consumption" ? (
-                isLoading ? (
-                  <TimelineSkeleton count={6} />
-                ) : sortedRecords.length > 0 ? (
-                  sortedRecords.map((day: ConsumptionDay, idx: number) => {
-                    const qty = Number(day.quantity ?? day.liters ?? 0)
-                    return (
-                      <motion.div
-                        key={day.date}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.03 }}
-                        className={cn(
-                          "p-8 rounded-[2rem] border transition-all duration-700 flex items-center justify-between group",
-                          qty > 0
-                            ? "glass-card bg-foreground/[0.02] border-border/10 hover:border-primary/40 hover:bg-foreground/[0.04]"
-                            : "opacity-40 border-border/5 bg-transparent"
-                        )}
-                      >
-                        <div className="flex items-center gap-8 text-foreground">
-                          <div className={cn(
-                            "h-16 w-16 rounded-2xl border flex items-center justify-center transition-all duration-700",
-                            qty > 0 ? "bg-primary/10 border-primary/20 text-primary group-hover:scale-110" : "bg-foreground/5 border-border/5 text-foreground/5"
-                          )}>
-                            <Zap size={24} className={cn(qty > 0 ? "fill-current" : "")} />
-                          </div>
-                          <div>
-                            <h3 className="text-3xl font-heading font-black italic tracking-tighter text-foreground uppercase transition-colors group-hover:text-primary">
-                              {format(new Date(day.date), "dd MMMM")}
-                            </h3>
-                            <p className="font-micro text-foreground/20 uppercase tracking-[0.4em] mt-1">{format(new Date(day.date), "EEEE")}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-12 text-foreground">
-                          <div className="text-right">
-                            {qty > 0 ? (
-                              <div className="flex items-center gap-4">
-                                <span className="text-5xl font-black font-heading italic tracking-tighter text-foreground">{Number(qty).toFixed(2).replace(/\.00$/, '')}</span>
-                                <span className="font-sans text-xs italic opacity-20 font-normal text-foreground mb-2">{t('liters').toUpperCase()}</span>
-                              </div>
-                            ) : (
-                              <span className="font-micro text-foreground/5 uppercase tracking-[0.5em] italic">{t('nullEvent')}</span>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    )
-                  })
-                ) : (
-                  <div className="py-20">
-                    <EmptyState 
-                      icon={Zap}
-                      title={t('zeroYieldEvent')} 
-                      description={t('noUsageDetected')}
-                    />
-                  </div>
-                )
-              ) : (
-                isBillsLoading ? (
-                  <TimelineSkeleton count={4} />
-                ) : bills && bills.length > 0 ? (
-                  bills.map((bill: Bill, idx: number) => (
-                    <motion.div
-                      key={bill.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="p-8 rounded-[2rem] border glass-card bg-foreground/[0.02] border-border/10 hover:border-primary/40 hover:bg-foreground/[0.04] transition-all duration-700 flex items-center justify-between group"
-                    >
-                      <div className="flex items-center gap-8 text-foreground">
-                        <div className={cn(
-                          "h-16 w-16 rounded-2xl border flex items-center justify-center transition-all duration-700",
-                          bill.status === "PAID" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" : "bg-primary/10 border-primary/20 text-primary"
-                        )}>
-                          <Zap size={24} className={cn(bill.status === "PAID" ? "fill-current" : "")} />
-                        </div>
-                        <div>
-                          <h3 className="text-3xl font-heading font-black italic tracking-tighter text-foreground uppercase transition-colors group-hover:text-primary">
-                            {format(new Date(bill.month + "-01"), "MMMM yyyy")}
-                          </h3>
-                          <p className={cn(
-                            "font-micro uppercase tracking-[0.4em] mt-1",
-                            bill.status === "PAID" ? "text-emerald-500" : "text-primary animate-pulse"
-                          )}>
-                            {bill.status === "PAID" ? tCommon('status.PAID') : tCommon('status.UNPAID')}
-                          </p>
-                        </div>
+          ) : (
+            <div className="rounded-xl border border-white/[0.03] bg-obsidian-800/40 backdrop-blur-3xl overflow-hidden">
+              {consumption.map((c, i) => {
+                const status = c.status || (c.quantity > 0 ? "DELIVERED" : "SKIPPED")
+                return (
+                  <motion.div key={c.date || i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.02 }}
+                    className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("h-7 w-7 rounded-lg flex items-center justify-center border",
+                        status === "DELIVERED" ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/5 border-white/10")}>
+                        {status === "DELIVERED" ? <CheckCircle2 size={12} className="text-emerald-400" /> : <XCircle size={12} className="text-white/30" />}
                       </div>
-
-                      <div className="flex items-center gap-12 text-foreground">
-                        <div className="text-right">
-                          <div className="flex items-center gap-4">
-                            <span className="text-5xl font-black font-heading italic tracking-tighter text-foreground">₹{Number(bill.total_amount).toFixed(2).replace(/\.00$/, '')}</span>
-                            <span className="font-sans text-xs italic opacity-20 font-normal text-foreground mb-2">{bill.total_liters}L</span>
-                          </div>
-                        </div>
-                        {bill.pdf_url && (
-                          <a
-                            href={bill.pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="h-12 w-12 rounded-full border border-border/5 flex items-center justify-center bg-foreground/[0.05] text-foreground/40 hover:text-primary hover:border-primary/40 transition-all duration-700"
-                            title={t('download') || "Download PDF"}
-                          >
-                            <Download size={20} />
-                          </a>
+                      <div>
+                        <p className="text-[11px] font-black italic text-white uppercase tracking-tight">
+                          {c.date ? format(new Date(c.date), "EEE, d MMM", { locale: dateFnsLocale }) : "—"}
+                        </p>
+                        {c.extra_qty && c.extra_qty > 0 && (
+                          <p className="text-[9px] font-bold text-primary/60">+{Number(c.extra_qty).toFixed(1)}L extra</p>
                         )}
                       </div>
-                    </motion.div>
-                  ))
-                ) : (
-                  <div className="py-20">
-                    <EmptyBillState />
-                  </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black italic text-white">{Number(c.quantity || 0).toFixed(1)}<span className="text-[8px] text-white/30 ml-0.5">L</span></span>
+                      <Badge className={cn("text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-lg border", statusStyle[status] || "bg-white/5 text-white/30 border-white/10")}>
+                        {status}
+                      </Badge>
+                    </div>
+                  </motion.div>
                 )
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+              })}
+            </div>
+          )}
+        </TabsContent>
 
-        {/* Global Audit Background Grid */}
-        <div className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06] overflow-hidden">
-          <div className="absolute top-0 left-1/4 w-[1px] h-full bg-foreground/10" />
-          <div className="absolute top-0 left-3/4 w-[1px] h-full bg-foreground/10" />
-          <div className="absolute top-1/3 left-0 w-full h-[1px] bg-foreground/10" />
-          <div className="absolute top-2/3 left-0 w-full h-[1px] bg-foreground/10" />
-        </div>
-      </div>
+        <TabsContent value="billing">
+          {loadingB ? (
+            <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full bg-white/5 rounded-xl" />)}</div>
+          ) : bills.length === 0 ? (
+            <div className="py-16 text-center">
+              <FileText className="mx-auto h-10 w-10 text-white/10 mb-3" />
+              <p className="font-black italic text-white/20 uppercase tracking-widest text-sm">{t("zeroLedgerEvent")}</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-white/[0.03] bg-obsidian-800/40 backdrop-blur-3xl overflow-hidden">
+              {bills.map((bill, i) => (
+                <motion.div key={bill.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                  className="flex items-center justify-between px-4 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center border",
+                      bill.status === "PAID" ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20")}>
+                      {bill.status === "PAID" ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Clock size={14} className="text-amber-400" />}
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-black italic text-white uppercase">{bill.month}</p>
+                      <p className="text-[9px] font-bold text-white/30 font-mono">{Number(bill.total_liters || 0).toFixed(1)}L delivered</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="text-base font-black italic text-gradient">₹{formatCurrency(Number(bill.amount), locale)}</p>
+                    <Badge className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded-lg border",
+                      bill.status === "PAID" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20")}>
+                      {bill.status === "PAID" ? t("settlementComplete") : t("awaitSettlement")}
+                    </Badge>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

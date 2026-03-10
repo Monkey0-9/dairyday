@@ -43,6 +43,42 @@ const FeatureCard = ({ title, desc, icon, delay = 0 }: { title: string, desc: st
   </motion.div>
 );
 
+const LightLeak = () => (
+  <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 0.6, scale: 1 }}
+      transition={{ duration: 3, ease: "easeOut" }}
+      className="absolute -top-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full bg-amber-500/20 blur-[120px] mix-blend-screen"
+    />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 0.4 }}
+      transition={{ duration: 4, delay: 1 }}
+      className="absolute top-[30%] -right-[20%] w-[60vw] h-[60vw] rounded-full bg-blue-500/20 blur-[150px] mix-blend-screen"
+    />
+  </div>
+);
+
+const FloatingGlassPill = ({ delay, top, left, right, label, icon: Icon }: { delay: number; top?: string; left?: string; right?: string; label: string; icon: React.ElementType }) => (
+  <motion.div
+    initial={{ y: 20, opacity: 0, rotate: -2 }}
+    animate={{ y: [0, -15, 0], opacity: 1, rotate: [-2, 2, -2] }}
+    transition={{ 
+      y: { duration: 6, repeat: Infinity, ease: "easeInOut", delay }, 
+      opacity: { duration: 1, delay },
+      rotate: { duration: 8, repeat: Infinity, ease: "easeInOut", delay }
+    }}
+    style={{ top, left, right }}
+    className="absolute hidden lg:flex items-center gap-3 p-2.5 pr-6 rounded-full glass-card border-white/10 bg-white/[0.03] backdrop-blur-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] z-20 hover:bg-white/[0.08] transition-colors"
+  >
+    <div className="p-2 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-400">
+      <Icon size={14} />
+    </div>
+    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white italic">{label}</span>
+  </motion.div>
+);
+
 export default function LandingPage() {
   const tHero = useTranslations('Landing.hero');
   const tFeatures = useTranslations('Landing.features');
@@ -131,6 +167,12 @@ export default function LandingPage() {
             />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
           </motion.div>
+
+          <LightLeak />
+          <FloatingGlassPill delay={0.2} top="25%" left="15%" label="Sunrise Fresh" icon={Milk} />
+          <FloatingGlassPill delay={0.8} top="65%" left="20%" label="A2 Certified" icon={ShieldCheck} />
+          <FloatingGlassPill delay={1.4} top="35%" right="15%" label="Zero Preservatives" icon={Droplets} />
+          <FloatingGlassPill delay={2.0} top="75%" right="25%" label="Before 7 AM" icon={Clock} />
 
           <div className="container px-6 mx-auto relative z-10 text-center mt-20">
             <motion.div

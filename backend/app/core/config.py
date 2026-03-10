@@ -9,6 +9,8 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Dairy Management System"
+    ADMIN_PASSWORD: str = Field(default="admin_dev_only_123", env="ADMIN_PASSWORD")
+    FORCE_ADMIN_SEED: bool = Field(default=False, env="FORCE_ADMIN_SEED")
     API_V1_STR: str = "/api/v1"
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

@@ -36,6 +36,30 @@ export interface Bill {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+// Recursively cast numeric strings from Postgres (e.g. "2.5" -> 2.5) to real JS numbers.
+// Guards: must be a pure numeric string, shorter than 16 chars (avoids UUIDs / phone numbers).
+function castNumericStrings(obj: unknown): unknown {
+  if (Array.isArray(obj)) return obj.map(castNumericStrings);
+  if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj as Record<string, unknown>).map(([k, v]) => [
+        k,
+        castNumericStrings(v),
+      ])
+    );
+  }
+  if (
+    typeof obj === 'string' &&
+    obj.length > 0 &&
+    obj.length < 16 &&
+    /^\d+(\.\d+)?$/.test(obj)
+  ) {
+    return Number(obj);
+  }
+  return obj;
+}
+
+
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -105,7 +129,14 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Cast numeric strings from Postgres (e.g. "2.5" → 2.5) to prevent .toFixed() crashes.
+    // Only casts pure numeric strings shorter than 16 chars (avoids UUIDs, phones, etc.)
+    if (response.data) {
+      response.data = castNumericStrings(response.data)
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config;
 

@@ -10,6 +10,7 @@ import { Providers } from '@/components/providers';
 import { ToastProvider } from '@/components/ui/toast-provider';
 import { FontSizeProvider } from '@/components/font-size-provider';
 import { LazyAIAssistant } from '@/components/lazy-ai-assistant';
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
@@ -130,6 +131,19 @@ export default async function RootLayout({
                   {children}
                   <LazyAIAssistant />
                 </FontSizeProvider>
+                <Toaster
+                  richColors
+                  closeButton
+                  position="top-right"
+                  theme="dark"
+                  toastOptions={{
+                    classNames: {
+                      toast: 'glass-card border-border/20',
+                      title: 'font-heading font-black italic text-sm',
+                      description: 'font-medium text-foreground/60 text-xs',
+                    },
+                  }}
+                />
               </ToastProvider>
             </Providers>
           </ThemeProvider>

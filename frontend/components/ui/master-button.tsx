@@ -1,7 +1,6 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ReactNode } from 'react'
 
@@ -10,7 +9,7 @@ import { ReactNode } from 'react'
  * Use this instead of the basic shadcn button for premium feel
  */
 
-interface MasterButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface MasterButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart'> {
   children: ReactNode
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
   size?: 'sm' | 'md' | 'lg'
@@ -127,7 +126,7 @@ export function MasterButton({
 /**
  * Icon Button - For toolbars and compact actions
  */
-interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface IconButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart'> {
   icon: ReactNode
   label: string
   variant?: 'default' | 'ghost' | 'primary'

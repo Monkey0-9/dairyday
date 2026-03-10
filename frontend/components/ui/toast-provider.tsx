@@ -84,6 +84,10 @@ const toastStyles = {
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
+  const hideToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
   const showToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).slice(2, 9)
     const newToast = { ...toast, id }
@@ -95,11 +99,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         hideToast(id)
       }, toast.duration || 5000)
     }
-  }, [])
-
-  const hideToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
+  }, [hideToast])
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>

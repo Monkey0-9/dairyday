@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ReactNode, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
@@ -9,9 +9,7 @@ import { usePathname } from 'next/navigation';
  * Provides page transitions and reduced motion support
  */
 
-interface MotionProviderProps {
-  children: ReactNode;
-}
+
 
 // Page transition variants
 const pageVariants = {
@@ -76,16 +74,6 @@ interface StaggerContainerProps {
   staggerDelay?: number;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
-};
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },

@@ -162,7 +162,7 @@ export default function ProfilePage() {
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="p-10 rounded-[2.5rem] glass-card border-border/5 bg-foreground/[0.02] space-y-10"
+                className="p-6 sm:p-10 rounded-[2.5rem] glass-card border-border/5 bg-foreground/[0.02] space-y-8 sm:space-y-10"
               >
                 <div className="flex items-center gap-6 pb-6 border-b border-border/5">
                   <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-glow-primary/5">
@@ -229,7 +229,7 @@ export default function ProfilePage() {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="p-10 rounded-[2.5rem] glass-card border-border/5 bg-foreground/[0.02] space-y-10"
+                className="p-6 sm:p-10 rounded-[2.5rem] glass-card border-border/5 bg-foreground/[0.02] space-y-8 sm:space-y-10"
               >
                 <div className="flex items-center gap-6 pb-6 border-b border-border/5">
                   <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-glow-emerald/5">
@@ -271,7 +271,7 @@ export default function ProfilePage() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <FormField
                       control={form.control}
                       name="theme"
@@ -335,14 +335,14 @@ export default function ProfilePage() {
                 type="button"
                 variant="ghost"
                 onClick={handleLogout}
-                className="h-16 px-12 rounded-2xl font-micro text-rose-500/40 hover:text-rose-500 uppercase tracking-widest transition-all"
+                className="w-full md:w-auto h-16 px-12 rounded-2xl font-micro text-rose-500/40 hover:text-rose-500 uppercase tracking-widest transition-all"
               >
                 TERMINATE_SESSION
               </Button>
               <Button
                 type="submit"
                 disabled={isSaving}
-                className="h-20 px-16 rounded-[2rem] bg-foreground text-background hover:bg-primary hover:text-white font-heading font-black tracking-tighter italic text-2xl gap-6 transition-all duration-700 shadow-2xl group"
+                className="w-full md:w-auto h-16 sm:h-20 px-8 sm:px-16 rounded-[2rem] bg-foreground text-background hover:bg-primary hover:text-white font-heading font-black tracking-tighter italic text-xl sm:text-2xl gap-4 sm:gap-6 transition-all duration-700 shadow-2xl group"
               >
                 {isSaving ? (
                   <>

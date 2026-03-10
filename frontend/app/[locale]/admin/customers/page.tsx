@@ -406,8 +406,10 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
     if (formData.password !== formData.confirmPassword) return toast.error(t("passwordMismatch"))
     setIsLoading(true)
     try {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { confirmPassword, ...payload } = formData;
       await usersApi.create({
-        ...formData,
+        ...payload,
         price_per_liter: parseFloat(formData.price_per_liter),
         daily_target_qty: parseFloat(formData.daily_target_qty),
         role: "USER"
@@ -438,9 +440,9 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
         <span className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1 block">{t('createDescription')}</span>
       }
     >
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4 flex flex-col">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto max-h-[60vh] pr-2 pb-2">
+            <div className="col-span-1 sm:col-span-2 space-y-1">
               <Label className="text-[9px] font-black uppercase tracking-widest text-white/20 italic">{t('fullNameLabel')}</Label>
               <Input className="h-9 bg-white/[0.02] border-white/5 rounded-xl font-bold italic text-[13px]" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
             </div>
@@ -467,9 +469,11 @@ function CreateCustomerDialog({ open, onOpenChange, onSuccess }: { open: boolean
                   className="h-9 bg-white/[0.02] border-white/5 rounded-xl font-bold italic text-[13px] pr-8"
                   type={showPassword ? "text" : "password"}
                   required
+                  minLength={8}
                   value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                 />
+                <p className="text-[8px] text-white/30 font-bold italic mt-1 uppercase tracking-wider">{t('passwordHint')}</p>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -584,9 +588,9 @@ function EditCustomerDialog({ customer, open, onOpenChange, onSuccess }: { custo
         <span className="text-white/40 text-[8px] font-bold uppercase tracking-[0.1em] mt-1 block">{t('updateDescription', { name: customer.name || 'User' })}</span>
       }
     >
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4 flex flex-col">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto max-h-[60vh] pr-2 pb-2">
+            <div className="col-span-1 sm:col-span-2 space-y-1">
               <Label className="text-[9px] font-black uppercase tracking-widest text-white/20 italic">{t('fullNameLabel')}</Label>
               <Input className="h-9 bg-white/[0.02] border-white/5 rounded-xl font-bold italic text-[13px]" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
             </div>
@@ -613,9 +617,11 @@ function EditCustomerDialog({ customer, open, onOpenChange, onSuccess }: { custo
                   className="h-9 bg-white/[0.02] border-white/5 rounded-xl font-bold italic text-[13px] pr-8"
                   type={showPassword ? "text" : "password"}
                   placeholder="Leave empty to keep current"
+                  minLength={8}
                   value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                 />
+                <p className="text-[8px] text-white/30 font-bold italic mt-1 uppercase tracking-wider">{t('passwordHint')}</p>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}

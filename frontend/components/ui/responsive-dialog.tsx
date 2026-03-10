@@ -73,7 +73,7 @@ export function ResponsiveDialog({
   }
 
   return (
-    <Drawer open={isOpen} onOpenChange={setIsOpen}>
+    <Drawer open={isOpen} onOpenChange={setIsOpen} repositionInputs={false}>
       {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
       <DrawerContent>
         <div className="mx-auto w-full max-w-sm">
@@ -83,7 +83,7 @@ export function ResponsiveDialog({
               {description && <DrawerDescription>{description}</DrawerDescription>}
             </DrawerHeader>
           )}
-          <div className="p-4 pt-0">
+          <div className="p-4 pt-0" data-vaul-no-drag>
             {children}
           </div>
         </div>

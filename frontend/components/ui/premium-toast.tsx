@@ -9,7 +9,6 @@ import {
   X,
   Milk, 
   Sparkles,
-  Zap
 } from 'lucide-react';
 import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -40,6 +39,10 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
+  const hideToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const showToast = useCallback((toast: Omit<ToastItem, 'id'>) => {
     const id = Math.random().toString(36).substring(2, 9);
     const newToast = { ...toast, id };
@@ -51,11 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         hideToast(id);
       }, toast.duration || 5000);
     }
-  }, []);
-
-  const hideToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }, [hideToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
@@ -224,33 +223,6 @@ function ToastItemComponent({
   );
 }
 
-// Quick toast functions
-export const toast = {
-  success: (title: string, description?: string) => {
-    const { showToast } = useToast();
-    showToast({ type: 'success', title, description });
-  },
-  error: (title: string, description?: string) => {
-    const { showToast } = useToast();
-    showToast({ type: 'error', title, description });
-  },
-  warning: (title: string, description?: string) => {
-    const { showToast } = useToast();
-    showToast({ type: 'warning', title, description });
-  },
-  info: (title: string, description?: string) => {
-    const { showToast } = useToast();
-    showToast({ type: 'info', title, description });
-  },
-  milk: (title: string, description?: string) => {
-    const { showToast } = useToast();
-    showToast({ type: 'milk', title, description });
-  },
-  celebration: (title: string, description?: string) => {
-    const { showToast } = useToast();
-    showToast({ type: 'celebration', title, description, duration: 6000 });
-  },
-};
 
 // Standalone toast buttons for testing
 export function ToastTester() {

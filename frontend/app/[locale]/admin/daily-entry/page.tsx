@@ -261,26 +261,26 @@ export default function DailyEntryPage() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
                     className={cn(
-                      "p-3 rounded-2xl border transition-all duration-700 flex flex-col md:flex-row md:items-center justify-between gap-4",
+                      "p-4 rounded-2xl border transition-all duration-700 flex flex-col md:flex-row md:items-center justify-between gap-4",
                       unsavedIds.has(entry.id)
                         ? "glass-card border-primary/40 bg-primary/5 scale-[1.01] z-10 shadow-lg"
                         : "bg-white/[0.01] border-white/5 hover:bg-white/[0.03] hover:border-white/10"
                     )}
                   >
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center font-heading font-black italic text-sm text-white/10 group-hover:text-primary transition-all">
+                      <div className="h-10 w-10 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-center font-heading font-black italic text-sm text-white/10 group-hover:text-primary transition-all shrink-0">
                         {String(i + 1).padStart(2, '0')}
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-heading font-black italic tracking-tight text-white uppercase">{entry.name}</h3>
-                          <span className="font-mono text-[11px] text-primary/80 tracking-wide mt-0.5">{entry.email || entry.id}</span>
+                      <div className="space-y-0.5 truncate">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-lg font-heading font-black italic tracking-tight text-white uppercase truncate">{entry.name}</h3>
+                          <span className="font-mono text-[11px] text-primary/80 tracking-wide mt-0.5 hidden sm:inline-block">{entry.email || entry.id}</span>
                         </div>
-                        <span className="font-micro text-[9px] text-white/20 tracking-[0.2em] uppercase">{entry.phone || t('anonNode')}</span>
+                        <span className="font-micro text-[9px] text-white/20 tracking-[0.2em] uppercase block truncate">{entry.phone || t('anonNode')}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto pt-2 md:pt-0 border-t border-white/5 md:border-0 pl-14 md:pl-0">
                       <div className="flex items-center h-10 bg-black/40 rounded-xl p-1 border border-white/5 hover:border-primary/30 transition-all">
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleLiterChange(entry.id, String((typeof localEntries[entry.id] === 'number' ? localEntries[entry.id] as number : 1) - 0.25))}>
                           <Minus size={14} />

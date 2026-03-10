@@ -1,13 +1,12 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { 
   Home, 
   Calendar, 
-  Wallet, 
   Settings,
   ClipboardList,
   Users,
@@ -133,5 +132,4 @@ export function BottomNav({ items }: BottomNavProps) {
   )
 }
 
-// For importing
-import { AnimatePresence } from 'framer-motion'
+

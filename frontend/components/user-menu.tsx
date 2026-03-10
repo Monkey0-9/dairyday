@@ -44,9 +44,18 @@ export function UserMenu() {
         })
     }, [])
 
-    const handleLogout = () => {
-        authApi.logout()
-        window.location.href = "/"
+    const handleLogout = async () => {
+        try {
+            await authApi.logout()
+        } catch {
+            // ignore logout errors
+        } finally {
+            localStorage.clear()
+            sessionStorage.clear()
+            // Extract locale from path, default to 'en'
+            const locale = window.location.pathname.split('/')[1] || 'en'
+            window.location.href = `/${locale}/login`
+        }
     }
 
     if (!mounted || !user) return <div className="w-10 h-10 rounded-xl bg-foreground/5 animate-pulse" />

@@ -180,6 +180,8 @@ async def create_user(
             phone=user_in.phone,
             role=user_in.role,
             price_per_liter=user_in.price_per_liter,
+            daily_target_qty=user_in.daily_target_qty,
+            address=user_in.address,
             is_active=user_in.is_active,
             hashed_password=security.get_password_hash(user_in.password),
         )
