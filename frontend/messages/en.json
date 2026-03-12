@@ -85,7 +85,8 @@
       "viewDetails": "View Details",
       "exportReport": "Export Report",
       "toggleTheme": "Toggle Theme",
-      "toggleSidebar": "Toggle Sidebar"
+      "toggleSidebar": "Toggle Sidebar",
+      "securityDisclaimer": "Security Disclaimer"
     },
     "validation": {
       "required": "This field is required",

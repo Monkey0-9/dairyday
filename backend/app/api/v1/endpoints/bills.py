@@ -15,6 +15,7 @@ from fastapi import (
     Depends,
     HTTPException,
     BackgroundTasks,
+    Request,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -23,6 +24,7 @@ from app.services.billing_service import BillingService
 
 from app.api import deps
 from app.db.session import get_db
+from app.core.cache import cache_response
 from app.models.bill import Bill
 from app.models.user import User
 from app.repositories.bill_repository import BillRepository
@@ -188,7 +190,9 @@ async def get_bill_endpoint(
 
 
 @router.get("/", response_model=BillListResponse)
+@cache_response(expire=60)
 async def list_bills_endpoint(
+    request: Request,
     month: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_active_user),

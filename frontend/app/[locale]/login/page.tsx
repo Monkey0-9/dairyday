@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -16,49 +16,64 @@ import { useToast } from '@/components/ui/toast-provider'
 import { authApi } from '@/lib/api'
 
 // Floating particles component
-const FloatingParticles = () => (
-  <div className="fixed inset-0 overflow-hidden pointer-events-none">
-    {/* Large blurred orbs */}
-    <motion.div
-      animate={{ 
-        scale: [1, 1.2, 1],
-        opacity: [0.3, 0.5, 0.3]
-      }}
-      transition={{ duration: 8, repeat: Infinity }}
-      className="absolute -top-20 -left-20 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[150px]"
-    />
-    
-    <motion.div
-      animate={{ 
-        scale: [1, 1.3, 1],
-        opacity: [0.2, 0.4, 0.2]
-      }}
-      transition={{ duration: 10, repeat: Infinity, delay: 2 }}
-      className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[150px]"
-    />
+const FloatingParticles = () => {
+  const [particles, setParticles] = useState<Array<{left: number, top: number, duration: number, delay: number}>>([])
 
-    {/* Floating particles */}
-    {Array.from({ length: 20 }).map((_, i) => (
+  useEffect(() => {
+    setParticles(
+      Array.from({ length: 20 }).map(() => ({
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        duration: 3 + Math.random() * 2,
+        delay: Math.random() * 2,
+      }))
+    )
+  }, [])
+
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      {/* Large blurred orbs */}
       <motion.div
-        key={i}
-        className="absolute w-1 h-1 bg-white/20 rounded-full"
-        style={{
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3]
         }}
-        animate={{
-          y: [0, -30, 0],
-          opacity: [0.2, 0.5, 0.2],
-        }}
-        transition={{
-          duration: 3 + Math.random() * 2,
-          repeat: Infinity,
-          delay: Math.random() * 2,
-        }}
+        transition={{ duration: 8, repeat: Infinity }}
+        className="absolute -top-20 -left-20 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[150px]"
       />
-    ))}
-  </div>
-)
+      
+      <motion.div
+        animate={{ 
+          scale: [1, 1.3, 1],
+          opacity: [0.2, 0.4, 0.2]
+        }}
+        transition={{ duration: 10, repeat: Infinity, delay: 2 }}
+        className="absolute -bottom-20 -right-20 w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[150px]"
+      />
+
+      {/* Floating particles */}
+      {particles.map((p, i) => (
+        <motion.div
+          key={i}
+          className="absolute w-1 h-1 bg-white/20 rounded-full"
+          style={{
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+          }}
+          animate={{
+            y: [0, -30, 0],
+            opacity: [0.2, 0.5, 0.2],
+          }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            delay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
 // Login form schema
 const loginSchema = z.object({

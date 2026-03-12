@@ -258,6 +258,7 @@
     "operationalNode": "நிர்வாக மையம்",
     "dashboardActive": "சிஸ்டம் ஆன்லைன்",
     "dashboard": {
+      "operationalNode": "நிர்வாக மையம்",
       "strategicOversight": "மூலோபாய மேற்பார்வை",
       "oversightDescription": "ஒரே இடத்திலிருந்து செயல்பாடுகளை நிர்வகிக்கவும்.",
       "globalTime": "சிஸ்டம் நேரம்",

@@ -294,6 +294,7 @@
     "operationalNode": "ಅಡ್ಮಿನ್ ಪೋರ್ಟಲ್",
     "dashboardActive": "ಸಿಸ್ಟಮ್ ಆನ್‌ಲೈನ್",
     "dashboard": {
+      "operationalNode": "ಅಡ್ಮಿನ್ ಪೋರ್ಟಲ್",
       "strategicOversight": "ಕಾರ್ಯತಂತ್ರದ ಅವಲೋಕನ",
       "oversightDescription": "ಒಂದೇ ಸ್ಥಳದಿಂದ ಇಡೀ ಡೈರಿ ನೆಟ್‌ವರ್ಕ್ ಕಾರ್ಯಾಚರಣೆಗಳನ್ನು ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡಿ ಮತ್ತು ನಿರ್ವಹಿಸಿ.",
       "globalTime": "ಸಿಸ್ಟಮ್ ಸಮಯ",

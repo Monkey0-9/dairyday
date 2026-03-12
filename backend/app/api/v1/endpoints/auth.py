@@ -156,7 +156,7 @@ async def login_access_token(
     user = result.scalars().first()
 
     if not user:
-
+        print(f"DEBUG: User not found in DB for email {email}")
         failed_attempts = 0
         if redis:
             failed_attempts = await record_failed_attempt(redis, email)
@@ -184,6 +184,9 @@ async def login_access_token(
             mask_email(email),
             failed_attempts
         )
+        print(f"DEBUG: Password verification failed for {repr(email)}")
+        print(f"DEBUG: Provided password: {repr(password)}")
+        print(f"DEBUG: Stored hash: {repr(user.hashed_password)}")
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

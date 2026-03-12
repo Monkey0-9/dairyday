@@ -308,6 +308,31 @@ export default function AdminProfilePage() {
                                         Your account holds administrative privileges. All configuration changes are audited and logged to the central ledger.
                                     </p>
                                 </div>
+                                
+                                {/* Premium Support Banner */}
+                                <div className="pt-2">
+                                  <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-primary/5 border border-primary/20 relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+                                    <h4 className="font-heading font-black italic uppercase tracking-tight text-white mb-3 flex items-center gap-2">
+                                      <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                                      Priority Elite Support
+                                    </h4>
+                                    <div className="space-y-3 relative z-10">
+                                      <div className="flex items-center gap-3 text-white/80">
+                                         <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                                           <Phone size={14} className="text-primary" />
+                                         </div>
+                                         <span className="font-mono text-sm tracking-widest">+91 99805 92787</span>
+                                      </div>
+                                      <div className="flex items-center gap-3 text-white/80">
+                                         <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                                           <Globe size={14} className="text-blue-400" />
+                                         </div>
+                                         <span className="font-mono text-[11px] tracking-wider break-all">dairydaysdairydays@gmail.com</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
                             </div>
                         </motion.div>
                     </div>

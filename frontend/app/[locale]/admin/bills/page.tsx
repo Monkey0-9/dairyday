@@ -26,9 +26,54 @@ interface Bill {
   user_email?: string
   month: string
   total_liters: number
-  amount: number
+  total_amount: number
   status: "UNPAID" | "PAID" | "PENDING"
 }
+
+interface BillRowProps {
+  bill: Bill
+  index: number
+  locale: string
+  payingBillId: string | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  markPaidMutation: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any
+}
+
+// Extract row to prevent re-renders of the entire 500+ item list when typing in search
+const BillRow = React.memo(({ bill, index, locale, payingBillId, markPaidMutation, t }: BillRowProps) => {
+  return (
+    <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}
+      className="flex items-center justify-between p-3 px-4 hover:bg-white/[0.02] transition-all group will-change-transform">
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center text-[10px] font-black text-white/40 shadow-subtle">
+          {bill.user_name?.slice(0, 2).toUpperCase() || "??"}
+        </div>
+        <div>
+          <p className="text-[12px] font-black italic text-white uppercase tracking-tight">{bill.user_name || bill.user_email}</p>
+          <p className="text-[9px] font-bold text-white/30 font-mono mt-0.5">{bill.total_liters?.toFixed(1)}L • {bill.month}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <p className="text-base font-black italic text-gradient">₹{formatCurrency(Number(bill.total_amount), locale)}</p>
+        <Badge className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border",
+          bill.status === "PAID" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-glow-success" : "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-glow-danger")}>
+          {bill.status === "PAID" ? <CheckCircle2 size={8} className="mr-1" /> : <Clock size={8} className="mr-1" />}
+          {bill.status}
+        </Badge>
+        {bill.status !== "PAID" && (
+          <Button size="sm" onClick={() => markPaidMutation.mutate(bill.id)}
+            disabled={markPaidMutation.isPending && payingBillId === bill.id}
+            className="h-7 px-3 rounded-lg bg-white text-black hover:bg-primary hover:text-white font-black italic text-[9px] uppercase tracking-widest transition-all">
+            {markPaidMutation.isPending && payingBillId === bill.id ? <Loader2 size={10} className="animate-spin" /> : t("payInCash")}
+          </Button>
+        )}
+      </div>
+    </motion.div>
+  )
+})
+BillRow.displayName = "BillRow"
 
 export default function BillsPage() {
   const t = useTranslations("Admin.bills")
@@ -48,7 +93,7 @@ export default function BillsPage() {
     queryKey: ["admin-bills", monthStr],
     queryFn: async () => {
       const res = await billsApi.list(monthStr)
-      return res.data
+      return res.data?.bills || []
     },
     staleTime: 30_000,
   })
@@ -72,19 +117,22 @@ export default function BillsPage() {
     onError: (err) => { toast.error(formatApiError(err)); setPayingBillId(null) },
   })
 
-  const filtered = useMemo(() =>
-    bills.filter((b) => {
+  const filtered = useMemo(() => {
+    const safeBills = Array.isArray(bills) ? bills : []
+    return safeBills.filter((b) => {
       const matchSearch = !searchQuery || b.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) || b.user_email?.toLowerCase().includes(searchQuery.toLowerCase())
       const matchFilter = !filterUnpaid || b.status !== "PAID"
       return matchSearch && matchFilter
-    }), [bills, searchQuery, filterUnpaid])
+    })
+  }, [bills, searchQuery, filterUnpaid])
 
   const stats = useMemo(() => {
-    const total = bills.length
-    const paid = bills.filter((b) => b.status === "PAID").length
+    const safeBills = Array.isArray(bills) ? bills : []
+    const total = safeBills.length
+    const paid = safeBills.filter((b) => b.status === "PAID").length
     const unpaid = total - paid
-    const totalDue = bills.filter((b) => b.status !== "PAID").reduce((s, b) => s + Number(b.amount || 0), 0)
-    const totalLiters = bills.reduce((s, b) => s + Number(b.total_liters || 0), 0)
+    const totalDue = safeBills.filter((b) => b.status !== "PAID").reduce((s, b) => s + Number(b.total_amount || 0), 0)
+    const totalLiters = safeBills.reduce((s, b) => s + Number(b.total_liters || 0), 0)
     const rate = total > 0 ? Math.round((paid / total) * 100) : 0
     return { total, paid, unpaid, totalDue, totalLiters, rate }
   }, [bills])
@@ -176,33 +224,15 @@ export default function BillsPage() {
           <div className="divide-y divide-white/[0.03]">
             <AnimatePresence>
               {filtered.map((bill, i) => (
-                <motion.div key={bill.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-                  className="flex items-center justify-between p-3 px-4 hover:bg-white/[0.02] transition-all group">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center text-[10px] font-black text-white/40">
-                      {bill.user_name?.slice(0, 2).toUpperCase() || "??"}
-                    </div>
-                    <div>
-                      <p className="text-[12px] font-black italic text-white uppercase tracking-tight">{bill.user_name || bill.user_email}</p>
-                      <p className="text-[9px] font-bold text-white/30 font-mono mt-0.5">{bill.total_liters?.toFixed(1)}L • {bill.month}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-base font-black italic text-gradient">₹{formatCurrency(Number(bill.amount), locale)}</p>
-                    <Badge className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border",
-                      bill.status === "PAID" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20")}>
-                      {bill.status === "PAID" ? <CheckCircle2 size={8} className="mr-1" /> : <Clock size={8} className="mr-1" />}
-                      {bill.status}
-                    </Badge>
-                    {bill.status !== "PAID" && (
-                      <Button size="sm" onClick={() => { setPayingBillId(bill.id); markPaidMutation.mutate(bill.id) }}
-                        disabled={markPaidMutation.isPending && payingBillId === bill.id}
-                        className="h-7 px-3 rounded-lg bg-white text-black hover:bg-primary hover:text-white font-black italic text-[9px] uppercase tracking-widest transition-all">
-                        {markPaidMutation.isPending && payingBillId === bill.id ? <Loader2 size={10} className="animate-spin" /> : t("payInCash")}
-                      </Button>
-                    )}
-                  </div>
-                </motion.div>
+                <BillRow 
+                  key={bill.id} 
+                  bill={bill} 
+                  index={i} 
+                  locale={locale} 
+                  payingBillId={payingBillId} 
+                  markPaidMutation={markPaidMutation} 
+                  t={t} 
+                />
               ))}
             </AnimatePresence>
           </div>

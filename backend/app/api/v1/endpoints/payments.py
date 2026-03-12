@@ -25,13 +25,16 @@ from app.models.bill import Bill
 from app.models.payment import Payment
 from app.services.payment_service import PaymentService
 from app.core.context import get_request_id
+from app.core.cache import cache_response
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.get("/last")
+@cache_response(expire=60)
 async def get_last_payment(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:

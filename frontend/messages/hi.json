@@ -257,6 +257,7 @@
     "operationalNode": "एडमिन पोर्टल",
     "dashboardActive": "सिस्टम ऑनलाइन",
     "dashboard": {
+      "operationalNode": "एडमिन पोर्टल",
       "strategicOversight": "रणनीतिक निगरानी",
       "oversightDescription": "एकल इंटरफ़ेस से पूरे डेयरी नेटवर्क के संचालन की निगरानी और प्रबंधन करें।",
       "globalTime": "सिस्टम समय",

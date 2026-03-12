@@ -258,6 +258,7 @@
     "operationalNode": "నిర్వహణ కేంద్రం",
     "dashboardActive": "సిస్టమ్ ఆన్‌లైన్",
     "dashboard": {
+      "operationalNode": "నిర్వహణ కేంద్రం",
       "strategicOversight": "వ్యూహాత్మక పర్యవేక్షణ",
       "oversightDescription": "కార్యకలాపాలను ఒకే చోట నుండి నిర్వహించండి.",
       "globalTime": "సిస్టమ్ సమయం",

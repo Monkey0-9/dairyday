@@ -159,7 +159,7 @@ export default function LandingPage() {
         <section className="relative h-screen flex items-center justify-center overflow-hidden">
           <motion.div style={{ y: backgroundY }} className="absolute inset-0">
             <Image 
-              src="/images/farm_landscape.png" 
+              src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?q=80&w=2074&auto=format&fit=crop" 
               alt="Premium Dairy Farm" 
               fill 
               priority
@@ -184,8 +184,8 @@ export default function LandingPage() {
               <span className="inline-block px-6 py-2 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white text-xs font-bold uppercase tracking-[0.4em] mb-8 shadow-2xl">
                 {tHero('tagline')}
               </span>
-              <h1 className="text-7xl md:text-[10rem] font-heading font-black text-white italic leading-[0.8] mb-12 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                {tHero('title')} <span className="text-gradient">{tHero('titleHighlight')}</span>
+              <h1 className="text-[3.5rem] sm:text-7xl lg:text-[10rem] font-heading font-black text-white italic leading-[0.85] sm:leading-[0.8] mb-12 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                {tHero('title')} <span className="text-gradient block sm:inline">{tHero('titleHighlight')}</span>
               </h1>
               <p className="max-w-2xl mx-auto text-white/80 text-lg md:text-2xl font-medium tracking-wide mb-16 drop-shadow-lg">
                 {tHero('subtitle')}
@@ -225,7 +225,7 @@ export default function LandingPage() {
                 transition={{ duration: 1 }}
                 className="relative aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl group"
               >
-                <Image src="/images/milk_pouring.png" alt="Pure Milk Pouring" fill className="object-cover group-hover:scale-110 transition-transform duration-[3s]" />
+                <Image src="https://images.unsplash.com/photo-1550583724-b2692b85b150?q=80&w=1887&auto=format&fit=crop" alt="Pure Milk Pouring" fill className="object-cover group-hover:scale-110 transition-transform duration-[3s]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <div className="absolute bottom-12 left-12 right-12">
                    <span className="text-amber-400 text-xs font-bold tracking-[0.3em] uppercase mb-4 block">{tFeatures('core')}</span>
@@ -318,7 +318,7 @@ export default function LandingPage() {
 
         {/* Banner Section */}
         <section className="relative h-[60vh] flex items-center overflow-hidden">
-          <Image src="/images/products_showcase.png" alt="Premium Products" fill className="object-cover brightness-[0.7]" />
+          <Image src="https://images.unsplash.com/photo-1628088062854-e910ecfb976d?q=80&w=2070&auto=format&fit=crop" alt="Premium Products" fill className="object-cover brightness-[0.7]" />
           <div className="absolute inset-0 bg-slate-900/40" />
           <div className="container px-6 mx-auto relative z-10 text-center">
             <motion.div

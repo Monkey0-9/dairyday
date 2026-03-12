@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useLocale } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { authApi } from '@/lib/api'
 import { motion } from 'framer-motion'
+import LanguageSwitcher from './language-switcher'
 import { 
   LayoutDashboard, 
   Users, 
@@ -14,8 +15,6 @@ import {
   HelpCircle,
   ClipboardList,
   BarChart3,
-  UserPlus,
-  KeyRound,
   ShieldCheck,
   Milk,
   Zap,
@@ -32,25 +31,29 @@ interface SidebarItem {
 
 // Define the nav items per role
 export const adminSidebarItems: SidebarItem[] = [
-  { icon: LayoutDashboard, label: 'DASHBOARD', href: '/admin/dashboard' },
-  { icon: ClipboardList, label: 'DAILYENTRY', href: '/admin/daily-entry', badge: 'LIVE' },
-  { icon: Users, label: 'CUSTOMERS', href: '/admin/customers' },
-  { icon: BarChart3, label: 'CONSUMPTION', href: '/admin/consumption' },
-  { icon: ShieldCheck, label: 'APPROVALS', href: '/admin/approvals', badge: 'NEW' },
-  { icon: FileText, label: 'BILLS', href: '/admin/bills' },
-  { icon: CreditCard, label: 'PAYMENTS', href: '/admin/payments' },
+  { icon: LayoutDashboard, label: 'dashboard', href: '/admin/dashboard' },
+  { icon: ClipboardList, label: 'dailyEntry', href: '/admin/daily-entry', badge: 'LIVE' },
+  { icon: Users, label: 'customers', href: '/admin/customers' },
+  { icon: BarChart3, label: 'consumption', href: '/admin/consumption' },
+  { icon: ShieldCheck, label: 'approvals', href: '/admin/approvals', badge: 'NEW' },
+  { icon: FileText, label: 'bills', href: '/admin/bills' },
+  { icon: CreditCard, label: 'payments', href: '/admin/payments' },
+  { icon: HelpCircle, label: 'support', href: '/admin/support' },
 ]
 
 export const customerSidebarItems: SidebarItem[] = [
-  { icon: LayoutDashboard, label: 'DASHBOARD', href: '/customer/dashboard' },
-  { icon: BarChart3, label: 'CONSUMPTION', href: '/customer/consumption' },
-  { icon: Milk, label: 'DAILY RECORD', href: '/customer/records' },
-  { icon: CreditCard, label: 'PAYMENT', href: '/customer/payment' },
+  { icon: LayoutDashboard, label: 'overview', href: '/customer/dashboard' },
+  { icon: BarChart3, label: 'calendar', href: '/customer/consumption' },
+  { icon: Milk, label: 'records', href: '/customer/records' },
+  { icon: CreditCard, label: 'pay', href: '/customer/payment' },
+  { icon: HelpCircle, label: 'support', href: '/support' },
 ]
 
 export function Sidebar({ role = 'admin' }: { role?: 'admin' | 'customer' }) {
   const pathname = usePathname() || ""
   const locale = useLocale()
+  const tAdmin = useTranslations('Admin.nav')
+  const tCustomer = useTranslations('Nav')
   const items = role === 'admin' ? adminSidebarItems : customerSidebarItems
 
   const handleLogout = async () => {
@@ -113,7 +116,9 @@ export function Sidebar({ role = 'admin' }: { role?: 'admin' | 'customer' }) {
                 )}>
                   <div className="flex items-center gap-3">
                     <Icon className={cn("w-4 h-4", isActive && "text-primary")} />
-                    <span className="text-[11px] font-bold tracking-wider">{item.label}</span>
+                    <span className="text-[11px] font-bold tracking-wider uppercase">
+                      {role === 'admin' ? tAdmin(item.label) : tCustomer(item.label)}
+                    </span>
                   </div>
                   {item.badge && (
                     <span className={cn(
@@ -136,19 +141,23 @@ export function Sidebar({ role = 'admin' }: { role?: 'admin' | 'customer' }) {
 
       {/* Footer Profile Section */}
       <div className="p-4 mt-auto">
-        <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center gap-3 mb-2">
+        <div className="mb-4">
+          <LanguageSwitcher />
+        </div>
+        
+        <Link href={role === 'admin' ? '/admin/profile' : '/customer/profile'} className="p-3 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center gap-3 mb-2 hover:bg-white/[0.05] transition-colors group">
           <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
-            <Fingerprint className="w-4 h-4 text-white/40" />
+            <Fingerprint className="w-4 h-4 text-white/40 group-hover:text-primary transition-colors" />
           </div>
           <div>
-            <div className="text-[11px] font-bold tracking-wider text-white">
+            <div className="text-[11px] font-bold tracking-wider text-white group-hover:text-primary transition-colors">
               {role === 'admin' ? 'ROOT_ADMIN' : 'PREMIUM_USER'}
             </div>
             <div className="text-[9px] font-mono tracking-widest text-[#6366f1] h-[12px] flex items-center">
               LIVE_SYNC <div className="w-1.5 h-1.5 rounded-full bg-[#6366f1] ml-2 animate-pulse" />
             </div>
           </div>
-        </div>
+        </Link>
         
         <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-3 text-white/40 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl transition-colors group">
           <Zap className="w-4 h-4 group-hover:text-rose-400" />

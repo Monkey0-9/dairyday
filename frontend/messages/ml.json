@@ -257,6 +257,7 @@
     "operationalNode": "അഡ്മിൻ പോർട്ടൽ",
     "dashboardActive": "സിസ്റ്റം ഓൺലൈൻ",
     "dashboard": {
+      "operationalNode": "അഡ്മിൻ പോർട്ടൽ",
       "strategicOversight": "തന്ത്രപരമായ മേൽനോട്ടം",
       "oversightDescription": "ഡയറി നെറ്റ്‌വർക്ക് പ്രവർത്തനങ്ങൾ ഒരൊറ്റ സ്ഥലത്തുനിന്ന് നിരീക്ഷിക്കുകയും നിയന്ത്രിക്കുകയും ചെയ്യുക.",
       "globalTime": "സിസ്റ്റം സമയം",

@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { 
   Home, 
@@ -11,7 +12,6 @@ import {
   ClipboardList,
   Users,
   Receipt,
-  BarChart3,
   Milk
 } from 'lucide-react'
 
@@ -36,22 +36,24 @@ export const customerNavItems: NavItem[] = [
   { icon: Calendar, label: 'Calendar', href: '/customer/calendar' },
   { icon: Milk, label: 'Records', href: '/customer/records' },
   { icon: Receipt, label: 'Payment', href: '/customer/payment' },
-  { icon: Settings, label: 'Settings', href: '/customer/settings' },
+  { icon: Settings, label: 'Settings', href: '/customer/profile' },
 ]
 
 // Admin navigation
 export const adminNavItems: NavItem[] = [
-  { icon: Home, label: 'Dashboard', href: '/admin/dashboard' },
-  { icon: ClipboardList, label: 'Entry', href: '/admin/daily-entry' },
-  { icon: Users, label: 'Customers', href: '/admin/customers' },
-  { icon: Receipt, label: 'Bills', href: '/admin/bills' },
-  { icon: BarChart3, label: 'Analytics', href: '/admin/consumption' },
+  { icon: Home, label: 'dashboard', href: '/admin/dashboard' },
+  { icon: ClipboardList, label: 'dailyEntry', href: '/admin/daily-entry' },
+  { icon: Users, label: 'customers', href: '/admin/customers' },
+  { icon: Receipt, label: 'bills', href: '/admin/bills' },
+  { icon: Settings, label: 'support', href: '/admin/support' }, // Using support to match web nav
 ]
 
 export function BottomNav({ items }: BottomNavProps) {
   const pathname = usePathname()
+  const tAdmin = useTranslations('Admin.nav')
+  const tCustomer = useTranslations('Nav')
   const activeIndex = items.findIndex(item => 
-    pathname.startsWith(item.href)
+    pathname.includes(item.href)
   )
 
   return (
@@ -120,9 +122,9 @@ export function BottomNav({ items }: BottomNavProps) {
                   opacity: isActive ? 1 : 0.7,
                   color: isActive ? '#6366f1' : 'rgba(255,255,255,0.4)',
                 }}
-                className="text-[10px] font-medium mt-1"
+                className="text-[10px] font-medium mt-1 uppercase"
               >
-                {item.label}
+                {pathname.includes('/admin') ? tAdmin(item.label) : (item.label.toLowerCase() === 'home' || item.label.toLowerCase() === 'settings') ? item.label : tCustomer(item.label.toLowerCase())}
               </motion.span>
             </Link>
           )

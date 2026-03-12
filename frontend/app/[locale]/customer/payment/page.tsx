@@ -71,7 +71,7 @@ export default function PaymentPage() {
     finally { setSubmittingId(null) }
   }
 
-  const adminUpi = "dairydays@upi"
+  const adminUpi = "9980592787@ybl"
 
   return (
     <div className="space-y-6 pb-20">
